@@ -1,0 +1,68 @@
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+*.swp
+*~
+
+# Env / secrets
+.env
+.env.local
+*.pem
+*.key
+
+# Java / Maven
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+*.war
+hs_err_pid*
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.pt
+*.pth
+*.onnx
+*.joblib
+*.pkl
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+*.log
+npm-debug.log*
+
+# Datasets (large; keep README/.gitkeep only)
+datasets/cedar/**
+!datasets/cedar/README.md
+!datasets/cedar/.gitkeep
+datasets/paysim/**
+!datasets/paysim/README.md
+!datasets/paysim/.gitkeep
+datasets/synthetic/**/*.*
+!datasets/synthetic/**/README.md
+!datasets/synthetic/**/.gitkeep
+
+# Docker / volumes
+pgdata/
+uploads/
+tmp/
+
+# Coverage / reports
+coverage/
+htmlcov/
+*.lcov
+test-results/

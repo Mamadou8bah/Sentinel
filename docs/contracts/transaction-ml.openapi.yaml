@@ -1,0 +1,52 @@
+# Transaction anomaly scoring — OpenAPI stub
+openapi: 3.0.3
+info:
+  title: Sentinel Transaction ML Service
+  version: 0.0.0-scaffold
+paths:
+  /health:
+    get:
+      summary: Liveness
+      responses:
+        "200":
+          description: OK
+  /ml/transaction-score:
+    post:
+      summary: Rule flags + Isolation Forest anomaly scores
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [transactions]
+              properties:
+                transactions:
+                  type: array
+                  items:
+                    type: object
+                    required: [amount, timestamp, location]
+                    properties:
+                      transactionId: { type: string }
+                      amount: { type: number }
+                      timestamp: { type: string, format: date-time }
+                      location: { type: string }
+      responses:
+        "200":
+          description: Per-transaction scores
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scores:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        transactionId: { type: string }
+                        anomalyScore: { type: number }
+                        flagged: { type: boolean }
+                        ruleFlags:
+                          type: array
+                          items: { type: string }

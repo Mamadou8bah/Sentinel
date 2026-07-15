@@ -1,0 +1,68 @@
+# CV / KYC verify — OpenAPI stub (implement in FastAPI later)
+openapi: 3.0.3
+info:
+  title: Sentinel CV/ML Service
+  version: 0.0.0-scaffold
+paths:
+  /health:
+    get:
+      summary: Liveness
+      responses:
+        "200":
+          description: OK
+  /cv/kyc-verify:
+    post:
+      summary: OCR + face match + liveness + ID tampering
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [idImage, selfieImage]
+              properties:
+                idImage: { type: string, format: byte }
+                selfieImage: { type: string, format: byte }
+      responses:
+        "200":
+          description: Verification scores
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KycVerifyResponse"
+  /cv/document-verify:
+    post:
+      summary: OCR + signature match + tampering for cheque/invoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [documentImage, referenceSignature, docType]
+              properties:
+                documentImage: { type: string, format: byte }
+                referenceSignature: { type: string, format: byte }
+                docType: { type: string, enum: [CHEQUE, INVOICE] }
+      responses:
+        "200":
+          description: Document fraud scores
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentVerifyResponse"
+components:
+  schemas:
+    KycVerifyResponse:
+      type: object
+      properties:
+        extractedFields: { type: object, additionalProperties: true }
+        faceMatchScore: { type: number, minimum: 0, maximum: 1 }
+        livenessScore: { type: number, minimum: 0, maximum: 1 }
+        tamperingScore: { type: number, minimum: 0, maximum: 1 }
+    DocumentVerifyResponse:
+      type: object
+      properties:
+        extractedFields: { type: object, additionalProperties: true }
+        signatureMatchScore: { type: number, minimum: 0, maximum: 1 }
+        tamperingScore: { type: number, minimum: 0, maximum: 1 }

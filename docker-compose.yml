@@ -1,0 +1,64 @@
+# Sentinel local stack — scaffold only (services not implementable until code is written)
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sentinel-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sentinel}
+      POSTGRES_USER: ${POSTGRES_USER:-sentinel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sentinel_change_me}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sentinel} -d ${POSTGRES_DB:-sentinel}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Optional async transport (enable when RabbitMQ path is implemented)
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: sentinel-rabbitmq
+    profiles: ["async"]
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Placeholders — uncomment Dockerfiles when services are implemented
+  # backend:
+  #   build: ./backend
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   env_file: .env
+  #   ports:
+  #     - "8080:8080"
+
+  # cv-ml:
+  #   build: ./services/cv-ml
+  #   env_file: .env
+  #   ports:
+  #     - "8001:8001"
+
+  # transaction-ml:
+  #   build: ./services/transaction-ml
+  #   env_file: .env
+  #   ports:
+  #     - "8002:8002"
+
+  # frontend:
+  #   build: ./frontend
+  #   ports:
+  #     - "5173:80"
+  #   depends_on:
+  #     - backend
+
+volumes:
+  pgdata:
