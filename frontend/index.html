@@ -2,10 +2,78 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!-- Primary SEO -->
+    <title>Sentinel — AI-Powered KYC & Fraud Prevention</title>
+    <meta
+      name="description"
+      content="Sentinel helps banks and compliance teams in The Gambia verify identity, detect document fraud, and monitor transactions — with one explainable risk score and a real-time case dashboard."
+    />
+    <meta
+      name="keywords"
+      content="Sentinel, KYC, fraud prevention, document fraud, cheque verification, transaction monitoring, compliance, The Gambia, banking AI"
+    />
+    <meta name="author" content="Sentinel" />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#070A00" />
+    <link rel="canonical" href="__SITE_URL__/" />
+
+    <!-- Icons -->
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/senitel_logo.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Sentinel — AI-Powered KYC & Fraud Prevention</title>
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Open Graph — WhatsApp, Facebook, LinkedIn, iMessage -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Sentinel" />
+    <meta property="og:locale" content="en_GM" />
+    <meta property="og:url" content="__SITE_URL__/" />
+    <meta property="og:title" content="Sentinel — AI-Powered KYC & Fraud Prevention" />
+    <meta
+      property="og:description"
+      content="Verify identity, catch document fraud, and monitor transactions with one explainable customer risk score — built for compliance teams."
+    />
+    <meta property="og:image" content="__SITE_URL__/og-image.png" />
+    <meta property="og:image:secure_url" content="__SITE_URL__/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Sentinel — AI-Powered KYC & Fraud Prevention" />
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Sentinel — AI-Powered KYC & Fraud Prevention" />
+    <meta
+      name="twitter:description"
+      content="Verify identity, catch document fraud, and monitor transactions with one explainable customer risk score."
+    />
+    <meta name="twitter:image" content="__SITE_URL__/og-image.png" />
+    <meta name="twitter:image:alt" content="Sentinel — AI-Powered KYC & Fraud Prevention" />
+
+    <!-- JSON-LD for Google search -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Sentinel",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "description": "AI-powered KYC and fraud prevention platform for banks and compliance teams in The Gambia.",
+        "url": "__SITE_URL__/",
+        "image": "__SITE_URL__/og-image.png",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "GMD"
+        }
+      }
+    </script>
+
+    <!-- Google Search Console verification (optional) -->
+    <!-- Set VITE_GOOGLE_SITE_VERIFICATION in .env — injected below when present -->
+
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -14,6 +82,7 @@
     />
   </head>
   <body>
+    <noscript id="gtm-noscript"></noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
