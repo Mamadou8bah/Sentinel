@@ -3,18 +3,18 @@ import { FormEvent, useState } from 'react'
 const steps = [
   {
     label: 'Step 01',
-    titleParts: ['Upload', ' document & selfie'],
-    body: 'Applicants submit an ID image and live selfie. Sentinel validates file type and size before any model call.',
+    titleParts: ['Bank', ' starts verification'],
+    body: 'Your app or branch collects the customer. Your systems ask Sentinel to verify them. The person never creates a Sentinel account.',
   },
   {
     label: 'Step 02',
-    titleParts: ['Run', ' CV & ML inference'],
-    body: 'OCR, signature verification, tampering checks, face match, and transaction anomaly scoring run asynchronously.',
+    titleParts: ['Capture', ' ID, documents, payments'],
+    body: 'Identity and liveness stay in your experience. Cheques need a signature on file before we match them. Each payment can be scored as it happens.',
   },
   {
     label: 'Step 03',
-    titleParts: ['Review', ' explainable risk'],
-    body: 'A weighted customer risk score lands in the case queue with a clear explanation — approve, reject, or escalate with an immutable audit log.',
+    titleParts: ['Review', ' cases with clear reasons'],
+    body: 'When risk is high, work lands in a case queue. Officers see why it was flagged, decide with a required note, and leave a lasting record.',
   },
 ]
 
@@ -30,11 +30,11 @@ export default function HowItWorks() {
     <section id="how" className="scroll-mt-28 bg-ink px-4 py-14 sm:px-5 md:px-8 md:py-24">
       <div className="mx-auto max-w-3xl text-center">
         <h2 className="font-display text-[1.75rem] font-black sm:text-3xl md:text-5xl">
-          How Sentinel detects fraud
+          How banks use Sentinel
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-sm text-mute md:text-base">
-          A deliberate async pipeline: Spring Boot owns workflow and audit; Python owns inference —
-          results arrive on the dashboard in real time.
+          Verify once at onboarding, check documents as they arrive, score payments in the moment,
+          and escalate only what needs a human.
         </p>
       </div>
 
@@ -69,6 +69,9 @@ export default function HowItWorks() {
         <article className="relative overflow-hidden rounded-[22px] bg-ember-grad p-3 sm:rounded-[28px] sm:p-4 md:p-5">
           <div className="mb-3 flex items-center justify-between px-2 sm:mb-4">
             <img src="/senitel_logo.png" alt="" className="h-9 w-9 object-contain" />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/80">
+              Demo request
+            </span>
           </div>
           <form
             onSubmit={onSubmit}
@@ -78,19 +81,23 @@ export default function HowItWorks() {
               className="pointer-events-none absolute -left-16 top-1/2 h-40 w-40 -translate-y-1/2 rounded-full border border-dashed border-white/20"
               aria-hidden
             />
+            <p className="mb-5 text-sm text-white/70">
+              Want a walkthrough of onboarding, document checks, and payment risk review? Leave a
+              note and we will follow up.
+            </p>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="First Name" name="firstName" />
-              <Field label="Last Name" name="lastName" />
+              <Field label="First name" name="firstName" />
+              <Field label="Last name" name="lastName" />
             </div>
             <div className="mt-4">
-              <Field label="Work Email" name="email" type="email" />
+              <Field label="Email" name="email" type="email" />
             </div>
             <div className="mt-4">
-              <label className="mb-2 block text-sm text-white/70">Message</label>
+              <label className="mb-2 block text-sm text-white/70">What do you want to see?</label>
               <textarea
                 name="message"
                 rows={4}
-                placeholder="Tell us about your compliance workflow…"
+                placeholder="e.g. account opening checks, cheque review, payment risk alerts…"
                 className="w-full resize-none rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-ember/60"
               />
             </div>
@@ -99,7 +106,7 @@ export default function HowItWorks() {
                 type="submit"
                 className="inline-flex w-full items-center justify-center gap-3 rounded-full bg-ember-grad px-6 py-3.5 text-sm font-semibold transition hover:scale-[1.01] sm:w-auto"
               >
-                Request Demo
+                Request walkthrough
                 <span className="grid h-8 w-8 place-items-center rounded-full bg-white">
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                     <path
@@ -115,8 +122,7 @@ export default function HowItWorks() {
           </form>
         </article>
       </div>
-
-      </section>
+    </section>
   )
 }
 

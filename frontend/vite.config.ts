@@ -5,6 +5,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const siteUrl = (env.VITE_SITE_URL || 'https://sentinel.app').replace(/\/$/, '')
   const gsc = env.VITE_GOOGLE_SITE_VERIFICATION || ''
+  const ogVersion = env.VITE_OG_VERSION || String(Date.now())
 
   return {
     plugins: [
@@ -12,7 +13,9 @@ export default defineConfig(({ mode }) => {
       {
         name: 'sentinel-html-env',
         transformIndexHtml(html) {
-          let next = html.replaceAll('__SITE_URL__', siteUrl)
+          let next = html
+            .replaceAll('__SITE_URL__', siteUrl)
+            .replaceAll('__OG_VERSION__', ogVersion)
           if (gsc) {
             next = next.replace(
               '<!-- Google Search Console verification (optional) -->\n    <!-- Set VITE_GOOGLE_SITE_VERIFICATION in .env — injected below when present -->',

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 200" role="img" aria-labelledby="title">
+  <title id="title">Multi-tenant isolation</title>
+  <defs>
+    <linearGradient id="bg3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0B0F0A"/>
+      <stop offset="100%" stop-color="#141A12"/>
+    </linearGradient>
+  </defs>
+  <rect width="720" height="200" rx="14" fill="url(#bg3)"/>
+  <text x="24" y="32" fill="#F4F7F2" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="700">Multi-tenant isolation</text>
+  <text x="24" y="52" fill="#8A9480" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11">One platform · separate data planes per bank</text>
+
+  <rect x="24" y="78" width="200" height="90" rx="10" fill="#1A2218" stroke="#FF4515"/>
+  <text x="44" y="108" fill="#FF6A33" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" font-weight="700">TENANT A</text>
+  <text x="44" y="128" fill="#F4F7F2" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">Customers · docs · TX</text>
+  <text x="44" y="148" fill="#8A9480" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11">Own API key · risk weights</text>
+
+  <rect x="260" y="78" width="200" height="90" rx="10" fill="#1A2218" stroke="#2E3A2A"/>
+  <text x="280" y="108" fill="#FF6A33" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" font-weight="700">TENANT B</text>
+  <text x="280" y="128" fill="#F4F7F2" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">Customers · docs · TX</text>
+  <text x="280" y="148" fill="#8A9480" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11">Isolated cases · audit</text>
+
+  <rect x="496" y="78" width="200" height="90" rx="10" fill="#1A2218" stroke="#2E3A2A"/>
+  <text x="516" y="108" fill="#FF6A33" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" font-weight="700">TENANT C</text>
+  <text x="516" y="128" fill="#F4F7F2" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">Customers · docs · TX</text>
+  <text x="516" y="148" fill="#8A9480" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11">No cross-tenant reads</text>
+
+  <rect x="24" y="78" width="200" height="90" rx="10" fill="none" stroke="#FF4515" opacity="0.35">
+    <animate attributeName="opacity" values="0.2;0.7;0.2" dur="2.5s" repeatCount="indefinite"/>
+  </rect>
+</svg>

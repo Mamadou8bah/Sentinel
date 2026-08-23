@@ -1,6 +1,6 @@
 # Data model (core entities)
 
-Spring Data JPA entities — implement later. This doc is the scaffold contract.
+Authoritative Postgres model for the bank compliance platform. Glossary: [product-vision.md](product-vision.md) — `User` = staff; `Customer` = bank’s client.
 
 ## Entity relationship (conceptual)
 
@@ -25,8 +25,10 @@ User ─────── AuditLog
 | idNumber | String | **encrypted at rest** |
 | kycStatus | Enum | PENDING / VERIFIED / FLAGGED / REJECTED |
 | faceMatchScore | Double | 0–1 |
-| livenessScore | Double | 0–1 |
+| livenessScore | Double | 0–1 from anti-spoof challenge/video |
 | riskScore | Integer | 0–100 overall |
+| externalCustomerId | String | optional bank-core reference (P1) |
+| referenceSignatureUrl | String | enrolled specimen object key (required for signature *match*) |
 | createdAt | Instant | |
 
 ## Document
@@ -37,8 +39,10 @@ User ─────── AuditLog
 | customerId | FK | |
 | type | Enum | CHEQUE / INVOICE / ID |
 | ocrExtractedData | JSON | amount, date, payee, etc. |
-| signatureMatchScore | Double | 0–1 |
-| tamperingScore | Double | 0–1 |
+| signatureMatchStatus | Enum | SCORED / SKIPPED_NO_REFERENCE |
+| signatureMatchScore | Double | 0–1; null if skipped |
+| tamperingScore | Double | 0–1; image-level, no prior specimen needed |
+| fieldConsistencyFlags | JSON | e.g. payee vs customer name |
 | fraudRiskScore | Double | sub-score |
 | imageUrl | String | stored path / object key |
 | status | Enum | PENDING / COMPLETE / FAILED |
@@ -50,11 +54,14 @@ User ─────── AuditLog
 |-------|------|--------|
 | id | UUID/Long | PK |
 | customerId | FK | |
+| externalTransactionId | String | bank’s TX id (idempotency) |
 | amount | BigDecimal | |
 | timestamp | Instant | |
+| channel | String | MOBILE / BRANCH / ATM / … |
 | location | String | |
-| anomalyScore | Double | |
+| anomalyScore | Double | from real-time score API |
 | flagged | boolean | |
+| recommendation | Enum | ALLOW / REVIEW / BLOCK |
 
 ## Case
 
@@ -103,10 +110,8 @@ User ─────── AuditLog
 | RiskSettings | Weightings + thresholds (Admin configurable) |
 | RefreshToken | Refresh token persistence (FR-4) |
 
-## Schema migrations
+## Schema
 
-Place Flyway (or Liquibase) scripts under:
-
-`backend/src/main/resources/db/migration/`
-
-Naming convention: `V1__init.sql`, `V2__...` — write when implementing entities.
+JPA entities drive the schema via Hibernate `ddl-auto: update` (Flyway disabled for now).  
+Optional SQL sketch (not applied): `backend/src/main/resources/db/migration/V1__init.sql`.  
+Demo rows: `DataSeeder` (`demo-bank`, staff users, risk settings).

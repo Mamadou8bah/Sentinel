@@ -1,18 +1,48 @@
-# CV / KYC verify — OpenAPI stub (implement in FastAPI later)
+# CV / KYC — OpenAPI stub (implement in FastAPI)
 openapi: 3.0.3
 info:
   title: Sentinel CV/ML Service
-  version: 0.0.0-scaffold
+  version: 0.1.0-pilot
 paths:
   /health:
     get:
-      summary: Liveness
+      summary: Service health
       responses:
         "200":
           description: OK
+  /cv/liveness/challenge:
+    post:
+      summary: Issue anti-spoof liveness challenge
+      responses:
+        "200":
+          description: Challenge instructions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LivenessChallenge"
+  /cv/liveness/verify:
+    post:
+      summary: Verify challenge response (video or frames)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challengeId, videoOrFrames]
+              properties:
+                challengeId: { type: string }
+                videoOrFrames: { type: string, format: byte }
+      responses:
+        "200":
+          description: Liveness / spoof result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LivenessVerifyResponse"
   /cv/kyc-verify:
     post:
-      summary: OCR + face match + liveness + ID tampering
+      summary: OCR + face match + liveness context + ID tampering
       requestBody:
         required: true
         content:
@@ -23,6 +53,7 @@ paths:
               properties:
                 idImage: { type: string, format: byte }
                 selfieImage: { type: string, format: byte }
+                challengeId: { type: string }
       responses:
         "200":
           description: Verification scores
@@ -53,6 +84,23 @@ paths:
                 $ref: "#/components/schemas/DocumentVerifyResponse"
 components:
   schemas:
+    LivenessChallenge:
+      type: object
+      properties:
+        challengeId: { type: string }
+        instructions:
+          type: array
+          items: { type: string }
+        expiresAt: { type: string, format: date-time }
+    LivenessVerifyResponse:
+      type: object
+      properties:
+        livenessScore: { type: number, minimum: 0, maximum: 1 }
+        spoofLikely: { type: boolean }
+        qualityOk: { type: boolean }
+        signals:
+          type: array
+          items: { type: string }
     KycVerifyResponse:
       type: object
       properties:
@@ -60,6 +108,8 @@ components:
         faceMatchScore: { type: number, minimum: 0, maximum: 1 }
         livenessScore: { type: number, minimum: 0, maximum: 1 }
         tamperingScore: { type: number, minimum: 0, maximum: 1 }
+        spoofLikely: { type: boolean }
+        qualityOk: { type: boolean }
     DocumentVerifyResponse:
       type: object
       properties:

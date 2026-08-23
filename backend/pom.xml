@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Scaffold POM — dependencies declared; no application code yet -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -16,10 +15,10 @@
   <artifactId>sentinel-backend</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <name>sentinel-backend</name>
-  <description>Sentinel Spring Boot core — scaffold</description>
+  <description>Sentinel Spring Boot core — Day 2 data foundation + auth</description>
 
   <properties>
-    <java.version>21</java.version>
+    <java.version>17</java.version>
     <jjwt.version>0.12.6</jjwt.version>
     <springdoc.version>2.6.0</springdoc.version>
   </properties>
@@ -56,14 +55,10 @@
       <scope>runtime</scope>
     </dependency>
     <dependency>
-      <groupId>org.flywaydb</groupId>
-      <artifactId>flyway-core</artifactId>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <scope>runtime</scope>
     </dependency>
-    <dependency>
-      <groupId>org.flywaydb</groupId>
-      <artifactId>flyway-database-postgresql</artifactId>
-    </dependency>
-
     <dependency>
       <groupId>io.jsonwebtoken</groupId>
       <artifactId>jjwt-api</artifactId>

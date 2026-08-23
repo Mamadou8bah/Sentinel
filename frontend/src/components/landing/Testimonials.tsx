@@ -1,51 +1,39 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 
-const testimonials = [
+const stories = [
   {
     quote:
-      'Document fraud flags and explainable risk scores cut our cheque review cycle from days to minutes.',
-    name: 'Amara Okonkwo',
-    role: 'Head of Compliance',
-    rating: '4.9',
-    image: '/images/scan-face.png',
+      'Banks need a score and a clear reason on each payment — not a mystery overnight report.',
+    name: 'Live payment checks',
+    role: 'Allow · review · block',
+    image: '/images/dashboard.png',
   },
   {
     quote:
-      'The live case queue means analysts see forged invoices the moment models finish — that loop is what we needed.',
-    name: 'Jonas Meier',
-    role: 'Fraud Analyst',
-    rating: '4.8',
+      'Signature matching only works after a specimen is on file. Without one, we skip the match instead of inventing a score.',
+    name: 'Honest document checks',
+    role: 'Enroll · then verify',
+    image: '/images/cheque.png',
+  },
+  {
+    quote:
+      'Customers register with the bank. Staff use Sentinel. That split keeps responsibilities clear.',
+    name: 'Two channels',
+    role: 'Bank products · staff desk',
     image: '/images/guardian.png',
   },
   {
     quote:
-      'KYC, document verification, and anomaly scoring now feed one customer risk view. Audit-ready from day one.',
-    name: 'Sofia Alvarez',
-    role: 'Risk Manager',
-    rating: '5.0',
-    image: '/images/cheque.png',
-  },
-  {
-    quote:
-      'Great experience! The design was clean and onboarding was simpler than any prior KYC tool we evaluated.',
-    name: 'David Chen',
-    role: 'Product Lead',
-    rating: '4.8',
+      'Every serious decision should leave who, what, and when — a record that cannot be quietly rewritten.',
+    name: 'Audit trail',
+    role: 'Cases + lasting log',
     image: '/images/scan-face.png',
-  },
-  {
-    quote:
-      'Sentinel collapsed three vendor workflows into one desk. Our false-positive rate dropped almost overnight.',
-    name: 'Priya Nair',
-    role: 'Ops Director',
-    rating: '4.9',
-    image: '/images/cheque.png',
   },
 ]
 
 export default function Testimonials() {
   const [active, setActive] = useState(0)
-  const lastIndex = testimonials.length - 1
+  const lastIndex = stories.length - 1
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -63,23 +51,14 @@ export default function Testimonials() {
     <section className="overflow-hidden bg-ink px-4 py-14 sm:px-5 md:px-8 md:py-24">
       <div className="mx-auto flex max-w-6xl flex-col gap-8 md:flex-row md:items-end md:justify-between">
         <h2 className="font-display text-[2rem] font-black leading-[1.05] sm:text-4xl md:text-5xl">
-          What Our
+          Design
           <br />
-          Clients Say
+          principles
         </h2>
-        <div className="max-w-xs">
-          <div className="mb-3 flex -space-x-3">
-            {testimonials.slice(0, 3).map((t) => (
-              <img
-                key={t.name}
-                src={t.image}
-                alt=""
-                className="h-10 w-10 rounded-full border-2 border-ink object-cover"
-              />
-            ))}
-          </div>
+        <div className="max-w-sm">
           <p className="text-sm text-white/75">
-            We create digital experiences that solve real banking compliance problems.
+            Product rules we build around — not customer reviews. Clear ownership, honest scores,
+            and reviewable decisions.
           </p>
         </div>
       </div>
@@ -90,7 +69,7 @@ export default function Testimonials() {
             className="flex gap-5 transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] max-md:[transform:translateX(calc(var(--i)*-19.5rem))] md:[transform:translateX(calc(var(--i)*-24.25rem))]"
             style={trackStyle}
           >
-            {testimonials.map((t, index) => (
+            {stories.map((t, index) => (
               <article
                 key={`${t.name}-${index}`}
                 className="relative w-[18.25rem] shrink-0 overflow-hidden rounded-[28px] md:w-[23rem]"
@@ -106,7 +85,7 @@ export default function Testimonials() {
                     className="h-[7.5rem] w-[6.25rem] shrink-0 rounded-2xl object-cover [mask-image:linear-gradient(90deg,#000_48%,transparent_100%)] md:h-36 md:w-[7.5rem]"
                   />
                   <p className="pt-1 text-[15px] font-medium leading-snug text-white/95 md:text-base">
-                    &ldquo;{t.quote}&rdquo;
+                    {t.quote}
                   </p>
                 </div>
 
@@ -117,9 +96,6 @@ export default function Testimonials() {
                       {t.role}
                     </p>
                   </div>
-                  <span className="inline-flex shrink-0 items-center rounded-full bg-ember-glow/95 px-3 py-1.5 text-sm font-semibold text-white">
-                    {t.rating}★
-                  </span>
                 </div>
               </article>
             ))}
@@ -132,11 +108,11 @@ export default function Testimonials() {
             <NavBtn label="Next" onClick={next} />
           </div>
           <div className="flex items-center gap-2">
-            {testimonials.map((_, i) => (
+            {stories.map((_, i) => (
               <button
                 key={i}
                 type="button"
-                aria-label={`Go to review ${i + 1}`}
+                aria-label={`Go to card ${i + 1}`}
                 onClick={() => setActive(i)}
                 className={`h-2.5 rounded-full transition-all duration-300 ${
                   i === active ? 'w-9 bg-ember' : 'w-2.5 bg-white/20 hover:bg-white/35'

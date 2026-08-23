@@ -86,10 +86,10 @@ export default function Navbar() {
               </svg>
             </a>
             <a
-              href="#platform"
+              href="#contact"
               className="liquid-glass hidden h-11 items-center rounded-full px-5 text-sm font-medium text-white md:inline-flex"
             >
-              Login
+              Walkthrough
             </a>
 
             <button
@@ -142,11 +142,11 @@ export default function Navbar() {
             })}
           </nav>
           <a
-            href="#platform"
+            href="#contact"
             onClick={() => setMenuOpen(false)}
             className="mt-8 inline-flex rounded-full border border-white/20 px-6 py-3 text-sm font-medium"
           >
-            Login
+            Walkthrough
           </a>
         </div>
       )}

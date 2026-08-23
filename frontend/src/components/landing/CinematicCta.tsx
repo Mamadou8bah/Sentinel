@@ -52,15 +52,15 @@ export default function CinematicCta() {
 
         <div className="relative z-10 mx-auto max-w-3xl px-2 py-4 text-center sm:py-6 md:py-8">
           <h2 className="font-display text-[2rem] font-black leading-tight sm:text-4xl md:text-6xl">
-            From identity to integrity
+            Plug in. Score. Review.
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-sm text-white/75 sm:mt-5 md:text-base">
-            &ldquo;Securing banking workflows through real-time document verification, anomaly
-            detection, and auditable decisions.&rdquo;
+            Your bank systems connect once. Your compliance team works from one desk. One risk
+            picture across KYC, documents, and payments.
           </p>
           <div className="mt-7 flex justify-center sm:mt-8">
             <ArrowCta href="#contact" className="w-full max-w-xs justify-center sm:w-auto">
-              Get Started
+              Request walkthrough
             </ArrowCta>
           </div>
         </div>

@@ -1,0 +1,53 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: sentinel-backend
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:sentinel}
+    username: ${POSTGRES_USER:sentinel}
+    password: ${POSTGRES_PASSWORD:sentinel_change_me}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: false
+
+sentinel:
+  jwt:
+    secret: ${JWT_SECRET:change_me_to_a_long_random_string_at_least_32_chars}
+    access-token-expiry-minutes: ${JWT_ACCESS_TOKEN_EXPIRY_MINUTES:15}
+    refresh-token-expiry-days: ${JWT_REFRESH_TOKEN_EXPIRY_DAYS:7}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized
+  health:
+    rabbit:
+      enabled: false
+
+logging:
+  level:
+    org.springframework.security: INFO
+    com.sentinel: INFO

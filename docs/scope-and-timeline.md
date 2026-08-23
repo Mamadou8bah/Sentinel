@@ -1,54 +1,77 @@
-# Scope & 12-week timeline
+# Scope & roadmap — bank-ready product
 
-## Must build (core, fully functional)
+North star: a **complete compliance product banks can pilot**, not a simplified demo. See [product-vision.md](product-vision.md).
 
-- Auth + role-based access (Admin / Compliance / Analyst)
-- Document Fraud module (signature verification + OCR + tampering) — primary CV showcase
-- Risk Scoring Engine (weighted + explainable string)
-- Case Management Dashboard with real-time WebSocket updates
-- Immutable Audit Log
+## Must ship for bank pilot (P0–P1)
 
-## Build simplified
+- Auth + RBAC (Admin / Compliance / Analyst) + refresh tokens
+- Encryption at rest for sensitive identity fields; secrets from env; no secrets in logs
+- Upload validation (type/size) before any ML call
+- KYC with OCR, face match, and **anti-spoof liveness** (challenge / short video — not a single-frame heuristic)
+- Document fraud (OCR + signature verification + tampering)
+- Transaction monitoring: **real-time per-TX score API** on the bank payment path (bulk import only for backfill)
+- Document fraud with **signature specimen enrollment**; tampering/OCR without pretending match when no reference exists
+- Explainable weighted risk score (0–100) + auto case creation
+- Case queue, decisions with mandatory notes, immutable audit
+- Staff compliance dashboard + live WebSocket case updates
+- Bank integration surface: service credentials, status APIs, webhooks (P1)
+- Object storage for images; OpenAPI for every product endpoint; health/ops basics
 
-| Area | Approach |
-|------|----------|
-| KYC | OCR + basic face match; liveness as simplified single-frame heuristic |
-| Transaction monitoring | Rule-based flags + one Isolation Forest on PaySim — not deep learning |
+## Phase roadmap
 
-## Explicitly out of scope (state in report)
+### P0 — Pilot core
 
-- Real regulatory certification / production PII handling
-- Multi-bank / multi-tenant support
-- Real payment processing integration
+Auth, schema, KYC + liveness challenge, documents, risk engine, cases, audit, staff UI, Spring ↔ Python integration, async jobs, fail-closed KYC.
 
-## Success criteria (FYP)
+### P1 — Bank integration
 
-1. End-to-end demo: upload → analysis → risk score → dashboard decision (real time)
-2. Measurable model metrics (signature P/R, OCR accuracy, TX false positive rate)
-3. Clean architecture + audit trail — production-grade thinking, not a notebook alone
+Service accounts / API keys for bank backends, webhooks on KYC/case complete, object storage, retention / subject-erase APIs, external reference IDs for bank core linkage.
 
-## Suggested timeline (12 weeks)
+### P2 — Hardening
 
-| Weeks | Focus |
-|-------|--------|
-| 1–2 | Spring Boot skeleton: auth, entities, DB schema, Swagger |
-| 3–4 | Python CV: OCR + signature model trained on CEDAR |
-| 5 | Integrate Spring ↔ Python (sync call + async wrapper) |
-| 6 | Document Fraud module end-to-end |
-| 7 | KYC module (simplified face + liveness) |
-| 8 | Transaction monitoring (PaySim + Isolation Forest) |
-| 9 | Risk Scoring Engine + case auto-creation |
-| 10 | React: case queue, customer 360°, WebSocket live updates |
-| 11 | Analytics, audit viewer, polish |
-| 12 | Testing, metrics writeup, demo rehearsal, report |
+HA deploy, monitoring/alerting, rate limits, SSO (OIDC) for staff, backup/DR runbooks, hardened secrets management.
 
-## Dataset plan (free)
+### P3 — Scale / multi-bank
+
+Tenancy and per-institution config isolation (multi-bank SaaS).
+
+## Certification
+
+Build an **evidence pack** (metrics, audit samples, threat notes, retention policy) that supports a future regulatory assessment. Do **not** claim “certified KYC” in product copy until an external process completes.
+
+## Academic delivery track (FYP)
+
+Thesis demos map onto **P0–P1** without lowering the product bar:
+
+| Weeks | Focus | Phase |
+|-------|--------|-------|
+| 1–2 | Spring skeleton: auth, entities, schema, Swagger | P0 |
+| 3–4 | CV: OCR + signature (CEDAR) | P0 |
+| 5 | Spring ↔ Python async integration | P0 |
+| 6 | Document fraud end-to-end | P0 |
+| 7 | KYC + liveness challenge/anti-spoof | P0 |
+| 8 | Transaction monitoring (rules + ML) | P0 |
+| 9 | Risk engine + auto cases | P0 |
+| 10 | React: case queue, 360°, WebSocket | P0 |
+| 11 | Analytics, audit viewer, bank API/webhooks | P0–P1 |
+| 12 | Metrics, hardening pass, demo, report | P1 evidence |
+
+## Datasets (development & eval)
 
 | Need | Source |
 |------|--------|
 | Signatures | CEDAR Signature Database |
-| Transactions | PaySim |
-| IDs / cheques | Self-generated synthetic templates (no real PII) |
-| Invoices | SROIE or self-generated mocks |
+| Transactions | PaySim (training/eval); bank-shaped CSV for integration tests |
+| IDs / cheques | Synthetic templates (no real PII in public repos) |
+| Invoices | SROIE or synthetic mocks |
+| Liveness | Controlled spoof/live sets for anti-spoof eval |
 
-Place downloaded files under `datasets/` (gitignored); keep only READMEs committed.
+Place downloads under `datasets/` (gitignored); commit READMEs only.
+
+## Explicitly deferred (not abandoned)
+
+| Item | When |
+|------|------|
+| Multi-tenant SaaS | P3 |
+| Real-time payment authorization in the card/rail path | Outside Sentinel (core banking) |
+| Formal regulatory certificate | External process after evidence pack |

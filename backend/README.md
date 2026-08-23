@@ -1,39 +1,53 @@
-# Backend — Spring Boot core (scaffold)
+# Backend — Sentinel Spring Boot core
 
-**Package root:** `com.sentinel`  
-**Stack:** Java 21, Spring Boot 3.x, Security+JWT, Data JPA, WebSocket STOMP, springdoc-openapi  
-**Status:** Structure + dependency manifest only — no Java sources yet.
+Bank compliance **system of record**: auth, domain entities, risk, cases, audit.  
+Vision: [docs/product-vision.md](../docs/product-vision.md).
 
-## Planned packages
+## Module map
 
-| Package | Responsibility | FR |
-|---------|----------------|-----|
-| `auth` | Login, refresh, RBAC | FR-1–4 |
-| `customer` | KYC onboarding orchestration | FR-5–8 |
-| `document` | Cheque/invoice fraud orchestration | FR-9–12 |
-| `transaction` | CSV import + persistence | FR-13–16 |
-| `risk` | Weighted score + explanation | FR-17–20 |
-| `casemanagement` | Queue, decisions | FR-21–25 |
-| `audit` | Immutable audit trail | FR-24 |
-| `admin` | Analytics + risk weights | FR-19, FR-26 |
-| `websocket` | STOMP case notifications | FR-25 |
-| `integration` | WebClient to Python services | — |
-| `common` | shared DTOs, errors, crypto helpers | — |
+| Package | Responsibility |
+|---------|----------------|
+| [`tenant`](src/main/java/com/sentinel/tenant) | Bank institutions (multi-tenant isolation) |
+| [`auth`](src/main/java/com/sentinel/auth) | Staff login, JWT, roles (bank service creds later) |
+| [`customer`](src/main/java/com/sentinel/customer) | Bank client KYC subject + scores |
+| [`document`](src/main/java/com/sentinel/document) | Cheque/invoice fraud evidence |
+| [`transaction`](src/main/java/com/sentinel/transaction) | TX history + anomaly flags |
+| [`casemanagement`](src/main/java/com/sentinel/casemanagement) | Staff review queue + decisions |
+| [`audit`](src/main/java/com/sentinel/audit) | Append-only compliance trail |
+| [`risk`](src/main/java/com/sentinel/risk) | Weights, thresholds, score + fail-closed policy |
+| [`admin`](src/main/java/com/sentinel/admin) | Settings + analytics |
+| [`integration`](src/main/java/com/sentinel/integration) | ML clients + bank webhooks (P1) |
+| [`websocket`](src/main/java/com/sentinel/websocket) | Live case push to staff UI |
+| [`common`](src/main/java/com/sentinel/common) | OpenAPI, errors, `/api/me` |
 
-## Source layout
+## Run (Postgres via Docker)
 
+```bash
+docker compose up -d postgres
+cd backend
+mvn spring-boot:run
 ```
-src/main/java/com/sentinel/{module}/
-src/main/resources/application.yml          # add when implementing
-src/main/resources/db/migration/            # Flyway SQL later
-src/test/java/com/sentinel/                 # JUnit5 + Mockito + Testcontainers
+
+## Run without Docker (H2)
+
+```bash
+cd backend
+mvn spring-boot:run "-Dspring-boot.run.profiles=h2"
 ```
 
-## Next implementation step (weeks 1–2)
+## Demo staff users
 
-1. Generate Spring Boot app into this folder (or hand-write main + config).
-2. Wire PostgreSQL + JWT security skeleton.
-3. Map entities from `docs/data-model.md`.
-4. Enable Swagger UI.
+Seeded under tenant `demo-bank`:
 
-Do **not** implement CV models here — call `services/cv-ml` and `services/transaction-ml`.
+| Username | Role | Password |
+|----------|------|----------|
+| `admin` | ADMIN | `ChangeMe123!` |
+| `compliance` | COMPLIANCE | `ChangeMe123!` |
+| `analyst` | ANALYST | `ChangeMe123!` |
+
+Schema: Hibernate `ddl-auto: update` (Flyway disabled for now). Fresh Postgres DB if the model drifts badly.
+
+## Endpoints (Day 2)
+
+- Swagger: http://localhost:8080/swagger-ui.html
+- `POST /api/auth/login` · `POST /api/auth/refresh` · `GET /api/me` · `GET /actuator/health`

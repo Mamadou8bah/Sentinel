@@ -1,7 +1,7 @@
 {
   "name": "Sentinel",
   "short_name": "Sentinel",
-  "description": "AI-Powered KYC & Fraud Prevention Platform",
+  "description": "Bank KYC, document fraud, and live transaction risk — API + compliance desk",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#070A00",

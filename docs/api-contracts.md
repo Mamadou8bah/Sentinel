@@ -1,74 +1,116 @@
 # Spring Boot API contracts (representative)
 
-Public product API — implement with springdoc-openapi. All mutating ops under JWT unless noted.
+Public **product** API (staff ops desk + bank integration). springdoc-openapi. Authenticated unless noted.
 
-## Auth
+Channels:
+
+- **Staff** — JWT (`ADMIN` / `COMPLIANCE` / `ANALYST`).
+- **Bank system** — service credential on `/api/integration/**`; retail clients never hold Sentinel passwords.
+
+## Auth (staff)
 
 | Method | Path | Roles | Purpose |
 |--------|------|-------|---------|
-| POST | `/api/auth/login` | public | Issue access + refresh tokens |
+| POST | `/api/auth/login` | public | Access + refresh tokens |
 | POST | `/api/auth/refresh` | public (refresh) | Rotate access token |
 
-## Customers / KYC
+## Bank integration
 
-| Method | Path | Roles | Purpose |
-|--------|------|-------|---------|
-| POST | `/api/customers` | ANALYST, COMPLIANCE, ADMIN | Create customer + trigger KYC pipeline (multipart ID + selfie) |
-| GET | `/api/customers/{id}` | *authenticated* | Customer 360° view |
-| GET | `/api/customers/{id}/risk-score` | *authenticated* | Current score + explanation |
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| POST | `/api/integration/kyc/sessions` | service | Start KYC (`tenant`, `externalCustomerId`); liveness challenge |
+| POST | `/api/integration/kyc/sessions/{id}/submit` | service | ID + liveness media |
+| GET | `/api/integration/kyc/sessions/{id}` | service | Poll KYC status |
+| POST | `/api/integration/customers/{id}/signature-specimen` | service | Enroll / replace reference signature |
+| POST | `/api/integration/documents` | service | Submit cheque/invoice for verify |
+| POST | `/api/integration/transactions/score` | service | **Real-time** score one TX; bank uses response to allow/review/block |
+| POST | `/api/integration/transactions/import` | service | Bulk backfill (secondary) |
+| POST | `/api/webhooks/test` | ADMIN | Verify outbound webhook |
 
-## Documents
+### Real-time transaction score (request / response shape)
 
-| Method | Path | Roles | Purpose |
-|--------|------|-------|---------|
-| POST | `/api/documents` | ANALYST, COMPLIANCE, ADMIN | Upload cheque/invoice (multipart), link to customer |
-| GET | `/api/documents/{id}` | *authenticated* | Document + fraud sub-scores |
-
-## Transactions
-
-| Method | Path | Roles | Purpose |
-|--------|------|-------|---------|
-| POST | `/api/transactions/import` | ANALYST, ADMIN | Bulk CSV import (e.g. PaySim slice) |
-| GET | `/api/customers/{id}/transactions` | *authenticated* | List + anomaly flags |
-
-## Cases
-
-| Method | Path | Roles | Purpose |
-|--------|------|-------|---------|
-| GET | `/api/cases` | COMPLIANCE, ANALYST, ADMIN | Queue; filter/sort by score, date, type, status |
-| PATCH | `/api/cases/{id}/decision` | COMPLIANCE, ADMIN | approve / reject / escalate + **mandatory note** |
-
-## Admin
-
-| Method | Path | Roles | Purpose |
-|--------|------|-------|---------|
-| GET | `/api/admin/analytics/fraud-trend` | ADMIN | Trend + tier charts inputs |
-| GET | `/api/admin/settings/risk-weights` | ADMIN | Current weights/thresholds |
-| PUT | `/api/admin/settings/risk-weights` | ADMIN | Update config (triggers note in audit) |
-
-## Real-time
-
-| Protocol | Path | Purpose |
-|----------|------|---------|
-| WebSocket STOMP | `/ws` endpoint; topic `/topic/cases` | New flagged case notifications |
-
-Suggested message payload (later):
+**Request**
 
 ```json
 {
-  "caseId": "...",
-  "customerId": "...",
-  "riskScore": 78,
-  "type": "DOCUMENT_FRAUD",
-  "explanation": "Signature match 61% (below 85% threshold); ..."
+  "externalCustomerId": "bank-core-123",
+  "externalTransactionId": "tx-987",
+  "amount": 1200.50,
+  "currency": "GMD",
+  "timestamp": "2024-01-15T12:00:00Z",
+  "channel": "MOBILE",
+  "location": "BJL",
+  "counterparty": "optional"
 }
 ```
 
-## Async semantics
+**Response**
 
-- Sync CRUD/auth: target &lt; 300ms (NFR-1).
-- Document/KYC/TX ML: accept upload → `202` or entity with `status=PENDING` → WebSocket/callback when complete (NFR-2).
+```json
+{
+  "externalTransactionId": "tx-987",
+  "anomalyScore": 0.82,
+  "flagged": true,
+  "ruleFlags": ["AMOUNT_OUTLIER", "VELOCITY"],
+  "recommendation": "REVIEW",
+  "customerRiskScore": 74,
+  "explanation": "Amount 4.2× customer 30-day average; elevated velocity",
+  "shapTopFeatures": [
+    { "feature": "amount_vs_avg_30d", "contribution": 0.31 },
+    { "feature": "tx_count_24h", "contribution": 0.12 }
+  ],
+  "transactionId": "42"
+}
+```
+
+`recommendation`: `ALLOW` | `REVIEW` | `BLOCK` (policy from tenant risk settings).  
+`shapTopFeatures`: top SHAP contributions from the TX-ML service (why the model moved).
+
+### Webhook (KYC / case / high-risk TX)
+
+```json
+{
+  "event": "TX_FLAGGED",
+  "externalCustomerId": "bank-core-123",
+  "externalTransactionId": "tx-987",
+  "customerId": "42",
+  "riskScore": 74,
+  "caseId": "9",
+  "explanation": "…"
+}
+```
+
+## Staff ops desk
+
+| Method | Path | Roles | Purpose |
+|--------|------|-------|---------|
+| POST | `/api/customers` | ANALYST, COMPLIANCE, ADMIN | Start KYC (desk path) |
+| POST | `/api/customers/{id}/signature-specimen` | ANALYST, COMPLIANCE, ADMIN | Enroll specimen |
+| GET | `/api/customers/{id}` | *authenticated* | Customer 360° |
+| GET | `/api/customers/{id}/risk-score` | *authenticated* | Score + explanation |
+| POST | `/api/documents` | ANALYST, COMPLIANCE, ADMIN | Upload document to verify |
+| GET | `/api/documents/{id}` | *authenticated* | Document + sub-scores |
+| POST | `/api/transactions/score` | ANALYST, ADMIN | Desk/manual score (same engine) |
+| POST | `/api/transactions/import` | ANALYST, ADMIN | Bulk backfill |
+| GET | `/api/customers/{id}/transactions` | *authenticated* | History + flags |
+| GET | `/api/cases` | COMPLIANCE, ANALYST, ADMIN | Case queue |
+| PATCH | `/api/cases/{id}/decision` | COMPLIANCE, ADMIN | Decision + mandatory note |
+| GET/PUT | `/api/admin/settings/risk-weights` | ADMIN | Tenant weights/thresholds |
+| GET | `/api/admin/analytics/fraud-trend` | ADMIN | Analytics |
+
+## Real-time (staff UI)
+
+| Protocol | Path | Purpose |
+|----------|------|---------|
+| WebSocket STOMP | `/ws`; `/topic/cases` | New/flagged cases |
+
+## Async vs sync
+
+| Path | Semantics |
+|------|-----------|
+| Auth, TX **score**, status polls | Sync; TX score aimed for payment-path latency |
+| KYC CV, document CV | Accept → PENDING → WebSocket/webhook when complete (NFR-2) |
 
 ## OpenAPI
 
-Publish every Spring endpoint via springdoc-openapi (`/swagger-ui.html`).YAML stubs for ML live under `docs/contracts/`.
+springdoc (`/swagger-ui.html`). ML stubs: `docs/contracts/`.

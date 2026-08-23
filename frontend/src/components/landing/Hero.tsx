@@ -21,12 +21,15 @@ const strandsProps = {
   glassSize: 1,
 }
 
-const avatars = ['/images/scan-face.png', '/images/guardian.png', '/images/cheque.png']
+const signals = [
+  { src: '/images/scan-face.png', label: 'KYC' },
+  { src: '/images/cheque.png', label: 'Documents' },
+  { src: '/images/dashboard.png', label: 'TX risk' },
+]
 
 export default function Hero() {
   return (
     <section id="home" className="relative overflow-hidden">
-      {/* ——— Mobile: hero bg + guardian, bottom-weighted copy ——— */}
       <div className="relative isolate min-h-[100svh] md:hidden">
         <img
           src="/sentinel_hero_bg.png"
@@ -57,38 +60,37 @@ export default function Hero() {
         />
 
         <div className="safe-bottom absolute inset-x-0 bottom-0 z-20 px-5 pb-8 pt-32">
-          <p className="text-sm uppercase tracking-[0.18em] text-white/85">We are</p>
+          <p className="text-sm uppercase tracking-[0.18em] text-white/85">Built for banks</p>
           <h1 className="mt-1 font-display text-[3.35rem] font-black leading-[0.92] tracking-tight">
             <span className="block text-white">Sentinel</span>
-            <span className="block text-white/90">Compliance AI</span>
           </h1>
-          <p className="mt-4 max-w-[18rem] text-[15px] leading-snug text-white/90">
-            AI-driven KYC and real-time fraud prevention for modern banking.
+          <p className="mt-4 max-w-[20rem] text-[15px] leading-snug text-white/90">
+            KYC, document fraud, and live payment risk — behind your bank app, with a compliance desk
+            on top.
           </p>
 
           <div className="mt-6">
             <ArrowCta href="#how" className="w-full max-w-xs justify-between pl-7 pr-2">
-              Read More
+              See how it works
             </ArrowCta>
           </div>
 
           <div className="mt-7 flex items-center gap-3">
             <div className="flex -space-x-3">
-              {avatars.map((src) => (
+              {signals.map((item) => (
                 <img
-                  key={src}
-                  src={src}
+                  key={item.label}
+                  src={item.src}
                   alt=""
                   className="h-9 w-9 rounded-full border-2 border-black object-cover"
                 />
               ))}
             </div>
-            <p className="text-sm font-medium text-ember-glow">85K+ Identities Verified</p>
+            <p className="text-sm font-medium text-ember-glow">Built for banks · desk for staff</p>
           </div>
         </div>
       </div>
 
-      {/* ——— Desktop ——— */}
       <div className="relative hidden min-h-screen overflow-hidden md:block">
         <img
           src="/sentinel_hero_bg.png"
@@ -107,31 +109,31 @@ export default function Hero() {
               aria-hidden
             />
 
-            <p className="relative text-xl text-white/80">We are</p>
+            <p className="relative text-xl text-white/80">Built for banks</p>
             <h1 className="relative mt-1 font-display text-[clamp(3.2rem,8vw,5.8rem)] font-black leading-[0.92] tracking-tight">
               <span className="block text-white">Sentinel</span>
-              <span className="block text-fade-agency">Compliance AI</span>
             </h1>
             <p className="relative mt-6 max-w-md text-lg text-white/80">
-              AI-driven KYC, document fraud detection, and transaction monitoring — one explainable
-              risk score for your bank.
+              Your customers stay in your app. Sentinel checks identity, documents, and each
+              payment — then gives your team clear reasons and a case desk when something needs a
+              human decision.
             </p>
 
             <div className="relative mt-8 flex flex-wrap items-center gap-5">
-              <ArrowCta href="#how">Explore Platform</ArrowCta>
+              <ArrowCta href="#how">See how it works</ArrowCta>
               <div className="flex items-center gap-3">
                 <div className="flex -space-x-3">
-                  {avatars.map((src) => (
+                  {signals.map((item) => (
                     <img
-                      key={src}
-                      src={src}
+                      key={item.label}
+                      src={item.src}
                       alt=""
                       className="h-10 w-10 rounded-full border-2 border-ink object-cover"
                     />
                   ))}
                 </div>
                 <p className="text-sm text-white/75">
-                  <span className="font-semibold text-white">85K+</span> identities verified
+                  <span className="font-semibold text-white">For banks</span> · staff desk · live risk
                 </p>
               </div>
             </div>
@@ -140,7 +142,7 @@ export default function Hero() {
           <div className="relative flex min-h-[640px] items-end justify-center">
             <img
               src="/sentinel_hero_image.png"
-              alt="Sentinel identity verification"
+              alt="Sentinel identity and document verification"
               className="relative z-10 h-[min(78vh,640px)] w-auto max-w-none object-contain drop-shadow-2xl"
             />
           </div>

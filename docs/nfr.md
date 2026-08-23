@@ -2,16 +2,19 @@
 
 | ID | Requirement |
 |----|-------------|
-| NFR-1 | Sync API (auth, CRUD) responses under ~300ms |
-| NFR-2 | CV/ML inference async — UI shows processing; result via WebSocket |
-| NFR-3 | Uploads validated (file type, size) before processing |
-| NFR-4 | Audit log immutable — no update/delete endpoints |
-| NFR-5 | Passwords & JWT secrets never logged; sensitive fields encrypted at rest |
-| NFR-6 | Every Spring endpoint documented with OpenAPI / Swagger |
-| NFR-7 | GDPR note for report: data minimization; right-to-erasure for **demo** data; synthetic IDs only |
+| NFR-1 | Sync API (auth, CRUD, status) responses under ~300ms p95 under pilot load |
+| NFR-2 | CV/ML inference async — clients see processing; completion via WebSocket and/or bank webhook |
+| NFR-3 | Uploads validated (MIME/type allow-list, max size) before storage or ML |
+| NFR-4 | Audit log immutable — no update/delete APIs or repository mutators |
+| NFR-5 | Passwords & JWT/API secrets never logged; identity fields (e.g. ID number) **encrypted at rest** |
+| NFR-6 | Every product Spring endpoint documented with OpenAPI / Swagger |
+| NFR-7 | Data minimization; documented retention; subject-erase path for pilot/rightful deletion requests |
+| NFR-8 | Fail-closed KYC: ambiguous quality/liveness/spoof → do not auto-VERIFY |
+| NFR-9 | Pilot availability target: designed for continuous ops desk use (health checks, restartable services) |
+| NFR-10 | Media (ID/selfie/docs/liveness clips) stored as object references, not unbounded DB blobs |
 
-## GDPR / ethics note (demo)
+## Privacy & ethics
 
-- Prefer synthetic documents and PaySim — avoid real customer PII.
-- Document data retention for the demo DB and a simple erase path for demo subjects.
-- State clearly: not a certified production KYC system.
+- Prefer synthetic documents and PaySim for public demos and training writeups; real pilot PII stays in the bank’s controlled environment.
+- Document retention and erase procedures in ops notes.
+- Product stance: **pilot-grade bank platform**. Regulatory **certification** is a separate external process supported by an evidence pack (metrics, audit samples, threat notes) — not claimed by default in marketing copy.

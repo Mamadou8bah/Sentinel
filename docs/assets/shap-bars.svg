@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 200" role="img" aria-labelledby="title">
+  <title id="title">SHAP feature contributions example</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0B0F0A"/>
+      <stop offset="100%" stop-color="#141A12"/>
+    </linearGradient>
+  </defs>
+  <rect width="880" height="200" rx="14" fill="url(#bg)"/>
+  <text x="28" y="36" fill="#F4F7F2" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="700">Example SHAP contributions (transaction score)</text>
+  <text x="28" y="56" fill="#8A9480" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11">Positive bars push risk up; officers see why a payment was flagged</text>
+
+  <!-- axis -->
+  <line x1="260" y1="80" x2="260" y2="175" stroke="#3A4A36" stroke-width="1"/>
+  <text x="248" y="188" fill="#8A9480" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="10">0</text>
+
+  <!-- row 1 -->
+  <text x="28" y="98" fill="#C5D0BB" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">amount_vs_avg_30d</text>
+  <rect x="260" y="84" height="16" rx="3" fill="#FF4515" width="0">
+    <animate attributeName="width" from="0" to="248" dur="1.6s" fill="freeze"/>
+  </rect>
+  <text x="518" y="96" fill="#FFB199" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11">+0.31</text>
+
+  <!-- row 2 -->
+  <text x="28" y="128" fill="#C5D0BB" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">tx_count_24h</text>
+  <rect x="260" y="114" height="16" rx="3" fill="#FF6A33" width="0">
+    <animate attributeName="width" from="0" to="96" dur="1.6s" begin="0.2s" fill="freeze"/>
+  </rect>
+  <text x="366" y="126" fill="#FFB199" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11">+0.12</text>
+
+  <!-- row 3 -->
+  <text x="28" y="158" fill="#C5D0BB" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">hour_of_day</text>
+  <rect x="260" y="144" height="16" rx="3" fill="#C45A2C" width="0">
+    <animate attributeName="width" from="0" to="64" dur="1.6s" begin="0.4s" fill="freeze"/>
+  </rect>
+  <text x="334" y="156" fill="#FFB199" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11">+0.08</text>
+
+  <!-- negative example -->
+  <text x="620" y="98" fill="#C5D0BB" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">known_device</text>
+  <rect x="560" y="84" height="16" rx="3" fill="#3D7A4A" width="0">
+    <animate attributeName="x" from="620" to="560" dur="1.6s" begin="0.5s" fill="freeze"/>
+    <animate attributeName="width" from="0" to="60" dur="1.6s" begin="0.5s" fill="freeze"/>
+  </rect>
+  <text x="520" y="96" fill="#8FCB9B" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11">-0.07</text>
+</svg>

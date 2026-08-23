@@ -2,17 +2,18 @@
 openapi: 3.0.3
 info:
   title: Sentinel Transaction ML Service
-  version: 0.0.0-scaffold
+  version: 0.1.0-pilot
+  description: Rules + gradient-boosted / anomaly model + SHAP feature attributions
 paths:
   /health:
     get:
-      summary: Liveness
+      summary: Service health
       responses:
         "200":
           description: OK
   /ml/transaction-score:
     post:
-      summary: Rule flags + Isolation Forest anomaly scores
+      summary: Rules + model score + SHAP top features
       requestBody:
         required: true
         content:
@@ -25,15 +26,19 @@ paths:
                   type: array
                   items:
                     type: object
-                    required: [amount, timestamp, location]
+                    required: [amount, timestamp]
                     properties:
                       transactionId: { type: string }
                       amount: { type: number }
                       timestamp: { type: string, format: date-time }
                       location: { type: string }
+                      channel: { type: string }
+                      customerFeatures:
+                        type: object
+                        additionalProperties: true
       responses:
         "200":
-          description: Per-transaction scores
+          description: Per-transaction scores with explanations
           content:
             application/json:
               schema:
@@ -42,11 +47,26 @@ paths:
                   scores:
                     type: array
                     items:
-                      type: object
-                      properties:
-                        transactionId: { type: string }
-                        anomalyScore: { type: number }
-                        flagged: { type: boolean }
-                        ruleFlags:
-                          type: array
-                          items: { type: string }
+                      $ref: "#/components/schemas/TransactionScore"
+components:
+  schemas:
+    ShapFeature:
+      type: object
+      properties:
+        feature: { type: string }
+        contribution: { type: number }
+    TransactionScore:
+      type: object
+      properties:
+        transactionId: { type: string }
+        anomalyScore: { type: number, minimum: 0, maximum: 1 }
+        modelScore: { type: number, minimum: 0, maximum: 1 }
+        flagged: { type: boolean }
+        ruleFlags:
+          type: array
+          items: { type: string }
+        explanation: { type: string }
+        shapTopFeatures:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShapFeature"

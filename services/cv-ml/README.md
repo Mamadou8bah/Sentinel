@@ -1,39 +1,45 @@
-# CV/ML microservice (scaffold)
+# CV/ML microservice
 
 **Runtime:** Python 3.11 · FastAPI  
 **Port:** 8001  
-**Contract:** `docs/ml-contracts.md` · `docs/contracts/cv-ml.openapi.yaml`
+**Contract:** `docs/ml-contracts.md` · `docs/contracts/cv-ml.openapi.yaml`  
+**Product bar:** bank pilot KYC — anti-spoof liveness, not a single-frame heuristic.
 
-## Planned endpoints
+## Endpoints
 
 | Path | Responsibility |
 |------|----------------|
-| `POST /cv/kyc-verify` | OCR ID fields, tampering, face match, simplified liveness |
-| `POST /cv/document-verify` | OCR doc fields, Siamese signature (CEDAR), ELA tampering |
-| `GET /health` | Liveness |
+| `POST /cv/liveness/challenge` | Issue anti-spoof challenge instructions |
+| `POST /cv/liveness/verify` | Score challenge response (video/frames); spoof + quality flags |
+| `POST /cv/kyc-verify` | OCR ID fields, tampering, face match; uses liveness result |
+| `POST /cv/document-verify` | OCR doc fields, signature match (CEDAR), tampering |
+| `GET /health` | Service health |
 
-## Planned packages
+## Packages
 
 ```
 app/
   api/           route handlers
   ocr/           Tesseract / EasyOCR / TrOCR
-  signature/     Siamese CNN (PyTorch), CEDAR training scripts later
-  tampering/     ELA + simple CNN classifier
-  face/          Mediapipe / face_recognition
+  signature/     Siamese CNN (PyTorch), CEDAR training
+  tampering/     ELA + classifier
+  face/          Face match
+  liveness/      Challenge-response / short-video anti-spoof
   models/        weight files (gitignored binaries)
 ```
 
-## Tech choices (from PRD)
+## Tech choices
 
 - OCR: Tesseract / EasyOCR / TrOCR
 - Signature: Siamese CNN (PyTorch) on CEDAR
 - Tampering: Error Level Analysis + CNN
-- Face: Mediapipe / face_recognition; liveness simplified heuristic
+- Face match: production-quality embedding/compare pipeline
+- Liveness: challenge or guided short video with spoof detection (print/replay/screen)
 
-## Next implementation step (weeks 3–4)
+## Implementation order
 
 1. FastAPI skeleton + health
-2. Stub endpoints returning mock scores
-3. Train signature model on CEDAR; wire real inference
-4. Integrate OCR + ELA
+2. Stub endpoints matching contracts (including liveness challenge)
+3. Train signature model on CEDAR; wire inference
+4. OCR + tampering + face match
+5. Liveness anti-spoof with eval set (live vs spoof)
