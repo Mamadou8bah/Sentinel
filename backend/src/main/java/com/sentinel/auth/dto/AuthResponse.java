@@ -8,5 +8,6 @@ public record AuthResponse(
         String tokenType,
         long expiresInMinutes,
         String username,
-        Role role) {
-}
+        Role role,
+        String tenantCode,
+        Long tenantId) {}

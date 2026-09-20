@@ -19,17 +19,17 @@ Bank clients never register here — see `docs/product-vision.md`.
 
 ## Channels
 
-1. **Staff** — username/password → access + refresh JWT → dashboard / Swagger.
-2. **Bank systems (P1)** — API key or client-credentials token scoped to `/api/integration/**`.
+1. **Staff** — `tenantCode` + username/password → access + refresh JWT → dashboard / Swagger.
+2. **Bank systems** — hashed API key (`X-Api-Key`) scoped to `/api/integration/**`.
 
 ## How staff auth works
 
-1. `POST /api/auth/login` → BCrypt check against `users.password_hash`.
-2. Short-lived access JWT + hashed refresh token in `refresh_tokens`.
-3. `Authorization: Bearer …` on subsequent calls; `JwtAuthFilter` sets SecurityContext.
+1. `POST /api/auth/login` with `{ tenantCode, username, password }` → tenant-scoped BCrypt check.
+2. Short-lived access JWT (claims: `uid`, `role`, `tenantId`, `tenantCode`) + hashed refresh token.
+3. `Authorization: Bearer …` on subsequent calls; `JwtAuthFilter` loads user by tenant + username.
 4. `POST /api/auth/refresh` rotates access tokens.
 
-Public: `/api/auth/**`, Swagger, `/actuator/health`.
+Public: `/api/auth/**`, Swagger, `/actuator/health`. WebSocket handshake is public; STOMP CONNECT requires JWT.
 
 ## What’s in this package (Day 2)
 

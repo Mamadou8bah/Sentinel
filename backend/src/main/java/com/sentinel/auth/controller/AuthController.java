@@ -26,7 +26,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    @Operation(summary = "Exchange username/password for JWT access + refresh tokens")
+    @Operation(summary = "Exchange tenantCode + username/password for JWT access + refresh tokens")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
     }

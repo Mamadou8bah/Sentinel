@@ -144,6 +144,12 @@ public class DocumentService {
     }
 
     @Transactional(readOnly = true)
+    public java.util.List<Document> listForCustomer(Long tenantId, Long customerId) {
+        customerService.requireCustomer(tenantId, customerId);
+        return documentRepository.findByCustomer_IdAndTenant_Id(customerId, tenantId);
+    }
+
+    @Transactional(readOnly = true)
     public long countByTenant(Long tenantId) {
         return documentRepository.countByTenant_Id(tenantId);
     }

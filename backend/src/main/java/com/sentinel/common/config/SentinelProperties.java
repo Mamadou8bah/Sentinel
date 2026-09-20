@@ -7,6 +7,7 @@ public class SentinelProperties {
 
     private final Ml ml = new Ml();
     private final Storage storage = new Storage();
+    private final Hosted hosted = new Hosted();
 
     public Ml getMl() {
         return ml;
@@ -14,6 +15,10 @@ public class SentinelProperties {
 
     public Storage getStorage() {
         return storage;
+    }
+
+    public Hosted getHosted() {
+        return hosted;
     }
 
     public static class Ml {
@@ -65,6 +70,28 @@ public class SentinelProperties {
 
         public void setMaxSizeMb(int maxSizeMb) {
             this.maxSizeMb = maxSizeMb;
+        }
+    }
+
+    public static class Hosted {
+        /** Public SPA origin used to build hostedUrl (e.g. http://localhost:5173). */
+        private String publicBaseUrl = "http://localhost:5173";
+        private int sessionTtlMinutes = 30;
+
+        public String getPublicBaseUrl() {
+            return publicBaseUrl;
+        }
+
+        public void setPublicBaseUrl(String publicBaseUrl) {
+            this.publicBaseUrl = publicBaseUrl;
+        }
+
+        public int getSessionTtlMinutes() {
+            return sessionTtlMinutes;
+        }
+
+        public void setSessionTtlMinutes(int sessionTtlMinutes) {
+            this.sessionTtlMinutes = sessionTtlMinutes;
         }
     }
 }

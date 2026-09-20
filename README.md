@@ -63,7 +63,7 @@ flowchart LR
   API --> DB
 ```
 
-**Tenant registration:** bank calls `POST /api/tenants/register` → receives a one-time API key → stores it in their backend → all `/api/integration/**` calls use `X-Api-Key`. Staff still log in with username/password.
+**Tenant registration:** bank calls `POST /api/tenants/register` → receives a one-time API key → stores it in their backend → all `/api/integration/**` calls use `X-Api-Key`. Staff log in with `tenantCode` + username/password.
 
 ---
 
@@ -166,7 +166,7 @@ Document / KYC models: OCR, Siamese signature networks (CEDAR), Error Level Anal
 | `backend` | 8080 | Java 17, Spring Boot 3, JPA, Security, springdoc | Product API, persistence, risk, cases, audit |
 | `cv-ml` | 8001 | Python, FastAPI, PyTorch / CV libs | KYC + document inference |
 | `transaction-ml` | 8002 | Python, FastAPI, XGBoost, SHAP | TX rules, scores, explanations |
-| `frontend` | 5173 | React, TypeScript, Vite, Tailwind | Marketing site + staff desk (desk in progress) |
+| `frontend` | 5173 | React, TypeScript, Vite, Tailwind | Landing + staff desk (`/desk`) + hosted KYC (`/kyc/:token`) |
 | `postgres` | 5432 | PostgreSQL | Authoritative store |
 
 Design choices:

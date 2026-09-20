@@ -1,6 +1,5 @@
 package com.sentinel.auth.security;
 
-
 import com.sentinel.auth.service.JwtService;
 import com.sentinel.auth.service.SentinelUserDetailsService;
 import io.jsonwebtoken.Claims;
@@ -29,9 +28,21 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     }
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        // Integration routes authenticate exclusively via X-Api-Key
+        return path != null && path.startsWith("/api/integration/");
+    }
+
+    @Override
     protected void doFilterInternal(
             HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
+        if (SecurityContextHolder.getContext().getAuthentication() != null) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String header = request.getHeader(HttpHeaders.AUTHORIZATION);
         if (header == null || !header.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
@@ -41,16 +52,17 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String token = header.substring(7);
         try {
             Claims claims = jwtService.parseAccessToken(token);
+            Long tenantId = JwtService.tenantIdFrom(claims);
             String username = claims.getSubject();
-            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+            if (tenantId != null && username != null) {
+                UserDetails userDetails = userDetailsService.loadUserByTenantIdAndUsername(tenantId, username);
                 var auth = new UsernamePasswordAuthenticationToken(
                         userDetails, null, userDetails.getAuthorities());
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(auth);
             }
         } catch (Exception ignored) {
-            // Invalid token → leave context empty; SecurityConfig will reject protected routes
+            // Invalid token → leave context empty; SecurityFilterChain rejects protected routes
         }
 
         filterChain.doFilter(request, response);

@@ -12,11 +12,17 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "customers")
+@Table(
+        name = "customers",
+        uniqueConstraints =
+                @UniqueConstraint(
+                        name = "uk_customer_tenant_external",
+                        columnNames = {"tenant_id", "external_customer_id"}))
 public class Customer {
 
     @Id

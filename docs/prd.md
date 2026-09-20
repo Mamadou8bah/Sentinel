@@ -146,14 +146,17 @@ Canonical index: [functional-requirements.md](functional-requirements.md). Summa
 
 | ID | Requirement |
 |----|-------------|
-| **FR-5** | Capture ID image + selfie / **liveness challenge response** (via bank channel or staff desk) |
+| **FR-5** | Capture ID image + selfie / **liveness challenge response** (via bank channel, **hosted Sentinel KYC UI**, or staff desk) |
 | **FR-6** | CV microservice: OCR fields, ID tampering, face match, anti-spoof liveness |
 | **FR-7** | Persist Customer profile + scores (`externalCustomerId` for bank core linkage); encrypt sensitive fields at rest (target) |
 | **FR-8** | Auto-create Case when KYC policy thresholds breached |
 | **FR-28** | KYC **session** lifecycle (start / submit / poll) + outbound webhooks to bank (webhook P1) |
 | **FR-30** | Fail-closed: spoof / poor quality / ambiguity → `FLAGGED` / `REJECTED` / stay `PENDING` — never silent `VERIFIED` |
+| **FR-31** | **Hosted KYC UI** — bank starts a session via API key, receives a one-time `hostedUrl`; customer completes capture on Sentinel without a Sentinel account or bank API key |
+| **FR-32** | Hosted session bound to unguessable `publicToken`, TTL expiry, and challengeId; public APIs expose only what the customer needs (no staff/tenant secrets) |
+| **FR-33** | Optional bank `returnUrl` after hosted completion so the customer can return to the bank channel |
 
-**v2 change:** No public “applicant uploads on Sentinel” product path. Demo simulates the **bank** submitting media.
+**v2 framing:** Customers never *register* on Sentinel. The hosted UI is a **bank-initiated third-party verification page** (redirect / deep-link), equivalent to Onfido-style flows — not a consumer signup product.
 
 ### 3.3 Document fraud detection
 
@@ -419,14 +422,14 @@ See [evaluation-metrics.md](evaluation-metrics.md).
 
 Canonical: [demo-script.md](demo-script.md).
 
-1. **Narrative** — Client applies at the bank / bank app; bank starts a Sentinel KYC session + liveness challenge.  
+1. **Narrative** — Client applies at the bank / bank app; bank starts a Sentinel KYC session and redirects the customer to the **hosted KYC UI** (`hostedUrl`) for ID + liveness.  
 2. **Enroll signature specimen** (required for match).  
 3. **Genuine cheque** with specimen → clean path.  
 4. **Forged / mismatched / no specimen** → Case + explanation (incl. `SKIPPED_NO_REFERENCE` if relevant).  
 5. **Real-time TX** — payment switch calls score API → `ALLOW` / `REVIEW` / `BLOCK`.  
 6. **Compliance** — decide case with note → AuditLog.  
 7. **Admin** — risk weights / trends.  
-8. **Integration** — show `X-Api-Key` path and tenant isolation.
+8. **Integration** — show `X-Api-Key` path, hosted redirect, and tenant isolation.
 
 This demonstrates full-stack ownership: security, tenancy, dual-channel APIs, ML integration, explainability, and audit/compliance thinking.
 
@@ -450,7 +453,8 @@ Honest engineering status — update as modules land.
 | Outbound webhooks + admin webhook settings | Done |
 | Admin analytics + audit list + ID field encryption | Done |
 | Multipart upload variants | Done |
-| Staff React desk UI | Planned |
+| Staff React desk UI | Shipped (`/desk` — queue, 360°, tools, analytics, settings, audit, live WS) |
+| Hosted KYC UI | Shipped (`/kyc/{token}` — bank-redirect capture + liveness) |
 | Trained CV/TX models in Python services | Planned |
 
 ---
@@ -461,5 +465,6 @@ Honest engineering status — update as modules land.
 |---------|--------|
 | 1.0 | Original FYP scaffold PRD (consumer-upload framing; multi-tenant deferred; bulk TX primary) |
 | **2.0** | Bank-integration product PRD aligned with current vision, architecture, and implemented backend surface |
+| **2.1** | Hosted KYC UI (FR-31–33): bank-initiated third-party verification page |
 
 When requirements conflict, **this PRD (v2) + product-vision.md** win over older scaffold wording in READMEs.

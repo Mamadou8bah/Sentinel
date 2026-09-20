@@ -25,6 +25,5 @@ public class CaseEventPublisher {
     private void publish(Long tenantId, String event, Map<String, Object> payload) {
         CaseEventMessage message = new CaseEventMessage(event, tenantId, payload);
         messagingTemplate.convertAndSend("/topic/tenants." + tenantId + ".cases", message);
-        messagingTemplate.convertAndSend("/topic/cases", message);
     }
 }

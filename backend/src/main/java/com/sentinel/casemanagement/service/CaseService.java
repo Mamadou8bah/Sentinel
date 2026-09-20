@@ -87,11 +87,17 @@ public class CaseService {
     }
 
     @Transactional(readOnly = true)
-    public List<CaseEntity> listForTenant(Long tenantId, CaseStatus status) {
+    public List<CaseEntity> listForTenant(Long tenantId, CaseStatus status, String sort) {
+        boolean byDate = "date".equalsIgnoreCase(sort);
         if (status != null) {
-            return caseRepository.findByTenant_IdAndStatusOrderByCreatedAtDesc(tenantId, status);
+            return byDate
+                    ? caseRepository.findByTenant_IdAndStatusOrderByCreatedAtDesc(tenantId, status)
+                    : caseRepository.findByTenant_IdAndStatusOrderByRiskScoreAtCreationDescCreatedAtDesc(
+                            tenantId, status);
         }
-        return caseRepository.findByTenant_IdOrderByCreatedAtDesc(tenantId);
+        return byDate
+                ? caseRepository.findByTenant_IdOrderByCreatedAtDesc(tenantId)
+                : caseRepository.findByTenant_IdOrderByRiskScoreAtCreationDescCreatedAtDesc(tenantId);
     }
 
     @Transactional(readOnly = true)

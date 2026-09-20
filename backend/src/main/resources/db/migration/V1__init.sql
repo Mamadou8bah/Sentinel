@@ -145,3 +145,22 @@ CREATE TABLE risk_settings (
 
 INSERT INTO risk_settings (tenant_id)
 SELECT id FROM tenants WHERE code = 'demo-bank';
+
+CREATE TABLE kyc_sessions (
+    id                      BIGSERIAL PRIMARY KEY,
+    tenant_id               BIGINT       NOT NULL REFERENCES tenants(id),
+    external_customer_id    VARCHAR(128) NOT NULL,
+    customer_id             BIGINT       REFERENCES customers(id),
+    status                  VARCHAR(32)  NOT NULL DEFAULT 'PENDING',
+    challenge_id            VARCHAR(64)  NOT NULL,
+    liveness_hint           VARCHAR(128),
+    public_token            VARCHAR(64)  NOT NULL UNIQUE,
+    expires_at              TIMESTAMPTZ  NOT NULL,
+    return_url              VARCHAR(1024),
+    explanation             TEXT,
+    created_at              TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_kyc_sessions_tenant ON kyc_sessions(tenant_id);
+CREATE INDEX idx_kyc_sessions_token ON kyc_sessions(public_token);

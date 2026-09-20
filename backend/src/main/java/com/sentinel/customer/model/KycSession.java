@@ -44,6 +44,16 @@ public class KycSession {
     @Column(name = "liveness_hint", length = 128)
     private String livenessHint;
 
+    /** Unguessable token for the hosted KYC UI (customer never sees API keys). */
+    @Column(name = "public_token", nullable = false, unique = true, length = 64)
+    private String publicToken;
+
+    @Column(name = "expires_at", nullable = false)
+    private Instant expiresAt;
+
+    @Column(name = "return_url", length = 1024)
+    private String returnUrl;
+
     @Column(columnDefinition = "TEXT")
     private String explanation;
 
@@ -112,6 +122,30 @@ public class KycSession {
 
     public void setLivenessHint(String livenessHint) {
         this.livenessHint = livenessHint;
+    }
+
+    public String getPublicToken() {
+        return publicToken;
+    }
+
+    public void setPublicToken(String publicToken) {
+        this.publicToken = publicToken;
+    }
+
+    public Instant getExpiresAt() {
+        return expiresAt;
+    }
+
+    public void setExpiresAt(Instant expiresAt) {
+        this.expiresAt = expiresAt;
+    }
+
+    public String getReturnUrl() {
+        return returnUrl;
+    }
+
+    public void setReturnUrl(String returnUrl) {
+        this.returnUrl = returnUrl;
     }
 
     public String getExplanation() {

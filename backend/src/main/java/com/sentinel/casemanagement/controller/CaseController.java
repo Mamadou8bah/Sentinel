@@ -30,8 +30,10 @@ public class CaseController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','COMPLIANCE','ANALYST')")
-    public List<CaseResponse> list(@RequestParam(required = false) CaseStatus status) {
-        return caseService.listForTenant(TenantAccess.requireTenantId(), status).stream()
+    public List<CaseResponse> list(
+            @RequestParam(required = false) CaseStatus status,
+            @RequestParam(defaultValue = "risk") String sort) {
+        return caseService.listForTenant(TenantAccess.requireTenantId(), status, sort).stream()
                 .map(CaseResponse::from)
                 .toList();
     }

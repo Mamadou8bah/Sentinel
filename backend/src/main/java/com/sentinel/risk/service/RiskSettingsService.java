@@ -14,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class RiskSettingsService {
 
+    private static final double WEIGHT_SUM_TOLERANCE = 0.001;
+
     private final RiskEngine riskEngine;
     private final RiskSettingsRepository riskSettingsRepository;
     private final AuditService auditService;
@@ -32,6 +34,8 @@ public class RiskSettingsService {
 
     @Transactional
     public RiskSettingsResponse update(Long tenantId, RiskSettingsRequest request) {
+        validateWeights(request.kycWeight(), request.documentWeight(), request.transactionWeight());
+
         RiskSettings settings = riskEngine.requireSettings(tenantId);
         RiskSettingsResponse before = RiskSettingsResponse.from(settings);
 
@@ -61,5 +65,13 @@ public class RiskSettingsService {
                         "documentWeight", after.documentWeight(),
                         "transactionWeight", after.transactionWeight()));
         return after;
+    }
+
+    private static void validateWeights(double kyc, double document, double transaction) {
+        double sum = kyc + document + transaction;
+        if (Math.abs(sum - 1.0) > WEIGHT_SUM_TOLERANCE) {
+            throw new IllegalArgumentException(
+                    "kycWeight + documentWeight + transactionWeight must equal 1.0 (got " + sum + ")");
+        }
     }
 }

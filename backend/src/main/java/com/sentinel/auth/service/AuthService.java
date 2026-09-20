@@ -1,23 +1,19 @@
 package com.sentinel.auth.service;
 
-
+import com.sentinel.auth.dto.AuthResponse;
+import com.sentinel.auth.dto.LoginRequest;
+import com.sentinel.auth.dto.RefreshRequest;
 import com.sentinel.auth.model.RefreshToken;
 import com.sentinel.auth.model.User;
 import com.sentinel.auth.repository.RefreshTokenRepository;
 import com.sentinel.auth.repository.UserRepository;
-import com.sentinel.auth.security.SentinelUserDetails;
-import com.sentinel.auth.dto.AuthResponse;
-import com.sentinel.auth.dto.LoginRequest;
-import com.sentinel.auth.dto.RefreshRequest;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import com.sentinel.common.util.Hashing;
+import com.sentinel.tenant.model.Tenant;
+import com.sentinel.tenant.repository.TenantRepository;
 import java.time.Instant;
-import java.util.HexFormat;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -25,34 +21,51 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class AuthService {
 
-    private final AuthenticationManager authenticationManager;
+    private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final TenantRepository tenantRepository;
     private final RefreshTokenRepository refreshTokenRepository;
 
     public AuthService(
-            AuthenticationManager authenticationManager,
+            PasswordEncoder passwordEncoder,
             JwtService jwtService,
             UserRepository userRepository,
+            TenantRepository tenantRepository,
             RefreshTokenRepository refreshTokenRepository) {
-        this.authenticationManager = authenticationManager;
+        this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.userRepository = userRepository;
+        this.tenantRepository = tenantRepository;
         this.refreshTokenRepository = refreshTokenRepository;
     }
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.username(), request.password()));
-        SentinelUserDetails principal = (SentinelUserDetails) authentication.getPrincipal();
-        User user = principal.getUser();
+        Tenant tenant = tenantRepository
+                .findByCode(request.tenantCode().trim())
+                .orElseThrow(AuthService::invalidCredentials);
+
+        if (!tenant.isEnabled()) {
+            throw invalidCredentials();
+        }
+
+        User user = userRepository
+                .findByTenant_IdAndUsername(tenant.getId(), request.username().trim())
+                .orElseThrow(AuthService::invalidCredentials);
+
+        if (!user.isEnabled() || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            throw invalidCredentials();
+        }
+
+        // Ensure tenant is initialized for JWT claims after flush
+        user.getTenant().getCode();
         return issueTokens(user);
     }
 
     @Transactional
     public AuthResponse refresh(RefreshRequest request) {
-        String hash = hashToken(request.refreshToken());
+        String hash = Hashing.sha256Hex(request.refreshToken());
         RefreshToken stored = refreshTokenRepository
                 .findByTokenHashAndRevokedFalse(hash)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token"));
@@ -64,7 +77,7 @@ public class AuthService {
 
         stored.setRevoked(true);
         User user = stored.getUser();
-        if (!user.isEnabled()) {
+        if (!user.isEnabled() || !user.getTenant().isEnabled()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User disabled");
         }
         return issueTokens(user);
@@ -76,7 +89,7 @@ public class AuthService {
 
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setUser(user);
-        refreshToken.setTokenHash(hashToken(refreshValue));
+        refreshToken.setTokenHash(Hashing.sha256Hex(refreshValue));
         refreshToken.setExpiresAt(jwtService.refreshExpiry());
         refreshTokenRepository.save(refreshToken);
 
@@ -86,16 +99,12 @@ public class AuthService {
                 "Bearer",
                 jwtService.getAccessTokenExpiryMinutes(),
                 user.getUsername(),
-                user.getRole());
+                user.getRole(),
+                user.getTenant().getCode(),
+                user.getTenant().getId());
     }
 
-    static String hashToken(String raw) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashed = digest.digest(raw.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hashed);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 not available", e);
-        }
+    private static BadCredentialsException invalidCredentials() {
+        return new BadCredentialsException("Invalid tenant, username, or password");
     }
 }

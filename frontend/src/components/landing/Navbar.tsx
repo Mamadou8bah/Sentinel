@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useScrollSpy } from '../../hooks/useScrollSpy'
 import { NAV_LINKS, NAV_SECTION_IDS } from './navLinks'
 import { SentinelLogo } from './ui'
@@ -91,6 +92,12 @@ export default function Navbar() {
             >
               Walkthrough
             </a>
+            <Link
+              to="/desk/login"
+              className="liquid-glass hidden h-11 items-center rounded-full px-5 text-sm font-semibold text-white md:inline-flex"
+            >
+              Staff desk
+            </Link>
 
             <button
               type="button"
@@ -148,6 +155,13 @@ export default function Navbar() {
           >
             Walkthrough
           </a>
+          <Link
+            to="/desk/login"
+            onClick={() => setMenuOpen(false)}
+            className="mt-3 inline-flex rounded-full bg-ember-grad px-6 py-3 text-sm font-semibold"
+          >
+            Staff desk
+          </Link>
         </div>
       )}
     </>

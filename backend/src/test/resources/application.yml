@@ -1,0 +1,12 @@
+spring:
+  profiles:
+    active: h2
+sentinel:
+  jwt:
+    secret: test-secret-at-least-32-characters-long
+  ml:
+    stub: true
+  storage:
+    upload-dir: target/test-uploads
+  crypto:
+    field-key: test-field-encryption-key-32b

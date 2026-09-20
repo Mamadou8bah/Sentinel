@@ -1,6 +1,5 @@
 package com.sentinel.casemanagement.repository;
 
-
 import com.sentinel.casemanagement.model.CaseEntity;
 import com.sentinel.casemanagement.model.CaseStatus;
 import java.util.List;
@@ -9,6 +8,13 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface CaseRepository extends JpaRepository<CaseEntity, Long> {
+
+    @EntityGraph(attributePaths = {"customer", "relatedDocument"})
+    List<CaseEntity> findByTenant_IdOrderByRiskScoreAtCreationDescCreatedAtDesc(Long tenantId);
+
+    @EntityGraph(attributePaths = {"customer", "relatedDocument"})
+    List<CaseEntity> findByTenant_IdAndStatusOrderByRiskScoreAtCreationDescCreatedAtDesc(
+            Long tenantId, CaseStatus status);
 
     @EntityGraph(attributePaths = {"customer", "relatedDocument"})
     List<CaseEntity> findByTenant_IdOrderByCreatedAtDesc(Long tenantId);

@@ -6,6 +6,7 @@ Channels:
 
 - **Staff** — JWT (`ADMIN` / `COMPLIANCE` / `ANALYST`).
 - **Bank system** — `X-Api-Key` on `/api/integration/**`; retail clients never hold Sentinel passwords.
+- **Hosted KYC** — public `/api/kyc/hosted/{token}` for bank-redirected customers (no account).
 - **Tenant self-serve** — `POST /api/tenants/register` is public; returns a **one-time** API key.
 
 Demo tenant `demo-bank`: staff password `ChangeMe123!`; demo key `sen_demo_bank_local_dev_key_do_not_use_prod`.
@@ -14,7 +15,7 @@ Demo tenant `demo-bank`: staff password `ChangeMe123!`; demo key `sen_demo_bank_
 
 | Method | Path | Roles | Purpose |
 |--------|------|-------|---------|
-| POST | `/api/auth/login` | public | Access + refresh tokens |
+| POST | `/api/auth/login` | public | Access + refresh tokens (`tenantCode`, `username`, `password`) |
 | POST | `/api/auth/refresh` | public (refresh) | Rotate access token |
 | GET | `/api/me` | authenticated staff | Current user + tenant |
 
@@ -41,9 +42,11 @@ Demo tenant `demo-bank`: staff password `ChangeMe123!`; demo key `sen_demo_bank_
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| POST | `/api/integration/kyc/sessions` | Start KYC (`externalCustomerId`); returns challenge |
-| POST | `/api/integration/kyc/sessions/{id}/submit` | ID + selfie (base64) → scores + customer |
+| POST | `/api/integration/kyc/sessions` | Start KYC (`externalCustomerId`, optional `returnUrl`); returns challenge + `hostedUrl` |
+| POST | `/api/integration/kyc/sessions/{id}/submit` | Bank-side ID + selfie submit (API key) |
 | GET | `/api/integration/kyc/sessions/{id}` | Poll KYC session |
+| GET | `/api/kyc/hosted/{token}` | **Public** hosted session view (no auth) |
+| POST | `/api/kyc/hosted/{token}/submit` | **Public** hosted capture submit (no auth) |
 | POST | `/api/integration/customers/{externalCustomerId}/signature-specimen` | Enroll specimen |
 | POST | `/api/integration/documents` | Cheque/invoice verify |
 | POST | `/api/integration/transactions/score` | Real-time score one TX |
@@ -51,11 +54,53 @@ Demo tenant `demo-bank`: staff password `ChangeMe123!`; demo key `sen_demo_bank_
 | POST | `/api/integration/kyc/sessions/{id}/submit-multipart` | KYC submit via multipart |
 | POST | `/api/integration/documents/multipart` | Document verify via multipart |
 
-### KYC submit
+### Staff login
 
 ```json
-{ "idImage": "<base64>", "selfieImage": "<base64>", "name": "optional" }
+{ "tenantCode": "demo-bank", "username": "admin", "password": "ChangeMe123!" }
 ```
+
+Response includes `accessToken`, `refreshToken`, `role`, `tenantCode`, `tenantId`.
+
+### Start KYC (bank)
+
+```json
+{
+  "externalCustomerId": "bank-core-123",
+  "returnUrl": "https://bank.example/onboarding/continue"
+}
+```
+
+Response includes `sessionId`, `challengeId`, `livenessHint`, `publicToken`, `hostedUrl`, `expiresAt`.  
+Bank redirects the customer to `hostedUrl` (Sentinel hosted KYC UI).
+
+### Hosted KYC (customer — public token)
+
+`GET /api/kyc/hosted/{token}` → tenant display name, challenge hint, status, expiry.  
+`POST /api/kyc/hosted/{token}/submit`:
+
+```json
+{
+  "idImage": "<base64>",
+  "selfieImage": "<base64>",
+  "name": "optional"
+}
+```
+
+Challenge is bound server-side to the session (customer does not hold the bank API key).
+
+### KYC submit (bank API key path)
+
+```json
+{
+  "challengeId": "chal_…",
+  "idImage": "<base64>",
+  "selfieImage": "<base64>",
+  "name": "optional"
+}
+```
+
+`challengeId` must match the value returned from session start (liveness challenge).
 
 ### Document verify
 
@@ -118,13 +163,14 @@ ML: with `sentinel.ml.stub=true` (default), Spring returns deterministic stub sc
 | GET | `/api/customers` | ANALYST, COMPLIANCE, ADMIN | List customers |
 | GET | `/api/customers/{id}` | *authenticated staff* | Customer 360° |
 | GET | `/api/customers/{id}/risk-score` | *authenticated staff* | Score snapshot |
+| GET | `/api/customers/{id}/documents` | ANALYST, COMPLIANCE, ADMIN | Documents for 360° |
 | POST | `/api/customers/{id}/signature-specimen` | ANALYST, COMPLIANCE, ADMIN | Enroll specimen |
 | POST | `/api/documents` | ANALYST, COMPLIANCE, ADMIN | Verify document |
 | GET | `/api/documents/{id}` | *authenticated staff* | Document + sub-scores |
 | POST | `/api/transactions/score` | ANALYST, ADMIN | Desk score (same engine) |
 | POST | `/api/transactions/import` | ANALYST, ADMIN | Bulk CSV backfill |
 | GET | `/api/customers/{id}/transactions` | *authenticated staff* | History + flags |
-| GET | `/api/cases` | COMPLIANCE, ANALYST, ADMIN | Case queue (`?status=`) |
+| GET | `/api/cases` | COMPLIANCE, ANALYST, ADMIN | Case queue (`?status=&sort=risk|date`) |
 | GET | `/api/cases/{id}` | COMPLIANCE, ANALYST, ADMIN | Case detail |
 | PATCH | `/api/cases/{id}/decision` | COMPLIANCE, ADMIN | Decision + mandatory note |
 | GET | `/api/audit` | ADMIN, COMPLIANCE | Audit trail |
@@ -143,14 +189,13 @@ ML: with `sentinel.ml.stub=true` (default), Spring returns deterministic stub sc
 
 | Protocol | Path | Purpose |
 |----------|------|---------|
-| WebSocket STOMP | `/ws`; `/topic/cases` | Case open / decide push |
+| WebSocket STOMP | `/ws`; subscribe `/topic/tenants.{tenantId}.cases` | Case open / decide push (JWT on CONNECT) |
 
 ## Remaining gaps
 
 | Item | Notes |
 |------|-------|
 | Trained Python CV/TX models | `MlGateway` ready; services still stub/scaffold |
-| Staff React desk consuming WS | Backend publisher live |
 | Object storage (S3/MinIO) | Local `uploads/` today |
 
 ## OpenAPI

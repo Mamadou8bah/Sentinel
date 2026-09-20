@@ -35,3 +35,6 @@ Product context: [product-vision.md](product-vision.md).
 | FR-28 | KYC session status + outbound webhooks to bank | backend/integration (webhooks P1) |
 | FR-29 | Object storage for media references | backend + infra (P1; local volume early P0) |
 | FR-30 | Fail-closed KYC on spoof / poor quality | backend/risk + customer |
+| FR-31 | Hosted KYC UI (bank redirect, no customer account) | frontend/kyc + backend/customer |
+| FR-32 | Public token + TTL + challenge-bound hosted session | backend/customer |
+| FR-33 | Optional returnUrl after hosted completion | backend/customer + frontend/kyc |

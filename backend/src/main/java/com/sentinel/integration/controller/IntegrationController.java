@@ -3,6 +3,7 @@ package com.sentinel.integration.controller;
 import com.sentinel.common.util.TenantAccess;
 import com.sentinel.customer.model.Customer;
 import com.sentinel.customer.service.CustomerService;
+import com.sentinel.customer.service.KycService;
 import com.sentinel.customer.dto.KycSessionResponse;
 import com.sentinel.customer.dto.SpecimenRequest;
 import com.sentinel.customer.dto.SpecimenResponse;
@@ -40,14 +41,17 @@ import org.springframework.web.multipart.MultipartFile;
 @PreAuthorize("hasRole('INTEGRATION')")
 public class IntegrationController {
 
+    private final KycService kycService;
     private final CustomerService customerService;
     private final DocumentService documentService;
     private final TransactionScoringService transactionScoringService;
 
     public IntegrationController(
+            KycService kycService,
             CustomerService customerService,
             DocumentService documentService,
             TransactionScoringService transactionScoringService) {
+        this.kycService = kycService;
         this.customerService = customerService;
         this.documentService = documentService;
         this.transactionScoringService = transactionScoringService;
@@ -56,30 +60,40 @@ public class IntegrationController {
     @PostMapping("/kyc/sessions")
     @ResponseStatus(HttpStatus.CREATED)
     public KycSessionResponse startKyc(@Valid @RequestBody StartKycSessionRequest request) {
-        return KycSessionResponse.started(
-                customerService.startSession(TenantAccess.requireTenantId(), request.externalCustomerId()));
+        var session = kycService.startSession(
+                TenantAccess.requireTenantId(), request.externalCustomerId(), request.returnUrl());
+        return KycSessionResponse.from(session, kycService.hostedUrl(session));
     }
 
     @PostMapping("/kyc/sessions/{id}/submit")
     public KycSessionResponse submitKyc(
             @PathVariable Long id, @Valid @RequestBody SubmitKycSessionRequest request) {
-        return KycSessionResponse.from(customerService.submitSession(
-                TenantAccess.requireTenantId(), id, request.idImage(), request.selfieImage(), request.name()));
+        var session = kycService.submitSession(
+                TenantAccess.requireTenantId(),
+                id,
+                request.challengeId(),
+                request.idImage(),
+                request.selfieImage(),
+                request.name());
+        return KycSessionResponse.from(session, kycService.hostedUrl(session));
     }
 
     @PostMapping(value = "/kyc/sessions/{id}/submit-multipart", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public KycSessionResponse submitKycMultipart(
             @PathVariable Long id,
+            @RequestParam String challengeId,
             @RequestPart("idImage") MultipartFile idImage,
             @RequestPart("selfieImage") MultipartFile selfieImage,
             @RequestParam(required = false) String name) {
-        return KycSessionResponse.from(customerService.submitSessionMultipart(
-                TenantAccess.requireTenantId(), id, idImage, selfieImage, name));
+        var session = kycService.submitSessionMultipart(
+                TenantAccess.requireTenantId(), id, challengeId, idImage, selfieImage, name);
+        return KycSessionResponse.from(session, kycService.hostedUrl(session));
     }
 
     @GetMapping("/kyc/sessions/{id}")
     public KycSessionResponse getKyc(@PathVariable Long id) {
-        return KycSessionResponse.from(customerService.getSession(TenantAccess.requireTenantId(), id));
+        var session = kycService.getSession(TenantAccess.requireTenantId(), id);
+        return KycSessionResponse.from(session, kycService.hostedUrl(session));
     }
 
     @PostMapping("/customers/{externalCustomerId}/signature-specimen")

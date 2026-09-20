@@ -6,6 +6,7 @@ export default defineConfig(({ mode }) => {
   const siteUrl = (env.VITE_SITE_URL || 'https://sentinel.app').replace(/\/$/, '')
   const gsc = env.VITE_GOOGLE_SITE_VERIFICATION || ''
   const ogVersion = env.VITE_OG_VERSION || String(Date.now())
+  const apiTarget = env.VITE_API_PROXY || 'http://localhost:8080'
 
   return {
     plugins: [
@@ -26,6 +27,15 @@ export default defineConfig(({ mode }) => {
         },
       },
     ],
-    server: { port: 5173 },
+    server: {
+      port: 5173,
+      proxy: {
+        '/api': { target: apiTarget, changeOrigin: true },
+        '/ws': { target: apiTarget, ws: true, changeOrigin: true },
+      },
+    },
+    define: {
+      global: 'globalThis',
+    },
   }
 })
