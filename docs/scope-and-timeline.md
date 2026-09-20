@@ -31,9 +31,9 @@ Service accounts / API keys for bank backends, webhooks on KYC/case complete, ob
 
 HA deploy, monitoring/alerting, rate limits, SSO (OIDC) for staff, backup/DR runbooks, hardened secrets management.
 
-### P3 — Scale / multi-bank
+### P3 — Scale / multi-bank SaaS polish
 
-Tenancy and per-institution config isolation (multi-bank SaaS).
+Deeper SaaS ops (billing, self-serve invites, per-tenant branding). **Core multi-tenant isolation + API keys are already in the domain model (pulled forward from the original “out of scope” stance)** — see [prd.md](prd.md) §9.4.
 
 ## Certification
 
@@ -72,6 +72,6 @@ Place downloads under `datasets/` (gitignored); commit READMEs only.
 
 | Item | When |
 |------|------|
-| Multi-tenant SaaS | P3 |
+| Full multi-bank SaaS polish (billing, invites) | P3 |
 | Real-time payment authorization in the card/rail path | Outside Sentinel (core banking) |
 | Formal regulatory certificate | External process after evidence pack |

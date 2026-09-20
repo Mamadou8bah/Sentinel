@@ -1,6 +1,6 @@
 package com.sentinel.auth.dto;
 
-import com.sentinel.auth.Role;
+import com.sentinel.auth.model.Role;
 
 public record AuthResponse(
         String accessToken,

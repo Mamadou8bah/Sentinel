@@ -1,11 +1,14 @@
-# Spring Boot API contracts (representative)
+# Spring Boot API contracts
 
-Public **product** API (staff ops desk + bank integration). springdoc-openapi. Authenticated unless noted.
+Public **product** API (staff ops desk + bank integration). springdoc-openapi at `/swagger-ui.html`.
 
 Channels:
 
 - **Staff** — JWT (`ADMIN` / `COMPLIANCE` / `ANALYST`).
-- **Bank system** — service credential on `/api/integration/**`; retail clients never hold Sentinel passwords.
+- **Bank system** — `X-Api-Key` on `/api/integration/**`; retail clients never hold Sentinel passwords.
+- **Tenant self-serve** — `POST /api/tenants/register` is public; returns a **one-time** API key.
+
+Demo tenant `demo-bank`: staff password `ChangeMe123!`; demo key `sen_demo_bank_local_dev_key_do_not_use_prod`.
 
 ## Auth (staff)
 
@@ -13,21 +16,60 @@ Channels:
 |--------|------|-------|---------|
 | POST | `/api/auth/login` | public | Access + refresh tokens |
 | POST | `/api/auth/refresh` | public (refresh) | Rotate access token |
+| GET | `/api/me` | authenticated staff | Current user + tenant |
 
-## Bank integration
+## Tenants
 
 | Method | Path | Auth | Purpose |
 |--------|------|------|---------|
-| POST | `/api/integration/kyc/sessions` | service | Start KYC (`tenant`, `externalCustomerId`); liveness challenge |
-| POST | `/api/integration/kyc/sessions/{id}/submit` | service | ID + liveness media |
-| GET | `/api/integration/kyc/sessions/{id}` | service | Poll KYC status |
-| POST | `/api/integration/customers/{id}/signature-specimen` | service | Enroll / replace reference signature |
-| POST | `/api/integration/documents` | service | Submit cheque/invoice for verify |
-| POST | `/api/integration/transactions/score` | service | **Real-time** score one TX; bank uses response to allow/review/block |
-| POST | `/api/integration/transactions/import` | service | Bulk backfill (secondary) |
-| POST | `/api/webhooks/test` | ADMIN | Verify outbound webhook |
+| POST | `/api/tenants/register` | public | Create bank tenant, admin user, risk settings, API key |
 
-### Real-time transaction score (request / response shape)
+**Register request**
+
+```json
+{
+  "code": "acme-bank",
+  "name": "Acme Bank",
+  "adminUsername": "admin",
+  "adminPassword": "ChangeMe123!"
+}
+```
+
+**Register response** — store `apiKey` immediately; it is not retrievable later.
+
+## Bank integration (`X-Api-Key`)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/api/integration/kyc/sessions` | Start KYC (`externalCustomerId`); returns challenge |
+| POST | `/api/integration/kyc/sessions/{id}/submit` | ID + selfie (base64) → scores + customer |
+| GET | `/api/integration/kyc/sessions/{id}` | Poll KYC session |
+| POST | `/api/integration/customers/{externalCustomerId}/signature-specimen` | Enroll specimen |
+| POST | `/api/integration/documents` | Cheque/invoice verify |
+| POST | `/api/integration/transactions/score` | Real-time score one TX |
+| POST | `/api/integration/transactions/import` | Bulk CSV backfill |
+| POST | `/api/integration/kyc/sessions/{id}/submit-multipart` | KYC submit via multipart |
+| POST | `/api/integration/documents/multipart` | Document verify via multipart |
+
+### KYC submit
+
+```json
+{ "idImage": "<base64>", "selfieImage": "<base64>", "name": "optional" }
+```
+
+### Document verify
+
+```json
+{
+  "externalCustomerId": "bank-core-123",
+  "docType": "CHEQUE",
+  "documentImage": "<base64>"
+}
+```
+
+`signatureMatchStatus` is `SCORED` or `SKIPPED_NO_REFERENCE` (no fake score without a specimen).
+
+### Real-time transaction score
 
 **Request**
 
@@ -51,65 +93,65 @@ Channels:
   "externalTransactionId": "tx-987",
   "anomalyScore": 0.82,
   "flagged": true,
-  "ruleFlags": ["AMOUNT_OUTLIER", "VELOCITY"],
+  "ruleFlags": ["AMOUNT_OUTLIER"],
   "recommendation": "REVIEW",
   "customerRiskScore": 74,
-  "explanation": "Amount 4.2× customer 30-day average; elevated velocity",
+  "explanation": "Triggered: AMOUNT_OUTLIER",
   "shapTopFeatures": [
     { "feature": "amount_vs_avg_30d", "contribution": 0.31 },
     { "feature": "tx_count_24h", "contribution": 0.12 }
   ],
-  "transactionId": "42"
+  "transactionId": "42",
+  "caseId": "9"
 }
 ```
 
-`recommendation`: `ALLOW` | `REVIEW` | `BLOCK` (policy from tenant risk settings).  
-`shapTopFeatures`: top SHAP contributions from the TX-ML service (why the model moved).
+`recommendation`: `ALLOW` | `REVIEW` | `BLOCK` from tenant risk settings.  
+Idempotent on `(tenant, externalTransactionId)`.
 
-### Webhook (KYC / case / high-risk TX)
+ML: with `sentinel.ml.stub=true` (default), Spring returns deterministic stub scores. Point `CV_ML_BASE_URL` / `TRANSACTION_ML_BASE_URL` and set stub false when Python services are ready.
 
-```json
-{
-  "event": "TX_FLAGGED",
-  "externalCustomerId": "bank-core-123",
-  "externalTransactionId": "tx-987",
-  "customerId": "42",
-  "riskScore": 74,
-  "caseId": "9",
-  "explanation": "…"
-}
-```
-
-## Staff ops desk
+## Staff ops desk (JWT)
 
 | Method | Path | Roles | Purpose |
 |--------|------|-------|---------|
-| POST | `/api/customers` | ANALYST, COMPLIANCE, ADMIN | Start KYC (desk path) |
+| GET | `/api/customers` | ANALYST, COMPLIANCE, ADMIN | List customers |
+| GET | `/api/customers/{id}` | *authenticated staff* | Customer 360° |
+| GET | `/api/customers/{id}/risk-score` | *authenticated staff* | Score snapshot |
 | POST | `/api/customers/{id}/signature-specimen` | ANALYST, COMPLIANCE, ADMIN | Enroll specimen |
-| GET | `/api/customers/{id}` | *authenticated* | Customer 360° |
-| GET | `/api/customers/{id}/risk-score` | *authenticated* | Score + explanation |
-| POST | `/api/documents` | ANALYST, COMPLIANCE, ADMIN | Upload document to verify |
-| GET | `/api/documents/{id}` | *authenticated* | Document + sub-scores |
-| POST | `/api/transactions/score` | ANALYST, ADMIN | Desk/manual score (same engine) |
-| POST | `/api/transactions/import` | ANALYST, ADMIN | Bulk backfill |
-| GET | `/api/customers/{id}/transactions` | *authenticated* | History + flags |
-| GET | `/api/cases` | COMPLIANCE, ANALYST, ADMIN | Case queue |
+| POST | `/api/documents` | ANALYST, COMPLIANCE, ADMIN | Verify document |
+| GET | `/api/documents/{id}` | *authenticated staff* | Document + sub-scores |
+| POST | `/api/transactions/score` | ANALYST, ADMIN | Desk score (same engine) |
+| POST | `/api/transactions/import` | ANALYST, ADMIN | Bulk CSV backfill |
+| GET | `/api/customers/{id}/transactions` | *authenticated staff* | History + flags |
+| GET | `/api/cases` | COMPLIANCE, ANALYST, ADMIN | Case queue (`?status=`) |
+| GET | `/api/cases/{id}` | COMPLIANCE, ANALYST, ADMIN | Case detail |
 | PATCH | `/api/cases/{id}/decision` | COMPLIANCE, ADMIN | Decision + mandatory note |
+| GET | `/api/audit` | ADMIN, COMPLIANCE | Audit trail |
 | GET/PUT | `/api/admin/settings/risk-weights` | ADMIN | Tenant weights/thresholds |
-| GET | `/api/admin/analytics/fraud-trend` | ADMIN | Analytics |
+| GET/PUT | `/api/admin/settings/webhook` | ADMIN | Outbound webhook URL |
+| POST | `/api/admin/webhooks/test` | ADMIN | Fire test webhook |
+| GET | `/api/admin/analytics/fraud-trend` | ADMIN | Analytics counts |
+
+### Case decision
+
+```json
+{ "decision": "APPROVE", "note": "Verified with branch manager" }
+```
 
 ## Real-time (staff UI)
 
 | Protocol | Path | Purpose |
 |----------|------|---------|
-| WebSocket STOMP | `/ws`; `/topic/cases` | New/flagged cases |
+| WebSocket STOMP | `/ws`; `/topic/cases` | Case open / decide push |
 
-## Async vs sync
+## Remaining gaps
 
-| Path | Semantics |
-|------|-----------|
-| Auth, TX **score**, status polls | Sync; TX score aimed for payment-path latency |
-| KYC CV, document CV | Accept → PENDING → WebSocket/webhook when complete (NFR-2) |
+| Item | Notes |
+|------|-------|
+| Trained Python CV/TX models | `MlGateway` ready; services still stub/scaffold |
+| Staff React desk consuming WS | Backend publisher live |
+| Object storage (S3/MinIO) | Local `uploads/` today |
 
 ## OpenAPI
 

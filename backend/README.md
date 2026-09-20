@@ -1,26 +1,29 @@
 # Backend — Sentinel Spring Boot core
 
-Bank compliance **system of record**: auth, domain entities, risk, cases, audit.  
-Vision: [docs/product-vision.md](../docs/product-vision.md).
+Bank compliance **system of record**: auth, multi-tenant isolation, KYC, documents, real-time TX scoring, risk, cases, audit, WebSocket, webhooks.
+
+**Package layout:** nested `model/` · `repository/` · `service/` · `controller/` · `dto/` per module — see [ARCHITECTURE.md](ARCHITECTURE.md).
+
+Vision: [docs/product-vision.md](../docs/product-vision.md) · PRD: [docs/prd.md](../docs/prd.md) · contracts: [docs/api-contracts.md](../docs/api-contracts.md).
 
 ## Module map
 
 | Package | Responsibility |
 |---------|----------------|
-| [`tenant`](src/main/java/com/sentinel/tenant) | Bank institutions (multi-tenant isolation) |
-| [`auth`](src/main/java/com/sentinel/auth) | Staff login, JWT, roles (bank service creds later) |
-| [`customer`](src/main/java/com/sentinel/customer) | Bank client KYC subject + scores |
-| [`document`](src/main/java/com/sentinel/document) | Cheque/invoice fraud evidence |
-| [`transaction`](src/main/java/com/sentinel/transaction) | TX history + anomaly flags |
-| [`casemanagement`](src/main/java/com/sentinel/casemanagement) | Staff review queue + decisions |
-| [`audit`](src/main/java/com/sentinel/audit) | Append-only compliance trail |
-| [`risk`](src/main/java/com/sentinel/risk) | Weights, thresholds, score + fail-closed policy |
-| [`admin`](src/main/java/com/sentinel/admin) | Settings + analytics |
-| [`integration`](src/main/java/com/sentinel/integration) | ML clients + bank webhooks (P1) |
-| [`websocket`](src/main/java/com/sentinel/websocket) | Live case push to staff UI |
-| [`common`](src/main/java/com/sentinel/common) | OpenAPI, errors, `/api/me` |
+| [`tenant`](src/main/java/com/sentinel/tenant) | Register, API keys, webhook URL |
+| [`auth`](src/main/java/com/sentinel/auth) | Staff JWT, RBAC, seeder |
+| [`customer`](src/main/java/com/sentinel/customer) | KYC sessions, specimen, 360° |
+| [`document`](src/main/java/com/sentinel/document) | Document verify + signature skip |
+| [`transaction`](src/main/java/com/sentinel/transaction) | Live score + CSV import |
+| [`casemanagement`](src/main/java/com/sentinel/casemanagement) | Queue, decisions, WS/webhook events |
+| [`audit`](src/main/java/com/sentinel/audit) | Append-only trail + list API |
+| [`risk`](src/main/java/com/sentinel/risk) | Weights, recommendations |
+| [`admin`](src/main/java/com/sentinel/admin) | Risk weights, analytics, webhook settings |
+| [`integration`](src/main/java/com/sentinel/integration) | Bank APIs, `MlGateway`, webhooks |
+| [`websocket`](src/main/java/com/sentinel/websocket) | STOMP `/ws` case push |
+| [`common`](src/main/java/com/sentinel/common) | OpenAPI, `.env`, storage, field encryption |
 
-## Run (Postgres via Docker)
+## Run
 
 ```bash
 docker compose up -d postgres
@@ -28,26 +31,39 @@ cd backend
 mvn spring-boot:run
 ```
 
-## Run without Docker (H2)
+H2 (no Docker):
 
 ```bash
-cd backend
 mvn spring-boot:run "-Dspring-boot.run.profiles=h2"
 ```
 
-## Demo staff users
+## Demo credentials
 
-Seeded under tenant `demo-bank`:
+| Channel | Credential |
+|---------|------------|
+| Staff | `admin` / `compliance` / `analyst` — `ChangeMe123!` |
+| Integration | `X-Api-Key: sen_demo_bank_local_dev_key_do_not_use_prod` |
 
-| Username | Role | Password |
-|----------|------|----------|
-| `admin` | ADMIN | `ChangeMe123!` |
-| `compliance` | COMPLIANCE | `ChangeMe123!` |
-| `analyst` | ANALYST | `ChangeMe123!` |
+## Implemented surface
 
-Schema: Hibernate `ddl-auto: update` (Flyway disabled for now). Fresh Postgres DB if the model drifts badly.
+| Area | Paths |
+|------|-------|
+| Auth | `/api/auth/*`, `/api/me` |
+| Tenants | `POST /api/tenants/register` |
+| Integration | KYC, specimen, documents (+ multipart), TX score, TX CSV import |
+| Staff | customers, documents, cases, TX score/import, audit |
+| Admin | risk-weights, fraud-trend analytics, webhook settings + test |
+| Real-time | STOMP `/ws` → `/topic/cases` |
+| Ops | Swagger, actuator health |
 
-## Endpoints (Day 2)
+ML: `sentinel.ml.stub=true` by default (`MlGateway` falls back to stub if Python is down).
 
-- Swagger: http://localhost:8080/swagger-ui.html
-- `POST /api/auth/login` · `POST /api/auth/refresh` · `GET /api/me` · `GET /actuator/health`
+## Config highlights
+
+| Variable | Purpose |
+|----------|---------|
+| `JWT_SECRET` | Access-token signing |
+| `FIELD_ENCRYPTION_KEY` | AES key material for ID numbers |
+| `SENTINEL_ML_STUB` | Stub vs live Python |
+| `CV_ML_BASE_URL` / `TRANSACTION_ML_BASE_URL` | Python services |
+| `UPLOAD_DIR` / `UPLOAD_MAX_SIZE_MB` | Local media |

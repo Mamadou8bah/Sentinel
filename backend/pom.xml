@@ -15,7 +15,7 @@
   <artifactId>sentinel-backend</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <name>sentinel-backend</name>
-  <description>Sentinel Spring Boot core — Day 2 data foundation + auth</description>
+  <description>Sentinel Spring Boot core — multi-tenant bank compliance API</description>
 
   <properties>
     <java.version>17</java.version>

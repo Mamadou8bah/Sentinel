@@ -12,10 +12,6 @@ Sentinel is a multi-tenant platform that banks integrate behind their own apps. 
   <img src="https://skillicons.dev/icons?i=java,spring,python,fastapi,postgres,react,typescript,docker,pytorch&theme=dark" alt="Java Spring Python FastAPI Postgres React TypeScript Docker PyTorch"/>
 </p>
 
-<p align="center">
-  <img src="docs/assets/tech-stack.svg" alt="Animated technology stack" width="880"/>
-</p>
-
 ---
 
 ## Overview
@@ -67,7 +63,7 @@ flowchart LR
   API --> DB
 ```
 
-**Tenant registration (planned / in progress):** bank registers → receives a one-time API key → stores it in their backend → all `/api/integration/**` calls use that key. Staff still log in with username/password.
+**Tenant registration:** bank calls `POST /api/tenants/register` → receives a one-time API key → stores it in their backend → all `/api/integration/**` calls use `X-Api-Key`. Staff still log in with username/password.
 
 ---
 
@@ -227,11 +223,13 @@ Diagrams (animated SVG): [docs/assets/](docs/assets/).
 | Backend auth (JWT, refresh, roles) | Done |
 | Multi-tenant entities + seed (`demo-bank`) | Done |
 | Swagger, `/api/me`, actuator health | Done |
-| Tenant API keys + `/api/tenants/register` | Next |
-| KYC sessions, specimen upload, document verify stubs | Next |
-| Live TX score + SHAP service | Next |
+| Tenant API keys + `/api/tenants/register` | Done |
+| KYC sessions, specimen, document verify (stub ML) | Done |
+| Live TX score + cases + audit + risk settings | Done |
+| WebSocket, webhooks, CSV import, analytics, encryption | Done |
 | CV model training (CEDAR, liveness) | Planned |
-| Staff dashboard, WebSockets, webhooks | Planned |
+| Python services (replace stub with trained models) | Planned |
+| Staff dashboard UI | Planned |
 
 Roadmap detail: [docs/scope-and-timeline.md](docs/scope-and-timeline.md).
 
@@ -263,6 +261,7 @@ Important variables:
 | `JWT_SECRET` | Access-token signing (≥ 32 chars) |
 | `CV_ML_BASE_URL` | Default `http://localhost:8001` |
 | `TRANSACTION_ML_BASE_URL` | Default `http://localhost:8002` |
+| `SENTINEL_ML_STUB` | `true` = in-process stub scores (default) |
 | `VITE_API_BASE_URL` | Frontend → backend |
 
 ### 2. Database
@@ -292,6 +291,8 @@ mvn spring-boot:run "-Dspring-boot.run.profiles=h2"
 | http://localhost:8080/actuator/health | Health |
 | `POST /api/auth/login` | Staff tokens |
 | `GET /api/me` | Current user + tenant |
+| `POST /api/tenants/register` | New bank + one-time API key |
+| `POST /api/integration/**` | Bank channel (`X-Api-Key`) |
 
 Demo staff (tenant `demo-bank`):
 
@@ -300,6 +301,8 @@ Demo staff (tenant `demo-bank`):
 | `admin` | ADMIN | `ChangeMe123!` |
 | `compliance` | COMPLIANCE | `ChangeMe123!` |
 | `analyst` | ANALYST | `ChangeMe123!` |
+
+Demo integration header: `X-Api-Key: sen_demo_bank_local_dev_key_do_not_use_prod`
 
 More backend detail: [backend/README.md](backend/README.md).
 
@@ -359,6 +362,7 @@ Large files are gitignored; keep README stubs in those folders.
 
 | Doc | Contents |
 |-----|----------|
+| [docs/prd.md](docs/prd.md) | **Complete Product Requirements Document (v2)** |
 | [docs/product-vision.md](docs/product-vision.md) | Product rules and workflows |
 | [docs/architecture.md](docs/architecture.md) | Component design |
 | [docs/data-model.md](docs/data-model.md) | Entities and fields |

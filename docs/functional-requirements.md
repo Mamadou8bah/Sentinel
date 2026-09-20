@@ -31,7 +31,7 @@ Product context: [product-vision.md](product-vision.md).
 | FR-24 | Immutable AuditLog | backend/audit |
 | FR-25 | WebSocket live cases | backend/websocket + frontend |
 | FR-26 | Admin analytics | backend/admin + frontend |
-| FR-27 | Bank service credentials for integration APIs | backend/auth (P1) |
-| FR-28 | KYC session status + outbound webhooks to bank | backend/integration (P1) |
+| FR-27 | Bank service credentials for integration APIs | backend/tenant + auth |
+| FR-28 | KYC session status + outbound webhooks to bank | backend/integration (webhooks P1) |
 | FR-29 | Object storage for media references | backend + infra (P1; local volume early P0) |
 | FR-30 | Fail-closed KYC on spoof / poor quality | backend/risk + customer |

@@ -2,6 +2,8 @@
 
 Sentinel is a **multi-tenant bank compliance platform**: KYC, document fraud detection, **real-time transaction risk**, explainable scoring, case review, and immutable audit. Banks integrate it; retail clients use **bank apps**, not a Sentinel signup.
 
+Full requirements: [prd.md](prd.md).
+
 ## Who is who
 
 | Term | Meaning |

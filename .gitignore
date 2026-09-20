@@ -13,6 +13,9 @@ Thumbs.db
 *.pem
 *.key
 
+# Local toolchains (Maven downloads, etc.)
+.tools/
+
 # Java / Maven
 backend/target/
 backend/.mvn/wrapper/maven-wrapper.jar

@@ -21,12 +21,25 @@ spring:
           time_zone: UTC
   flyway:
     enabled: false
+  servlet:
+    multipart:
+      max-file-size: ${UPLOAD_MAX_SIZE_MB:10}MB
+      max-request-size: ${UPLOAD_MAX_SIZE_MB:10}MB
 
 sentinel:
   jwt:
     secret: ${JWT_SECRET:change_me_to_a_long_random_string_at_least_32_chars}
     access-token-expiry-minutes: ${JWT_ACCESS_TOKEN_EXPIRY_MINUTES:15}
     refresh-token-expiry-days: ${JWT_REFRESH_TOKEN_EXPIRY_DAYS:7}
+  ml:
+    cv-base-url: ${CV_ML_BASE_URL:http://localhost:8001}
+    transaction-base-url: ${TRANSACTION_ML_BASE_URL:http://localhost:8002}
+    stub: ${SENTINEL_ML_STUB:true}
+  storage:
+    upload-dir: ${UPLOAD_DIR:uploads}
+    max-size-mb: ${UPLOAD_MAX_SIZE_MB:10}
+  crypto:
+    field-key: ${FIELD_ENCRYPTION_KEY:sentinel-dev-field-key-change-me}
 
 springdoc:
   api-docs:
