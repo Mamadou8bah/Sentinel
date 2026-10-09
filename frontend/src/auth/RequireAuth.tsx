@@ -11,7 +11,7 @@ export function RequireAuth({ roles }: { roles?: Role[] }) {
   }
 
   if (roles && roles.length > 0 && !hasRole(...roles)) {
-    return <Navigate to="/desk/cases" replace />
+    return <Navigate to="/desk" replace />
   }
 
   return <Outlet />

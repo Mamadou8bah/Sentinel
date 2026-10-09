@@ -3,35 +3,15 @@ import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { ApiError } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
-import Strands from '../../components/Strands/Strands'
+import ShapeWaves from '../../components/ShapeWaves'
 import { Field, inputClass } from '../../components/desk/ui'
 import { SentinelLogo } from '../../components/landing/ui'
-
-const strandsProps = {
-  colors: ['#FF4515', '#FFB38A', '#FF4515'],
-  count: 3,
-  speed: 0.45,
-  amplitude: 1,
-  waviness: 1,
-  thickness: 0.65,
-  glow: 2.4,
-  taper: 3,
-  spread: 1,
-  intensity: 0.55,
-  saturation: 1.4,
-  opacity: 1,
-  scale: 1.4,
-  glass: false,
-  refraction: 1,
-  dispersion: 1,
-  glassSize: 1,
-}
 
 export default function LoginPage() {
   const { login, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const from = (location.state as { from?: string } | null)?.from || '/desk/cases'
+  const from = (location.state as { from?: string } | null)?.from || '/desk'
 
   const [tenantCode, setTenantCode] = useState('demo-bank')
   const [username, setUsername] = useState('compliance')
@@ -56,17 +36,37 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative min-h-[100svh] overflow-hidden bg-ink text-white">
-      <img
-        src="/sentinel_hero_bg.png"
-        alt=""
-        className="absolute inset-0 h-full w-full object-cover"
-      />
-      <div className="pointer-events-none absolute inset-0 z-[1]" aria-hidden>
-        <Strands {...strandsProps} />
+    <div className="relative min-h-[100svh] overflow-hidden bg-black text-white" data-theme="dark">
+      <div className="absolute inset-0 z-0" aria-hidden>
+        <ShapeWaves
+          text="SENTINEL"
+          fontFamily='Roboto Condensed, Roboto, system-ui, sans-serif'
+          fontWeight={700}
+          textSize={0.55}
+          shapes="mixed"
+          cellSize={10}
+          dotSize={0.75}
+          color="#6e6e6e"
+          hoverColor="#FF6A2A"
+          backgroundColor="#000000"
+          speed={1}
+          scale={1}
+          contrast={1}
+          brightness={0.4}
+          flow={0}
+          direction={0}
+          fade={0.25}
+          interactive={true}
+          splashRadius={40}
+          splashStrength={0.4}
+          glow={0.35}
+          intro={true}
+          introDuration={1.6}
+          paused={false}
+        />
       </div>
-      <div className="absolute inset-0 z-[2] bg-gradient-to-r from-black/80 via-black/55 to-black/30" />
-      <div className="absolute inset-0 z-[2] bg-gradient-to-t from-ink via-transparent to-black/40" />
+      <div className="absolute inset-0 z-[1] bg-gradient-to-r from-black/75 via-black/45 to-black/20" />
+      <div className="absolute inset-0 z-[1] bg-gradient-to-t from-black via-transparent to-black/35" />
 
       <div className="relative z-10 mx-auto grid min-h-[100svh] max-w-7xl items-center gap-10 px-5 py-16 md:grid-cols-2 md:px-8">
         <div className="animate-fade-up max-w-lg">
@@ -148,6 +148,8 @@ export default function LoginPage() {
 
           <p className="mt-5 text-center text-xs text-white/45">
             Demo · demo-bank / compliance / ChangeMe123!
+            <br />
+            Works offline when the API is down (auto demo mode).
           </p>
         </form>
       </div>

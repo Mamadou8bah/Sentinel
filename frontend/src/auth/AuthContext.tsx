@@ -12,6 +12,7 @@ import {
   api,
   clearAuth,
   getStoredSession,
+  isDemoActive,
   persistAuth,
   type StoredSession,
 } from '../api/client'
@@ -24,17 +25,24 @@ type AuthState = {
   isAuthenticated: boolean
   role: Role | null
   hasRole: (...roles: Role[]) => boolean
+  isDemo: boolean
 }
 
 const AuthContext = createContext<AuthState | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<StoredSession | null>(() => getStoredSession())
+  const [isDemo, setIsDemo] = useState(() => isDemoActive())
 
   useEffect(() => {
     const onExpired = () => setSession(null)
+    const onDemo = () => setIsDemo(isDemoActive())
     window.addEventListener(AUTH_EXPIRED_EVENT, onExpired)
-    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired)
+    window.addEventListener('sentinel:demo', onDemo)
+    return () => {
+      window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired)
+      window.removeEventListener('sentinel:demo', onDemo)
+    }
   }, [])
 
   const login = useCallback(async (tenantCode: string, username: string, password: string) => {
@@ -44,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
     })
     persistAuth(auth)
+    setIsDemo(isDemoActive())
     setSession({
       username: auth.username,
       role: auth.role,
@@ -66,8 +75,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: Boolean(session),
       role,
       hasRole: (...roles) => (role ? roles.includes(role) : false),
+      isDemo,
     }
-  }, [session, login, logout])
+  }, [session, login, logout, isDemo])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

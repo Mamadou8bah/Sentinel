@@ -79,7 +79,7 @@ export default function CaseDetailPage() {
 
   if (loading) return <LoadingBlock label="Opening case…" />
   if (error || !item) {
-    return <div className="text-sm text-red-300">{error || 'Case not found'}</div>
+    return <div className="text-sm text-[color:var(--status-danger)]">{error || 'Case not found'}</div>
   }
 
   return (
@@ -95,7 +95,7 @@ export default function CaseDetailPage() {
             </StatusPill>
             <Link
               to={`/desk/customers/${item.customerId}`}
-              className="liquid-glass rounded-full px-4 py-2 text-sm text-white/85 hover:text-white"
+              className="liquid-glass rounded-full px-4 py-2 text-sm text-fg/85 hover:text-fg"
             >
               Customer 360°
             </Link>
@@ -108,23 +108,23 @@ export default function CaseDetailPage() {
           <Panel className="p-6 md:p-8">
             <div className="flex items-start justify-between gap-6">
               <div>
-                <p className="text-xs uppercase tracking-[0.14em] text-white/45">Opened</p>
-                <p className="mt-1 text-sm text-white/80">{formatWhen(item.createdAt)}</p>
-                <p className="mt-5 text-xs uppercase tracking-[0.14em] text-white/45">Updated</p>
-                <p className="mt-1 text-sm text-white/80">{formatWhen(item.updatedAt)}</p>
+                <p className="text-xs uppercase tracking-[0.14em] text-fg/45">Opened</p>
+                <p className="mt-1 text-sm text-fg/80">{formatWhen(item.createdAt)}</p>
+                <p className="mt-5 text-xs uppercase tracking-[0.14em] text-fg/45">Updated</p>
+                <p className="mt-1 text-sm text-fg/80">{formatWhen(item.updatedAt)}</p>
               </div>
               <RiskBar score={item.riskScoreAtCreation} />
             </div>
 
-            <div className="mt-8 border-t border-white/10 pt-6">
-              <p className="text-xs uppercase tracking-[0.14em] text-white/45">Explanation</p>
-              <p className="mt-3 text-base leading-relaxed text-white/85">{item.explanation}</p>
+            <div className="mt-8 border-t border-fg/10 pt-6">
+              <p className="text-xs uppercase tracking-[0.14em] text-fg/45">Explanation</p>
+              <p className="mt-3 text-base leading-relaxed text-fg/85">{item.explanation}</p>
             </div>
 
             {item.decision && (
-              <div className="mt-8 rounded-2xl border border-white/10 bg-black/30 p-5">
+              <div className="mt-8 rounded-2xl border border-fg/10 bg-fg/[0.04] p-5">
                 <StatusPill tone="ok">{item.decision}</StatusPill>
-                <p className="mt-3 text-sm text-white/80">{item.decisionNote}</p>
+                <p className="mt-3 text-sm text-fg/80">{item.decisionNote}</p>
               </div>
             )}
           </Panel>
@@ -137,7 +137,7 @@ export default function CaseDetailPage() {
                 <StatusPill tone="neutral">{document.type}</StatusPill>
                 <StatusPill tone="neutral">{document.signatureMatchStatus}</StatusPill>
               </div>
-              <p className="mt-4 text-sm text-white/80">
+              <p className="mt-4 text-sm text-fg/80">
                 Tampering {pct(document.tamperingScore)} · Fraud {pct(document.fraudRiskScore)}
                 {document.signatureMatchScore != null
                   ? ` · Signature ${pct(document.signatureMatchScore)}`
@@ -166,8 +166,8 @@ export default function CaseDetailPage() {
                     className={[
                       'rounded-full px-4 py-2 text-sm transition',
                       decision === value
-                        ? 'bg-ember/30 font-semibold text-white'
-                        : 'liquid-glass text-white/70',
+                        ? 'bg-ember/25 font-semibold text-fg shadow-[inset_0_0_0_1px_rgba(255,69,21,0.4)]'
+                        : 'liquid-glass text-fg/70 hover:text-fg',
                     ].join(' ')}
                   >
                     {value}
@@ -187,7 +187,7 @@ export default function CaseDetailPage() {
               <button
                 type="submit"
                 disabled={busy || note.trim().length === 0}
-                className="w-full rounded-full bg-ember-grad py-3.5 text-sm font-semibold disabled:opacity-50"
+                className="w-full rounded-full bg-ember-grad py-3.5 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {busy ? 'Saving…' : 'Record decision'}
               </button>

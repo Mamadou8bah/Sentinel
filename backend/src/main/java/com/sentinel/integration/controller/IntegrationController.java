@@ -74,7 +74,7 @@ public class IntegrationController {
                 request.challengeId(),
                 request.idImage(),
                 request.selfieImage(),
-                request.name());
+                request.name(), request.frames());
         return KycSessionResponse.from(session, kycService.hostedUrl(session));
     }
 

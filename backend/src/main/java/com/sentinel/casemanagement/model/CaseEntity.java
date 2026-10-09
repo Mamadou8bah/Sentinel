@@ -38,6 +38,15 @@ public class CaseEntity {
     @JoinColumn(name = "related_document_id")
     private Document relatedDocument;
 
+    @Column(length = 255)
+    private String externalTransactionId;
+    @Column(length = 64)
+    private String relatedTransactionId;
+    public String getExternalTransactionId() { return externalTransactionId; }
+    public void setExternalTransactionId(String value) { externalTransactionId = value; }
+    public String getRelatedTransactionId() { return relatedTransactionId; }
+    public void setRelatedTransactionId(String value) { relatedTransactionId = value; }
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private CaseStatus status = CaseStatus.OPEN;

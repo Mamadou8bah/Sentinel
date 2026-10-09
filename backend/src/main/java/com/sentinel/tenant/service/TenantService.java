@@ -114,8 +114,9 @@ public class TenantService {
     }
 
     @Transactional
-    public Tenant updateWebhookUrl(Long tenantId, String webhookUrl) {
+    public Tenant updateWebhookUrl(Long tenantId, String webhookUrl, String signingSecret) {
         Tenant tenant = requireTenant(tenantId);
+        if (signingSecret != null) tenant.setWebhookSigningSecret(signingSecret);
         tenant.setWebhookUrl(webhookUrl == null || webhookUrl.isBlank() ? null : webhookUrl.trim());
         return tenantRepository.save(tenant);
     }

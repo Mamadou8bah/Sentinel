@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sutura &amp; Sentinel — Proposal pitch</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@360;480;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #070a00;
+      --ember: #ff4515;
+      --glow: #ffb38a;
+      --mute: rgba(255, 255, 255, 0.62);
+      --line: rgba(255, 255, 255, 0.14);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: #000; color: #fff; font-family: Outfit, system-ui, sans-serif; }
+    body { overflow: hidden; }
+    .deck { height: 100%; }
+    .slide {
+      display: none;
+      height: 100vh;
+      padding: 7vh 8vw 10vh;
+      position: relative;
+      background:
+        radial-gradient(ellipse 70% 50% at 100% 0%, rgba(255, 69, 21, 0.28), transparent 55%),
+        radial-gradient(ellipse 40% 40% at 0% 100%, rgba(255, 69, 21, 0.12), transparent 50%),
+        var(--ink);
+    }
+    .slide.active { display: flex; flex-direction: column; justify-content: center; }
+    .kicker {
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      font-size: 0.78rem;
+      color: var(--glow);
+      margin: 0 0 1.1rem;
+      font-weight: 600;
+    }
+    h1, h2 {
+      font-family: "Instrument Serif", Georgia, serif;
+      font-weight: 400;
+      letter-spacing: -0.03em;
+      line-height: 0.96;
+      margin: 0;
+    }
+    h1 { font-size: clamp(2.8rem, 5.4vw, 5.2rem); max-width: 20ch; }
+    h2 { font-size: clamp(2.4rem, 4.6vw, 4.6rem); max-width: 22ch; }
+    .lede { font-size: clamp(1.15rem, 1.7vw, 1.45rem); color: var(--mute); max-width: 38rem; line-height: 1.45; margin: 1.4rem 0 0; }
+    .ember { color: var(--ember); font-style: italic; }
+    .meta { margin-top: 2.4rem; color: rgba(255,255,255,0.78); font-size: 1rem; line-height: 1.7; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-top: 2rem; max-width: 1100px; }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 1.4rem 1.5rem 1.5rem;
+      background: rgba(255,255,255,0.03);
+    }
+    .card strong { display: block; font-size: 1.15rem; margin-bottom: 0.45rem; }
+    .card p { margin: 0; color: var(--mute); line-height: 1.45; }
+    .num { font-family: "Instrument Serif", serif; font-size: 2.4rem; color: var(--ember); display: block; margin-bottom: 0.3rem; }
+    ol.clean, ul.clean { margin: 1.2rem 0 0; padding: 0; list-style: none; max-width: 52rem; }
+    ol.clean li, ul.clean li {
+      padding: 0.72rem 0;
+      border-top: 1px solid var(--line);
+      font-size: clamp(1.05rem, 1.5vw, 1.28rem);
+      line-height: 1.35;
+    }
+    ol.clean li span, .q { color: var(--ember); font-family: "Instrument Serif", serif; margin-right: 0.55rem; }
+    .quote {
+      font-family: "Instrument Serif", serif;
+      font-size: clamp(1.8rem, 3.2vw, 2.7rem);
+      line-height: 1.2;
+      max-width: 20ch;
+      margin: 0.4rem 0 0;
+    }
+    .bar {
+      position: fixed; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255,255,255,0.08); z-index: 5;
+    }
+    .bar i { display: block; height: 100%; background: var(--ember); width: 0; }
+    .chrome {
+      position: fixed; left: 8vw; right: 8vw; bottom: 18px; z-index: 6;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.45);
+    }
+    .notes {
+      display: none;
+      position: fixed; left: 8vw; right: 8vw; bottom: 52px; z-index: 7;
+      background: rgba(0,0,0,0.82); border: 1px solid var(--line); border-radius: 16px;
+      padding: 0.9rem 1.1rem; color: #ffe7dc; font-size: 0.95rem; line-height: 1.4; max-width: 52rem;
+    }
+    body.show-notes .notes.active { display: block; }
+    .hint { position: fixed; top: 18px; right: 8vw; z-index: 6; font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.35); }
+    @media (max-width: 800px) {
+      .grid { grid-template-columns: 1fr; }
+      .slide { padding: 12vh 6vw 14vh; }
+      h1 { font-size: 2.7rem; }
+      h2 { font-size: 2.2rem; }
+    }
+    @media print {
+      .chrome, .bar, .hint, .notes { display: none !important; }
+      .slide { display: flex !important; break-after: page; height: 100vh; }
+    }
+  </style>
+</head>
+<body>
+  <p class="hint">Arrows to move · N notes · F fullscreen</p>
+  <div class="deck" id="deck">
+
+    <section class="slide active" data-note="Start with the money. Charged, pleaded not guilty. Then your name.">
+      <p class="kicker">A real case</p>
+      <h1>D900,000 left a wallet. Someone changed the SIM and the PIN.</h1>
+      <p class="lede">In 2022 an Africell staff member was charged in Kanifing. The charge says he changed customers’ SIMs and PINs, and moved their Afrimoney. He pleaded not guilty.</p>
+      <p class="meta">Mamadou Bah · 22326004 · School of ITC<br>Supervisor: Abdourahman Baldeh</p>
+    </section>
+
+    <section class="slide" data-note="Wave first. About 45 percent of wallet payments in 2023, Afrimoney about 41. If they want more: inclusion rose from 19 percent to 82 percent, Governor Saidy, FinScope, 11 June 2026. One quarter of 2026: cash-in D28.2 billion, cash-out D32.1 billion.">
+      <p class="kicker">Today</p>
+      <h2>People in The Gambia already use a wallet.</h2>
+      <p class="lede">Wave is the one most people use. In 2023 it handled about 45 percent of wallet payments. Afrimoney was next. People also cash in and cash out with an agent.</p>
+    </section>
+
+    <section class="slide" data-note="Read both cards. Card 1: Wave lets you upload the ID later. Afrimoney only asks for an ID number. Neither checks the person at signup. Then the SIM and PIN can be changed, which is the Kanifing charge. Card 2: the balance is one number.">
+      <p class="kicker">The problem</p>
+      <h2>Two things go wrong.</h2>
+      <div class="grid">
+        <article class="card">
+          <span class="num">1</span>
+          <strong>Signup does not check the person.</strong>
+          <p>On Wave you can upload your ID later. On Afrimoney you type an ID number. The wallet can still pay. Change the SIM and the PIN, and the money can move. That is the Kanifing charge.</p>
+        </article>
+        <article class="card">
+          <span class="num">2</span>
+          <strong>The balance is only a number.</strong>
+          <p>If a payment is sent twice, or stops halfway, that number can be wrong. There is no list of records to show what the balance should be.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="slide" data-note="This is the solution. Sutura is the wallet. Sentinel is the check. Say both names once.">
+      <p class="kicker">The solution</p>
+      <h2>Sutura is the wallet. Sentinel is the check.</h2>
+      <div class="grid">
+        <article class="card">
+          <span class="num">Sutura</span>
+          <strong>A wallet that keeps every payment.</strong>
+          <p>You send, receive, cash in, and cash out. Each payment is written as two matching records. The balance is those records added up.</p>
+        </article>
+        <article class="card">
+          <span class="num">Sentinel</span>
+          <strong>A check before the wallet pays.</strong>
+          <p>Sentinel asks: is this the real person, and is this payment safe? It answers allow, review, or block, and it writes the reason.</p>
+        </article>
+      </div>
+      <p class="lede">The customer uses the Sutura wallet. The money stays there. Sentinel never holds it.</p>
+    </section>
+
+    <section class="slide" data-note="Name the four users: customer, agent, shop, admin. Then the rule: every one of those actions is written twice.">
+      <p class="kicker">Sutura</p>
+      <h2>What the wallet does.</h2>
+      <ul class="clean">
+        <li>A customer opens a wallet, sends money, and receives money.</li>
+        <li>An agent takes cash in, or pays cash out.</li>
+        <li>A shop collects with a payment link.</li>
+        <li>An admin can freeze a wallet, or undo a payment.</li>
+        <li>Each action is saved as two matching records. The balance is those records added up.</li>
+      </ul>
+    </section>
+
+    <section class="slide" data-note="Walk D1,000 cash-in. Cash box up, wallet up, same request again is refused.">
+      <p class="kicker">Sutura</p>
+      <h2>You cash in D1,000. The wallet writes it twice.</h2>
+      <ol class="clean">
+        <li><span>1</span>The cash box goes up by D1,000.</li>
+        <li><span>2</span>Your wallet goes up by D1,000.</li>
+        <li><span>3</span>If the two amounts do not match, the payment is refused.</li>
+        <li><span>4</span>If the same payment is sent again, it is refused.</li>
+        <li><span>5</span>The number on the screen is the sum of these records.</li>
+      </ol>
+    </section>
+
+    <section class="slide" data-note="Same rule for a transfer. D200 leaves her wallet and enters the other. One payment. A second send is refused.">
+      <p class="kicker">Sutura</p>
+      <h2>She sends D200 to another wallet.</h2>
+      <ol class="clean">
+        <li><span>1</span>Her wallet goes down by D200.</li>
+        <li><span>2</span>The other wallet goes up by D200.</li>
+        <li><span>3</span>Both lines are one payment. If the amounts differ, it is refused.</li>
+        <li><span>4</span>If the phone sends it twice, the second copy is refused.</li>
+        <li><span>5</span>Each wallet balance is the sum of its own records.</li>
+      </ol>
+    </section>
+
+    <section class="slide" data-note="Two checks only. KYC is the ID and a live face. Fraud is the payment score: amount, time, who is paid. No cheque or signature talk.">
+      <p class="kicker">Sentinel</p>
+      <h2>Two checks. The person, then the payment.</h2>
+      <div class="grid">
+        <article class="card">
+          <strong>KYC. Is this the real person?</strong>
+          <p>You show your ID and your face. Sentinel checks that the face matches, and that a live person is there. A weak result stops the account. Wave lets you upload the ID later. Afrimoney takes an ID number.</p>
+        </article>
+        <article class="card">
+          <strong>Fraud. Is this payment safe?</strong>
+          <p>Before each payment, Sentinel looks at the amount, the time, and who is paid. Allow, review, or block. The reason names what triggered it. Staff must write a note.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="slide" data-note="Allow saves the payment. Review holds the money until staff write a note. Block saves nothing. Silence from Sentinel is the same as block.">
+      <p class="kicker">Sentinel</p>
+      <h2>Three answers. The money follows.</h2>
+      <ol class="clean">
+        <li><span>Allow</span>The wallet pays. Sutura writes the two records, and the balance changes.</li>
+        <li><span>Review</span>The money waits. Staff read the reason and write a note. Then Sutura pays or stops.</li>
+        <li><span>Block</span>The wallet does not pay. No record is saved. If Sentinel cannot be reached, the wallet also does not pay.</li>
+      </ol>
+    </section>
+
+    <section class="slide" data-note="Walk one customer. This is the project. Signup check, cash-in written twice, one payment allowed, one payment held, a repeat refused.">
+      <p class="kicker">The project</p>
+      <h2>One customer, from signup to payment.</h2>
+      <ol class="clean">
+        <li><span>1</span>She opens a Sutura wallet and shows her ID. Sentinel checks that she is there.</li>
+        <li><span>2</span>She gives an agent D1,000. Sutura writes the cash box up, and her wallet up, by the same amount.</li>
+        <li><span>3</span>She sends D200. Sentinel says allow. Sutura pays, and writes that payment twice.</li>
+        <li><span>4</span>A later payment looks unsafe. Sentinel says review. The money waits. Staff read the reason and write a note.</li>
+        <li><span>5</span>If that payment is sent again, Sutura refuses the copy. If Sentinel does not answer, the wallet does not pay.</li>
+      </ol>
+    </section>
+
+    <section class="slide" data-note="Customers, agents, and shops stay in Sutura. Sentinel staff only see cases. They cannot change the balance.">
+      <p class="kicker">Two screens</p>
+      <h2>The customer stays in the wallet.</h2>
+      <div class="grid">
+        <article class="card">
+          <strong>Sutura</strong>
+          <p>The customer, the agent, the shop, and the admin. Sending, cash in, cash out, and payment links all happen here. The balance changes only here.</p>
+        </article>
+        <article class="card">
+          <strong>Sentinel</strong>
+          <p>Staff only. They see the case, the reason for allow, review, or block, and they must write a note. They cannot pay, and they cannot change the balance. The customer has no Sentinel account.</p>
+        </article>
+      </div>
+      <p class="lede">Sutura asks Sentinel when the wallet is opened, and again before each payment.</p>
+    </section>
+
+    <section class="slide" data-note="A review opens a case. They see the reason. The note is required. They never type a new balance.">
+      <p class="kicker">The staff screen</p>
+      <h2>What staff do with a case.</h2>
+      <ul class="clean">
+        <li>A payment on review opens a case.</li>
+        <li>They see the amount, the person, and the reason for the score.</li>
+        <li>They decide, and they must write a note. A decision with no note is refused.</li>
+        <li>The screen keeps who decided, and when.</li>
+        <li>Sutura then pays, stops, or keeps waiting. Staff never type a new balance.</li>
+      </ul>
+    </section>
+
+    <section class="slide" data-note="The tests. A bad payment is refused, a repeat is saved once, the wrong role is refused, a weak ID does not pass, then one full story.">
+      <p class="kicker">How I will know</p>
+      <h2>I will try to break both sides.</h2>
+      <ul class="clean">
+        <li>A payment whose two sides do not match is refused.</li>
+        <li>The same payment sent twice is saved once.</li>
+        <li>An agent cannot undo a customer’s wallet. A customer cannot open the staff screen.</li>
+        <li>A weak face check does not pass. A payment that looks unlike the customer’s usual pattern is held, and the reason is shown.</li>
+        <li>One full run: open a wallet, cash in, allow one payment, hold another, and show the records and the case.</li>
+      </ul>
+    </section>
+
+    <section class="slide" data-note="Last slide. Wallet and the Sentinel check. Then stop.">
+      <p class="kicker">Close</p>
+      <h1>Sutura is the wallet.<br><span class="ember">Sentinel checks each payment.</span></h1>
+      <p class="lede">Every payment is written twice. Sentinel checks the person and the payment first. The money stays in Sutura.</p>
+      <p class="meta">Mamadou Bah · 22326004 · School of ITC<br>Abdourahman Baldeh</p>
+    </section>
+
+  </div>
+  <div class="notes" id="notes"></div>
+  <div class="bar"><i id="bar"></i></div>
+  <div class="chrome"><span>Sutura &amp; Sentinel</span><span id="count">1 / 13</span></div>
+  <script>
+    const slides = [...document.querySelectorAll(".slide")];
+    const notes = document.getElementById("notes");
+    const bar = document.getElementById("bar");
+    const count = document.getElementById("count");
+    let i = 0;
+    function show(n) {
+      i = Math.max(0, Math.min(slides.length - 1, n));
+      slides.forEach((s, idx) => s.classList.toggle("active", idx === i));
+      notes.textContent = slides[i].dataset.note || "";
+      notes.classList.toggle("active", true);
+      bar.style.width = ((i + 1) / slides.length * 100) + "%";
+      count.textContent = (i + 1) + " / " + slides.length;
+    }
+    document.addEventListener("keydown", (e) => {
+      if (["ArrowRight", "PageDown", " "].includes(e.key)) { e.preventDefault(); show(i + 1); }
+      if (["ArrowLeft", "PageUp", "Backspace"].includes(e.key)) { e.preventDefault(); show(i - 1); }
+      if (e.key === "Home") show(0);
+      if (e.key === "End") show(slides.length - 1);
+      if (e.key === "n" || e.key === "N") document.body.classList.toggle("show-notes");
+      if (e.key === "f" || e.key === "F") {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+        else document.exitFullscreen();
+      }
+    });
+    document.addEventListener("click", (e) => {
+      if (e.target.closest(".notes, .hint")) return;
+      show(e.clientX > window.innerWidth / 2 ? i + 1 : i - 1);
+    });
+    show(0);
+  </script>
+</body>
+</html>

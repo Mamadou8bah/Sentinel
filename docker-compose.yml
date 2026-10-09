@@ -1,4 +1,4 @@
-# Sentinel local stack — scaffold only (services not implementable until code is written)
+# Local infrastructure. Python services are opt-in with --profile inference.
 services:
   postgres:
     image: postgres:16-alpine
@@ -41,17 +41,37 @@ services:
   #   ports:
   #     - "8080:8080"
 
-  # cv-ml:
-  #   build: ./services/cv-ml
-  #   env_file: .env
-  #   ports:
-  #     - "8001:8001"
+  cv-ml:
+    profiles: ["inference"]
+    build: ./services/cv-ml
+    environment:
+      CV_ML_ARTIFACT_DIR: /app/artifacts/identity
+    ports:
+      - "127.0.0.1:8001:8001"
+    volumes:
+      - cv_challenges:/app/runtime
+      - ./services/cv-ml/artifacts:/app/artifacts:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # transaction-ml:
-  #   build: ./services/transaction-ml
-  #   env_file: .env
-  #   ports:
-  #     - "8002:8002"
+  transaction-ml:
+    profiles: ["inference"]
+    build: ./services/transaction-ml
+    environment:
+      TRANSACTION_ML_MODE: ${TRANSACTION_ML_MODE:-rules}
+      TRANSACTION_ML_MODEL_PATH: /app/artifacts/paysim/model.joblib
+    volumes:
+      - ./services/transaction-ml/artifacts:/app/artifacts:ro
+    ports:
+      - "127.0.0.1:8002:8002"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # frontend:
   #   build: ./frontend
@@ -62,3 +82,4 @@ services:
 
 volumes:
   pgdata:
+  cv_challenges:

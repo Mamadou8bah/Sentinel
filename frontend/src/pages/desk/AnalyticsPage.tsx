@@ -18,7 +18,7 @@ export default function AnalyticsPage() {
 
   if (loading) return <LoadingBlock label="Loading analytics…" />
   if (error || !trend) {
-    return <div className="text-sm text-red-300">{error || 'No analytics'}</div>
+    return <div className="text-sm text-[color:var(--status-danger)]">{error || 'No analytics'}</div>
   }
 
   const cards = [
@@ -45,7 +45,7 @@ export default function AnalyticsPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((card) => (
           <Panel key={card.label} className="p-5">
-            <p className="text-xs uppercase tracking-[0.14em] text-white/45">{card.label}</p>
+            <p className="text-xs uppercase tracking-[0.14em] text-fg/45">{card.label}</p>
             <p className="mt-3 font-display text-4xl font-black">{card.value}</p>
           </Panel>
         ))}
@@ -60,10 +60,10 @@ export default function AnalyticsPage() {
             {kycEntries.map(([status, count]) => (
               <li
                 key={status}
-                className="flex items-center justify-between border-b border-white/10 pb-3 text-sm"
+                className="flex items-center justify-between border-b border-fg/10 pb-3 text-sm"
               >
                 <span className="text-mute">{status}</span>
-                <span className="font-display text-xl font-bold text-white">{count}</span>
+                <span className="font-display text-xl font-bold text-fg">{count}</span>
               </li>
             ))}
           </ul>

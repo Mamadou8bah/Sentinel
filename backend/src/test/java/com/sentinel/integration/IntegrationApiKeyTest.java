@@ -77,6 +77,33 @@ class IntegrationApiKeyTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("COMPLETE"));
 
+        String scoreRequest = """
+                {"externalCustomerId":"ext-1001","externalTransactionId":"sutura-contract-42",
+                 "amount":100.00,"currency":"GMD","channel":"api","location":"GM"}
+                """;
+        mockMvc.perform(post("/api/integration/transactions/score")
+                        .contentType(MediaType.APPLICATION_JSON).content(scoreRequest))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/integration/transactions/score")
+                        .header("X-Api-Key", DataSeeder.DEMO_API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON).content(scoreRequest))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.externalCustomerId").value("ext-1001"))
+                .andExpect(jsonPath("$.externalTransactionId").value("sutura-contract-42"))
+                .andExpect(jsonPath("$.transactionId").isNotEmpty())
+                .andExpect(jsonPath("$.recommendation").value("ALLOW"))
+                .andExpect(jsonPath("$.explanation").isNotEmpty())
+                .andExpect(jsonPath("$.shapTopFeatures").isEmpty());
+
+        mockMvc.perform(post("/api/integration/transactions/score")
+                        .header("X-Api-Key", DataSeeder.DEMO_API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON).content(scoreRequest.replace("100.00", "101.00")))
+                .andExpect(status().isConflict());
+        mockMvc.perform(post("/api/integration/transactions/score")
+                        .header("X-Api-Key", DataSeeder.DEMO_API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON).content(scoreRequest))
+                .andExpect(status().isOk());
+
         mockMvc.perform(get("/api/integration/kyc/sessions/" + sessionId)
                         .header("X-Api-Key", DataSeeder.DEMO_API_KEY))
                 .andExpect(status().isOk())

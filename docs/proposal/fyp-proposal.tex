@@ -1,0 +1,459 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{setspace}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{xcolor}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  urlcolor=blue,
+  citecolor=black,
+  pdftitle={Sutura and Sentinel: Final Year Project Proposal},
+  pdfauthor={Mamadou Bah}
+}
+
+\setstretch{1.5}
+\setlist[itemize]{itemsep=0.25em, topsep=0.4em}
+\setlist[enumerate]{itemsep=0.25em, topsep=0.4em}
+\titlespacing*{\section}{0pt}{1.4em}{0.6em}
+\titlespacing*{\subsection}{0pt}{1.1em}{0.4em}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Sutura and Sentinel}
+\fancyhead[R]{\small UTG --- FYP Proposal}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\titleformat{\section}{\large\bfseries}{\thesection}{0.8em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.7em}{}
+
+\newcommand{\projecttitle}{Sutura and Sentinel: Design and Implementation of a Ledger-Based Digital Payments Platform with Integrated Identity Verification and Fraud Detection}
+
+\graphicspath{{./}{docs/proposal/}}
+
+\begin{document}
+
+% ---------------------------------------------------------------------------
+\begin{titlepage}
+\centering
+\vspace*{0.2cm}
+\includegraphics[width=3.2cm]{utg-logo.png}
+\vspace{0.7cm}
+
+{\large\bfseries UNIVERSITY OF THE GAMBIA\par}
+\vspace{0.35cm}
+{\normalsize School of ITC\par}
+{\normalsize Department of Computer Science\par}
+
+\vspace{1.6cm}
+{\Large\bfseries FINAL YEAR PROJECT PROPOSAL\par}
+
+\vspace{1.4cm}
+{\large\bfseries \projecttitle\par}
+
+\vspace{1.8cm}
+\begin{tabular}{@{}ll@{}}
+\textbf{Student name} & Mamadou Bah \\[0.35em]
+\textbf{Matriculation number} & 22326004 \\[0.35em]
+\textbf{Programme} & B.Sc.\ Computer Science \\[0.35em]
+\textbf{Supervisor} & Abdourahman Baldeh \\
+\end{tabular}
+
+\vfill
+{\normalsize September 2026\par}
+\vspace{0.6cm}
+\end{titlepage}
+
+% ---------------------------------------------------------------------------
+\thispagestyle{empty}
+\section*{Declaration}
+\addcontentsline{toc}{section}{Declaration}
+
+I, \textbf{Mamadou Bah} (Matriculation No.\ 22326004), declare that this proposal is my own work, prepared under the supervision of \textbf{Abdourahman Baldeh} in the Department of Computer Science, School of ITC, University of The Gambia. It has not been submitted, in whole or in part, for any other degree or diploma. Where the work of others is used, it is acknowledged in the text and in the reference list.
+
+\newpage
+% ---------------------------------------------------------------------------
+\section*{Abstract}
+\addcontentsline{toc}{section}{Abstract}
+
+Digital wallet products often store a single balance per account and update that number on every transfer. A single balance is simple to build. Retries, partial failures, and later reversals make that number hard to audit. A payments platform that moves real value also has to check identity and decide whether a payment should proceed. Customers, merchants, and agents need cash-in, cash-out, and merchant collections, with a record of where each amount came from. Operators need to know who is transacting, and whether a payment should be allowed, reviewed, or blocked.
+
+This project proposes two cooperating systems. \textbf{Sutura} is a digital payments platform whose source of truth is a double-entry ledger. Every wallet is linked to a ledger account. Every movement of value is recorded as balanced debit and credit postings under a unique trace. The balance shown in an application is computed from those postings, not stored as an isolated counter. Sutura supports customer wallets, transfers, deposits, withdrawals, merchant onboarding and payment links, agent-assisted cash operations, administration, and developer API keys.
+
+\textbf{Sentinel} is the separate identity and fraud service. Banks and payment platforms such as Sutura call Sentinel; end customers do not create Sentinel accounts. Sentinel provides hosted and API-based KYC (identity document, face match, and liveness) and real-time transaction fraud scoring with an allow, review, or block recommendation and a short explanation. Compliance staff work from a case desk with an audit trail.
+
+The project will design, implement, and evaluate the two systems and the points at which Sutura calls Sentinel: during onboarding, and before money movement is treated as settled. Success means a demonstrable payments flow whose books balance, together with a compliance decision that Sutura can act on. The work is a computer science final-year project for examination.
+
+\textbf{Keywords:} digital payments, double-entry ledger, mobile money, KYC, fraud detection, Sutura, Sentinel.
+
+\newpage
+\tableofcontents
+\newpage
+
+% ---------------------------------------------------------------------------
+\section{Introduction}
+
+\subsection{Background}
+
+People in The Gambia and across West Africa move money through mobile wallets, merchant collections, cash agents, and bank branches. A payments product for this setting has to support cash-in, cash-out, and merchant collections, as well as an app-to-app transfer. A customer may cash in or cash out through an agent. A merchant may collect through a payment link. An administrator may need to freeze a wallet or reverse a posting. A developer may need a stable API and an API key.
+
+Many wallet systems answer ``how much does this user have?'' by keeping one balance column and adding or subtracting from it. That number is easy to display and difficult to audit. A retried request can credit the same deposit twice. A failure after one side of a transfer has been updated can leave the books wrong. A later question, where this amount came from and which entries produced the balance on screen, cannot be answered from a single overwritten field.
+
+Sutura is designed so that the ledger is the source of truth. Creating a wallet also creates a linked ledger account. Wallet accounts are liabilities: the platform owes that amount to the holder. Platform cash is tracked in asset accounts. Each financial movement creates postings that share one trace identifier. The same trace cannot be posted twice. Debits and credits on a trace must balance. The balance a user sees is computed from those postings.
+
+The ledger records amounts. A separate compliance system checks whether the person opening the wallet is who they claim to be, and whether a payment looks like fraud. Sentinel is that system. It is built as a service that a payments platform or a bank calls. The customer stays in Sutura (or in a bank's own app). Sentinel staff review cases that automation cannot clear.
+
+This proposal treats Sutura and Sentinel as one final-year project with a clear boundary between them. Sutura records and moves value. Sentinel verifies identity and scores risk. Each system keeps its own record.
+
+\subsection{Problem statement}
+
+Existing approaches to small-value digital payments tend to fail in one of two ways.
+
+First, the accounting model is too weak. A single balance field cannot show a complete history, cannot safely absorb duplicate requests, and cannot be reconciled against an independent set of books. When the displayed balance and the transaction history disagree, operators often edit the number. The mismatch itself is left unrecorded.
+
+Second, identity and fraud controls are either missing or mixed into the same code that posts money. Mixing them makes both sides harder to test. The payments core records money. Face checks and fraud scoring belong in the compliance service. Customer funds stay on the ledger.
+
+The practical problem for this project is therefore:
+
+\begin{quote}
+How can a digital payments platform keep a provable, double-entry record of wallets, transfers, deposits, withdrawals, merchant collections, and agent cash operations, while delegating KYC and fraud decisions to a separate service that can allow, review, or block activity without becoming the ledger?
+\end{quote}
+
+\subsection{Aim}
+
+To design and implement Sutura, a ledger-based digital payments platform, and Sentinel, a KYC and fraud-detection service, and to integrate them so that identity checks and transaction-risk decisions inform Sutura money movement without replacing the ledger as the source of truth.
+
+\subsection{Objectives}
+
+The project will:
+
+\begin{enumerate}
+  \item Design and implement a double-entry ledger in which every wallet has a linked account, every movement is a balanced set of postings under a unique trace, and displayed balances are computed from postings.
+  \item Implement Sutura products on that ledger: customer wallets and transfers, deposits and withdrawals, merchant onboarding and payment links, agent cash-in and cash-out, and admin operations (freeze, reversal, reconciliation, and audit).
+  \item Implement authentication and authorisation for Sutura roles (customer, merchant, agent, admin, and developer), including JWT sessions and API keys for integrations.
+  \item Design and implement Sentinel as a multi-tenant compliance service with staff roles (admin, compliance, and analyst), service API keys, and no end-customer login.
+  \item Implement Sentinel KYC (identity document, face match, and liveness, fail-closed when evidence is weak) and real-time fraud scoring with an allow, review, or block outcome and a short explanation.
+  \item Provide a Sentinel staff desk for case review, customer investigation, and audit, and a Sutura set of client applications for each role.
+  \item Integrate the two systems at onboarding and at money movement: Sutura requests a KYC session and a transaction score; Sentinel returns a decision and can notify Sutura when a case is resolved.
+  \item Evaluate the result against functional scenarios (balanced postings, idempotent retries, role checks, KYC outcomes, and risk recommendations) and report limitations honestly.
+\end{enumerate}
+
+\subsection{Research questions}
+
+\begin{enumerate}
+  \item Can wallet balances that are computed from double-entry postings stay consistent with product-level transaction history under retries, partial failure, and reversal?
+  \item Which Sutura events should call Sentinel, and which Sutura states should wait for an allow, review, or block result?
+  \item Can Sentinel produce a decision that a payments platform can act on, with enough explanation for a human reviewer, without storing or posting customer funds?
+\end{enumerate}
+
+\subsection{Scope}
+
+The project includes:
+
+\begin{itemize}
+  \item Sutura core API, ledger, wallets, transfers, deposits, withdrawals, payment links, merchant registration, agent operations, admin controls, webhooks for settlement callbacks, reconciliation reports, and role-specific clients.
+  \item Sentinel core API, KYC and hosted verification page, transaction fraud scoring, risk cases, staff desk, audit log, and outbound webhooks.
+  \item A defined integration in which Sutura is the payments system of record and Sentinel is the compliance system of record.
+\end{itemize}
+
+The project does not include:
+
+\begin{itemize}
+  \item A claim of regulatory certification, a banking licence, or production approval by the Central Bank of The Gambia.
+  \item Card-scheme authorisation or connection to a live national switch.
+  \item Replacing Sutura's ledger with Sentinel, or giving Sentinel the ability to mint wallet balances on its own.
+  \item Cheque, invoice, and signature verification. Identity evidence in this project is the KYC check: the identity document, the face match, and liveness.
+  \item A full multi-bank commercial SaaS (billing, self-serve tenant signup). Sentinel is multi-tenant in design so that more than one institution could be isolated; the demonstration tenant is Sutura.
+\end{itemize}
+
+\subsection{Significance}
+
+For the student, the project combines distributed systems, accounting invariants, security, and applied machine learning in one design. For the local context, it matches a product shape already in use: wallets, agents, and merchants, with books that can be explained, and with identity and fraud handled in a separate service. For assessment, each objective maps to a demonstration: a balanced posting, a rejected duplicate trace, a role that cannot call another role's API, a KYC result, a risk recommendation, and a case decision with an audit record.
+
+% ---------------------------------------------------------------------------
+\section{Literature review}
+
+\subsection{Mobile money and agent networks}
+
+Mobile money systems showed that a large share of digital payments in Africa moves through wallets and human agents, as well as through bank transfers between apps. The GSMA State of the Industry reports document the scale of mobile money accounts, cash-in and cash-out, and merchant payments across Sub-Saharan Africa \cite{gsma2024}. Products in this region, including services used in The Gambia, depend on agents who exchange physical cash against a digital reference. A system that only models peer-to-peer transfers misses part of the real flow. Sutura treats agent completion of a deposit or withdrawal reference as a normal operation.
+
+\subsection{Ledgers and the balance column}
+
+Double-entry bookkeeping records each economic event as equal debits and credits. The method is old; its value in software is that an event can be rejected when it does not balance, and a balance can be rebuilt from the event log. Martin Kleppmann's treatment of derived data argues for keeping an authoritative log and computing current state from it \cite{kleppmann2017}. Payment APIs also have to survive retries. Idempotency keys are the usual control: the same client request, repeated after a timeout, must not create a second successful transfer \cite{stripeidem}. Sutura applies the same idea at the ledger with unique trace identifiers, and at the product layer with idempotency keys or stable references.
+
+Reconciliation is the check that derived balances and product history still agree. When they do not, the system records a mismatch. Overwriting the displayed balance hides the defect.
+
+\subsection{KYC, AML, and separation of duties}
+
+The Financial Action Task Force recommendations require customer due diligence proportionate to risk: identifying the customer, understanding the nature of the relationship, and monitoring transactions \cite{fatf}. This project implements that engineering shape: collect identity evidence, fail closed when the evidence is weak, score subsequent payments, and keep an audit trail of human decisions.
+
+Separating the compliance service from the ledger matches a common integration pattern. The payments platform remains responsible for posting money. The compliance platform returns a status and a recommendation. Staff who review cases are not the same component that increments a balance. Sentinel follows that split: customers do not hold Sentinel accounts; the calling platform does.
+
+\subsection{Fraud detection and explanation}
+
+Supervised models trained on simulated mobile-money traces, notably PaySim, are widely used when real bank data cannot be published \cite{paysim2016}. Gradient-boosted trees such as XGBoost are a standard choice for tabular payment features \cite{xgboost2016}. Reviewers also need to see which inputs produced the score. Lundberg and Lee's SHAP method attributes a prediction to input features, which lets a reviewer see which signals dominated a review or block decision \cite{lundberg2017}. Sentinel's fraud path is designed around rules, a model, and a short feature explanation, returning allow, review, or block. The features include amount, time, channel, and counterparty, covering wallet transfers, cash-in, and cash-out.
+
+KYC is the other half of the same service. The customer presents an identity document and a live face. A weak face match or a weak liveness result is flagged or rejected. The project does not score cheques, invoices, or signatures.
+
+\subsection{Gap this project addresses}
+
+Published mobile-money simulators and KYC products are usually studied separately. Wallet products often ship the balance column first and add compliance later, inside the same service. This project builds both sides with an explicit contract between them: Sutura posts only through the ledger; Sentinel stores no Sutura funds; Sutura calls Sentinel at onboarding and before settlement.
+
+% ---------------------------------------------------------------------------
+\section{Proposed system}
+
+\subsection{Actors}
+
+\begin{table}[ht]
+\centering
+\caption{Actors across the two systems}
+\label{tab:actors}
+\small
+\begin{tabularx}{\textwidth}{@{}l X X@{}}
+\toprule
+\textbf{Actor} & \textbf{Sutura} & \textbf{Sentinel} \\
+\midrule
+Customer &
+Send, deposit, withdraw, view history &
+Completes hosted KYC only; no Sentinel account \\
+Merchant &
+Register, collections wallet, payment links &
+May be the subject of a KYC session started by Sutura \\
+Agent &
+Look up and complete a cash reference &
+No direct access \\
+Sutura admin &
+Freeze, reverse, reconcile, audit &
+No direct access unless also given staff rights \\
+Developer &
+API keys for collections and payouts &
+Not a Sentinel user; Sutura's server calls Sentinel \\
+Compliance staff &
+No Sutura ledger access by default &
+Case queue, decisions, audit on the Sentinel desk \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Sutura}
+
+Sutura is organised around one rule: the core API is the only component that posts to the ledger. Mobile and web clients render API responses. They do not keep a private balance that is treated as truth.
+
+\begin{itemize}
+  \item \textbf{Wallets.} Creating a wallet creates a linked liability account. Status and limits are enforced before a movement.
+  \item \textbf{Transfers.} A pending transaction is created, the ledger posts a debit on the source and a credit on the destination under one trace, and the transaction is then completed or marked failed. Retries use an idempotency key or stable reference.
+  \item \textbf{Deposits and withdrawals.} A reference is issued (including for agent cash). The ledger credit or debit is applied when settlement is confirmed, for example after agent completion or a verified provider webhook.
+  \item \textbf{Merchants.} Registration is staged (phone and OTP, business details, owner identity, account acceptance). Active merchants hold a collections wallet and can issue payment links.
+  \item \textbf{Agents.} Agent endpoints require the agent or admin role. The agent looks up a reference and marks the cash operation complete. The API then applies the ledger movement required by the business rules.
+  \item \textbf{Administration.} Freeze and unfreeze, reversal, reconciliation reports, and an audit trail.
+  \item \textbf{Developers.} API keys sent as \texttt{X-Api-Key} for server-to-server calls.
+\end{itemize}
+
+Ledger rules enforced on every posting:
+
+\begin{enumerate}
+  \item Total debits equal total credits, or the posting is rejected.
+  \item A trace identifier that already exists is rejected.
+  \item Posting currency matches the account currency.
+  \item Inactive accounts cannot receive postings.
+  \item A reduction is checked against the computed ledger balance and against wallet limits.
+\end{enumerate}
+
+A liability balance is credits minus debits. An asset balance, such as platform cash in GMD, is debits minus credits. Example: a deposit of 1{,}000~GMD debits platform cash and credits the wallet liability under one trace. A transfer of 500~GMD debits wallet A and credits wallet B under another trace.
+
+Reconciliation jobs compare balances derived from the ledger with balances implied by wallet and transaction history. A mismatch is stored on a report. It is not silently corrected by editing a balance column.
+
+Sutura keeps both product transactions (type, status, reference, parties, amount) and ledger postings. They are tied by the trace or reference. A failed posting marks the product transaction failed. It does not leave an unexplained balance change.
+
+\subsection{Sentinel}
+
+Sentinel is a multi-tenant compliance platform. In this project the calling tenant is Sutura. The same boundary would allow a bank core to call Sentinel later. End customers never register on Sentinel.
+
+\begin{itemize}
+  \item \textbf{KYC.} Sutura starts a session with a service API key and an external customer identifier. The customer is redirected to a hosted page for an identity document and a liveness challenge, including a face match. Weak face match or weak liveness produces a flagged or rejected status.
+  \item \textbf{Fraud scoring.} Sutura calls a score endpoint with amount, time, channel, and counterparty context. Rules and a model return an anomaly score, rule flags, a short explanation, and a recommendation: allow, review, or block.
+  \item \textbf{Cases and audit.} Signals that breach policy open a case. A compliance officer records a decision and a mandatory note. The audit log stores who did what, and when.
+  \item \textbf{Staff desk.} A web application with a fixed sidebar for overview, cases, customers, tools, analytics, settings, and audit, including pagination on long lists.
+\end{itemize}
+
+Sentinel does not hold Sutura wallets and does not post ledger entries. Its webhook tells Sutura that a KYC session or a case reached a terminal state. Sutura decides how that status changes a wallet limit or a pending payment.
+
+\subsection{Integration}
+
+The integration is specified as part of the project from the start.
+
+\begin{enumerate}
+  \item \textbf{Onboarding.} During customer or merchant registration, Sutura creates a Sentinel KYC session and sends the user to the hosted verification URL. Sutura stores the external customer identifier and the returned status. Higher limits can depend on a verified result.
+  \item \textbf{Money movement.} Before a transfer, deposit settlement, or withdrawal is completed, Sutura requests a transaction score. Allow proceeds to the ledger posting. Review leaves the product transaction pending and opens or links a Sentinel case. Block rejects the movement and does not post.
+  \item \textbf{Callback.} Sentinel notifies Sutura when a reviewed case is approved, rejected, or escalated. Sutura then completes, fails, or continues to hold the pending transaction. The ledger posting still happens only inside Sutura, and only once, under one trace.
+  \item \textbf{Failure behaviour.} If Sentinel cannot be reached, the operation stays pending or fails closed, according to a configured policy, and the attempt is logged.
+\end{enumerate}
+
+Clients talk to Sutura. Sutura talks to its ledger and to Sentinel. Sentinel talks to its own database and to its staff desk.
+
+\subsection{Security controls}
+
+\begin{itemize}
+  \item Role checks on both APIs. An agent cannot operate a customer wallet beyond the agent operations. Direct balance minting on Sutura is limited to admin. Sentinel case decisions require compliance or admin staff.
+  \item Short-lived access tokens and refresh tokens on Sutura. Staff JWT and service API keys on Sentinel.
+  \item Webhook signatures so a forged callback cannot complete a deposit or a KYC result.
+  \item Rate limits on authentication endpoints. Production configuration rejects default secrets.
+  \item Audit records for administrative and case decisions.
+  \item No stack traces in production error responses.
+\end{itemize}
+
+% ---------------------------------------------------------------------------
+\section{Methodology}
+
+The project follows a design-science approach: state the problem, design an artefact that satisfies explicit invariants, implement it, and evaluate it against those scenarios \cite{hevner2004}.
+
+\subsection{Requirements and design}
+
+Requirements are written as functional statements with acceptance checks. For Sutura, examples are: a posting with unequal debits and credits is rejected; a repeated trace is rejected; a transfer retry with the same idempotency key does not move money twice; an agent token cannot call admin reversal. For Sentinel, examples are: weak liveness does not return verified; a score response always includes a recommendation and a short explanation; a case decision without a note is rejected.
+
+Design is recorded in architecture notes, API contracts, and a data model for each repository before or alongside the code that implements them. The integration contract (who calls whom, and which Sutura states wait) is written down so the two codebases do not drift.
+
+\subsection{Implementation}
+
+Implementation is split by responsibility, matching the runtime boundary.
+
+\begin{table}[ht]
+\centering
+\caption{Implementation map}
+\label{tab:stack}
+\small
+\begin{tabularx}{\textwidth}{@{}l X@{}}
+\toprule
+\textbf{Part} & \textbf{Technology} \\
+\midrule
+Sutura API & Java, Spring Boot, Spring Security, PostgreSQL, Redis \\
+Sutura clients & Role-specific mobile and web applications calling the Sutura API \\
+Sentinel API & Java, Spring Boot, JWT, API keys, PostgreSQL \\
+Sentinel inference & Python services for face and liveness checks, and for fraud scoring \\
+Sentinel desk and hosted KYC & React, TypeScript, Vite \\
+Integration & HTTPS, \texttt{X-Api-Key}, signed webhooks \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Machine-learning components are trained and evaluated on published or synthetic data (PaySim-style payment traces, and synthetic identity images for face match and liveness). Real customer identity documents and live payment credentials are out of scope. Where a model is not yet wired, the API returns a deterministic fail-closed or rule-based result and records that a model did not run.
+
+\subsection{Evaluation}
+
+Evaluation is scenario-based and metric-based.
+
+\begin{itemize}
+  \item \textbf{Ledger.} Unit and integration tests for zero-sum postings, unique traces, currency checks, insufficient funds, and idempotent transfer retries. A reconciliation run on a known-good history reports no mismatch. A deliberately broken history reports one.
+  \item \textbf{Roles.} Requests with the wrong role receive an authorisation failure.
+  \item \textbf{KYC.} Labelled samples report face-match and liveness behaviour, including spoof attempts where a test set exists. A weak result does not return verified.
+  \item \textbf{Transaction risk.} Precision, recall, and false-positive rate on a held-out PaySim-style split, plus a manual check that explanations name the features that drove a review.
+  \item \textbf{Integration.} An end-to-end script: register, complete or fail KYC, attempt a transfer that Sentinel allows, attempt one that Sentinel reviews, and show the ledger and the case afterwards.
+\end{itemize}
+
+The written report will include failures and limits: dataset shift from simulated payments, the absence of a live switch, and the fact that the systems are not certified.
+
+\subsection{Project plan}
+
+\begin{table}[ht]
+\centering
+\caption{Work plan}
+\label{tab:plan}
+\small
+\begin{tabularx}{\textwidth}{@{}l X@{}}
+\toprule
+\textbf{Period} & \textbf{Work} \\
+\midrule
+Weeks 1--2 &
+Finalise requirements, ledger invariants, and the Sutura--Sentinel contract \\
+Weeks 3--5 &
+Sutura ledger, wallets, transfers, idempotency, and role security \\
+Weeks 6--7 &
+Deposits, withdrawals, agents, merchants, and payment links \\
+Weeks 8--9 &
+Sentinel KYC, fraud scoring, cases, and staff desk \\
+Weeks 10--11 &
+Integration, webhooks, reconciliation, and end-to-end scenarios \\
+Week 12 &
+Evaluation, demonstration, and final report \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ---------------------------------------------------------------------------
+\section{Expected deliverables}
+
+\begin{enumerate}
+  \item Sutura source code: API, ledger, and role-specific clients, with setup notes.
+  \item Sentinel source code: API, inference services, staff desk, and hosted KYC page, with setup notes.
+  \item A short integration note listing each Sutura call to Sentinel and the Sutura state that follows allow, review, block, and timeout.
+  \item Automated tests for ledger invariants and for authorisation.
+  \item An evaluation section covering reconciliation, KYC behaviour, fraud-score metrics, and one demonstrated end-to-end flow.
+  \item The final report and a demonstration script suitable for oral defence.
+\end{enumerate}
+
+% ---------------------------------------------------------------------------
+\section{Conclusion}
+
+Sutura and Sentinel answer two different questions. Sutura answers whether the books still balance, and which postings produced the balance on screen. Sentinel answers whether the person and the payment should pass, be reviewed, or be stopped. This proposal commits to building both, and to connecting them at onboarding and at settlement. Each system keeps its own source of truth. The result intended for examination is a working demonstration and a written evaluation.
+
+% ---------------------------------------------------------------------------
+\begin{thebibliography}{99}
+
+\bibitem{fatf}
+Financial Action Task Force.
+\newblock \emph{International Standards on Combating Money Laundering and the Financing of Terrorism and Proliferation: The FATF Recommendations}.
+\newblock FATF, Paris, updated 2023.
+
+\bibitem{gsma2024}
+GSMA.
+\newblock \emph{State of the Industry Report on Mobile Money}.
+\newblock GSMA, London, 2024.
+
+\bibitem{hevner2004}
+A.~R. Hevner, S.~T. March, J.~Park, and S.~Ram.
+\newblock Design science in information systems research.
+\newblock \emph{MIS Quarterly}, 28(1):75--105, 2004.
+
+\bibitem{kleppmann2017}
+M.~Kleppmann.
+\newblock \emph{Designing Data-Intensive Applications}.
+\newblock O'Reilly Media, Sebastopol, CA, 2017.
+
+\bibitem{lundberg2017}
+S.~M. Lundberg and S.-I. Lee.
+\newblock A unified approach to interpreting model predictions.
+\newblock In \emph{Advances in Neural Information Processing Systems}, volume~30, 2017.
+
+\bibitem{paysim2016}
+E.~A. Lopez-Rojas, A.~Elmir, and S.~Axelsson.
+\newblock PaySim: A financial mobile money simulator for fraud detection.
+\newblock In \emph{28th European Modeling and Simulation Symposium}, 2016.
+
+\bibitem{stripeidem}
+Stripe.
+\newblock Idempotent requests.
+\newblock \url{https://docs.stripe.com/api/idempotent_requests}.
+\newblock Accessed 26 September 2026.
+
+\bibitem{xgboost2016}
+T.~Chen and C.~Guestrin.
+\newblock XGBoost: A scalable tree boosting system.
+\newblock In \emph{Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining}, pages 785--794, 2016.
+
+\end{thebibliography}
+
+\end{document}

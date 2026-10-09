@@ -75,7 +75,7 @@ export default function SettingsPage() {
 
   if (loading) return <LoadingBlock label="Loading settings…" />
   if (!risk) {
-    return <div className="text-sm text-red-300">{message || 'Settings unavailable'}</div>
+    return <div className="text-sm text-[color:var(--status-danger)]">{message || 'Settings unavailable'}</div>
   }
 
   const numberFields: Array<{ key: keyof RiskSettings; label: string; max?: number }> = [
@@ -130,7 +130,7 @@ export default function SettingsPage() {
           <button
             type="submit"
             disabled={busy}
-            className="mt-6 rounded-full bg-ember-grad px-6 py-3 text-sm font-semibold disabled:opacity-50"
+            className="mt-6 rounded-full bg-ember-grad px-6 py-3 text-sm font-semibold text-white disabled:opacity-50"
           >
             Save risk settings
           </button>
@@ -154,7 +154,7 @@ export default function SettingsPage() {
             <button
               type="submit"
               disabled={busy}
-              className="rounded-full bg-ember-grad px-6 py-3 text-sm font-semibold disabled:opacity-50"
+              className="rounded-full bg-ember-grad px-6 py-3 text-sm font-semibold text-white disabled:opacity-50"
             >
               Save webhook
             </button>

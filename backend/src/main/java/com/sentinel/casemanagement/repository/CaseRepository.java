@@ -6,6 +6,9 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import jakarta.persistence.LockModeType;
 
 public interface CaseRepository extends JpaRepository<CaseEntity, Long> {
 
@@ -28,4 +31,8 @@ public interface CaseRepository extends JpaRepository<CaseEntity, Long> {
     long countByTenant_IdAndStatus(Long tenantId, CaseStatus status);
 
     long countByTenant_Id(Long tenantId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from CaseEntity c where c.id = :id and c.tenant.id = :tenantId")
+    Optional<CaseEntity> findForDecision(Long id, Long tenantId);
 }

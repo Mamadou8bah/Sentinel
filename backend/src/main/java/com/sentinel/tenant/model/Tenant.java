@@ -29,6 +29,11 @@ public class Tenant {
     @Column(name = "webhook_url", length = 1024)
     private String webhookUrl;
 
+    @Column(length = 256)
+    private String webhookSigningSecret;
+    public String getWebhookSigningSecret() { return webhookSigningSecret; }
+    public void setWebhookSigningSecret(String value) { webhookSigningSecret = value; }
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { api } from '../api/client'
 import { SentinelLogo } from '../components/landing/ui'
 import { fileToBase64 } from '../lib/files'
+import { LivenessCapture } from '../components/kyc/LivenessCapture'
 
 type HostedSession = {
   status: 'PENDING' | 'SUBMITTED' | 'COMPLETE'
@@ -18,22 +20,6 @@ type HostedSession = {
 
 type Step = 'intro' | 'id' | 'selfie' | 'review' | 'done'
 
-async function hostedFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers || {}),
-    },
-  })
-  const text = await res.text()
-  const data = text ? JSON.parse(text) : null
-  if (!res.ok) {
-    throw new Error((data && data.message) || res.statusText)
-  }
-  return data as T
-}
-
 export default function HostedKycPage() {
   const { token } = useParams()
   const [session, setSession] = useState<HostedSession | null>(null)
@@ -46,13 +32,18 @@ export default function HostedKycPage() {
   const [idBase64, setIdBase64] = useState<string | null>(null)
   const [selfieBase64, setSelfieBase64] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [frames, setFrames] = useState<string[]>([])
+
+  useEffect(() => () => {
+    if (idPreview?.startsWith('blob:')) URL.revokeObjectURL(idPreview)
+  }, [idPreview])
 
   const load = useCallback(async () => {
     if (!token) return
     setLoading(true)
     setError(null)
     try {
-      const data = await hostedFetch<HostedSession>(`/api/kyc/hosted/${token}`)
+      const data = await api.get<HostedSession>(`/api/kyc/hosted/${token}`)
       setSession(data)
       if (data.status === 'COMPLETE') setStep('done')
     } catch (err) {
@@ -66,11 +57,12 @@ export default function HostedKycPage() {
     void load()
   }, [load])
 
-  async function onPick(
-    file: File | null,
-    kind: 'id' | 'selfie',
-  ) {
+  async function onPick(file: File | null, kind: 'id' | 'selfie') {
     if (!file) return
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 3_000_000) {
+      setError('Choose a JPEG, PNG or WebP image smaller than 3 MB.')
+      return
+    }
     const b64 = await fileToBase64(file)
     const preview = URL.createObjectURL(file)
     if (kind === 'id') {
@@ -87,13 +79,11 @@ export default function HostedKycPage() {
     setBusy(true)
     setError(null)
     try {
-      const data = await hostedFetch<HostedSession>(`/api/kyc/hosted/${token}/submit`, {
-        method: 'POST',
-        body: JSON.stringify({
-          idImage: idBase64,
-          selfieImage: selfieBase64,
-          name: name.trim() || undefined,
-        }),
+      const data = await api.post<HostedSession>(`/api/kyc/hosted/${token}/submit`, {
+        idImage: idBase64,
+        selfieImage: selfieBase64,
+        name: name.trim() || undefined,
+        frames,
       })
       setSession(data)
       setStep('done')
@@ -169,13 +159,14 @@ export default function HostedKycPage() {
       )}
 
       <div className="mt-8">
+        {error && step !== 'review' && <p role="alert" className="mb-4 text-sm text-red-300">{error}</p>}
         {step === 'intro' && (
           <div className="space-y-5">
             <div className="liquid-glass rounded-[24px] p-5 text-sm text-white/80">
               <p>You will:</p>
               <ul className="mt-3 list-disc space-y-1 pl-5 text-mute">
                 <li>Photograph your government ID</li>
-                <li>Take a live selfie ({session.livenessHint})</li>
+                <li>Record three camera frames following the liveness prompts</li>
                 <li>Submit once — do not refresh mid-check</li>
               </ul>
             </div>
@@ -204,16 +195,17 @@ export default function HostedKycPage() {
         )}
 
         {step === 'selfie' && (
-          <CaptureStep
-            title="Live selfie"
-            hint={session.livenessHint || 'Look straight at the camera'}
-            preview={selfiePreview}
-            preferCamera
-            onFile={(file) => void onPick(file, 'selfie')}
-            onBack={() => setStep('id')}
-            onNext={() => setStep('review')}
-            nextDisabled={!selfieBase64}
-          />
+          <div className="space-y-5">
+            <h2 className="font-display text-2xl font-bold">Liveness challenge</h2>
+            <LivenessCapture hint={session.livenessHint} onCapture={(captured) => {
+              setFrames(captured)
+              const last = captured[captured.length - 1] ?? null
+              setSelfieBase64(last)
+              setSelfiePreview(last ? `data:image/jpeg;base64,${last}` : null)
+            }} />
+            <GhostButton onClick={() => setStep('id')}>Back</GhostButton>
+            <PrimaryButton onClick={() => setStep('review')} disabled={frames.length !== 3}>Continue</PrimaryButton>
+          </div>
         )}
 
         {step === 'review' && (
@@ -277,6 +269,13 @@ function Shell({ children }: { children: ReactNode }) {
           <SentinelLogo size={36} />
           <span className="text-[11px] uppercase tracking-[0.16em] text-white/45">Hosted KYC</span>
         </div>
+        {typeof window !== 'undefined' &&
+          (localStorage.getItem('sentinel.demo') === '1' ||
+            import.meta.env.VITE_DEMO_MODE === 'true') && (
+            <p className="mt-4 rounded-full border border-ember/30 bg-ember/10 px-3 py-1.5 text-center text-[11px] text-ember-glow">
+              Demo mode — sample verification (API offline)
+            </p>
+          )}
         <div className="mt-10 flex-1 animate-fade-up">{children}</div>
       </div>
     </div>
@@ -415,17 +414,16 @@ function CaptureStep({
         <p className="mt-1 text-sm text-mute">{hint}</p>
       </div>
 
-      {cameraOn ? (
-        <div className="overflow-hidden rounded-[24px] border border-white/15 bg-black">
+        <div className={cameraOn ? 'overflow-hidden rounded-[24px] border border-white/15 bg-black' : 'hidden'}>
           <video ref={videoRef} playsInline muted className="aspect-[3/4] w-full object-cover" />
         </div>
-      ) : preview ? (
+      {!cameraOn && (preview ? (
         <img src={preview} alt="" className="aspect-[3/4] w-full rounded-[24px] object-cover" />
       ) : (
         <div className="grid aspect-[3/4] place-items-center rounded-[24px] border border-dashed border-white/20 bg-black/30 text-sm text-mute">
           Camera or upload
         </div>
-      )}
+      ))}
 
       <div className="flex flex-wrap gap-2">
         {!cameraOn ? (

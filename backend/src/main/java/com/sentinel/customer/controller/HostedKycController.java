@@ -40,7 +40,7 @@ public class HostedKycController {
     public HostedKycSessionResponse submit(
             @PathVariable String token, @Valid @RequestBody HostedKycSubmitRequest request) {
         KycSession session = kycService.submitByPublicToken(
-                token, request.idImage(), request.selfieImage(), request.name());
+                token, request.idImage(), request.selfieImage(), request.name(), request.frames());
         session.getTenant().getName();
         if (session.getCustomer() != null) {
             session.getCustomer().getKycStatus();

@@ -1,13 +1,15 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: ['selector', '[data-theme="dark"]'],
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
-        ink: '#070A00',
-        panel: '#11140A',
-        mute: '#9A9A9A',
-        light: '#FFFFFF',
+        ink: 'rgb(var(--ink-rgb) / <alpha-value>)',
+        panel: 'rgb(var(--panel-rgb) / <alpha-value>)',
+        mute: 'rgb(var(--mute-rgb) / <alpha-value>)',
+        light: 'rgb(var(--fg-rgb) / <alpha-value>)',
+        fg: 'rgb(var(--fg-rgb) / <alpha-value>)',
         ember: {
           DEFAULT: '#FF4515',
           deep: '#C62800',

@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sutura and Sentinel — slide guide</title>
+  <style>
+    @page { size: A4; margin: 16mm 16mm 18mm; }
+    body { font-family: "Segoe UI", Calibri, sans-serif; color: #1a1a1a; font-size: 11.5pt; line-height: 1.48; margin: 0; }
+    h1 { font-size: 22pt; line-height: 1.15; margin: 0 0 0.35rem; }
+    h2 { font-size: 16pt; line-height: 1.2; margin: 0 0 0.4rem; }
+    h3 { font-size: 12pt; margin: 0.95rem 0 0.2rem; }
+    p { margin: 0.28rem 0 0.5rem; }
+    ul, ol { margin: 0.15rem 0 0.55rem; padding-left: 1.2rem; }
+    li { margin: 0.18rem 0; }
+    .kicker { letter-spacing: 0.12em; text-transform: uppercase; font-size: 9pt; color: #c2410c; font-weight: 700; margin: 0 0 0.3rem; }
+    .slide { page-break-before: always; }
+    .onslide, .say, .ask { padding: 0.5rem 0.75rem; margin: 0.35rem 0 0.7rem; }
+    .onslide { background: #f6f4f1; border-left: 3px solid #c2410c; }
+    .say { background: #f3f7f3; border-left: 3px solid #2f6b3a; }
+    .ask { background: #f4f6fb; border-left: 3px solid #1e3a5f; }
+    strong { font-weight: 650; }
+  </style>
+</head>
+<body>
+
+<section>
+  <p class="kicker">School of ITC · Mamadou Bah · 22326004 · Supervisor Abdourahman Baldeh</p>
+  <h1>Sutura and Sentinel</h1>
+  <p>Slide-by-slide guide. Sixteen slides. Read the explanation before the pitch. The green box is what to say out loud. The blue box is for questions.</p>
+  <p><strong>Sutura is the wallet.</strong> A customer, an agent, a shop, and an admin use it. They can send money, cash in, cash out, and collect with a payment link. Every payment is written as two matching records. The balance on the screen is the sum of those records.</p>
+  <p><strong>Sentinel is the check.</strong> The customer never opens Sentinel and never has a Sentinel account. Sutura calls Sentinel when a wallet is opened, and again before each payment. Sentinel says allow, review, or block, and it writes the reason. Staff work the review cases. They cannot change the balance.</p>
+  <p>The order of the pitch is: a real case, the wallets people already use, the two problems, then the project itself. Slides 5 to 13 cover the wallet and Sentinel. Slide 14 closes.</p>
+  <p>Wave is the wallet most people use. On Wave, the ID can be uploaded later. On Afrimoney, signup takes an ID number. Do not say either of them checks the person at signup. Sutura does: the customer shows the ID, and Sentinel checks that a live person is there, before the wallet pays.</p>
+  <p>This is a student project for examination. It is not a Central Bank licence, and the fraud score is not trained on live Wave or Afrimoney payments. The Kanifing matter is a charge. The plea was not guilty.</p>
+</section>
+
+<section class="slide">
+  <p class="kicker">Slide 1 · A real case</p>
+  <h2>D900,000 left a wallet. Someone changed the SIM and the PIN.</h2>
+  <div class="onslide">
+    <p>In 2022 an Africell staff member was charged in Kanifing. The charge says he changed customers’ SIMs and PINs, and moved their Afrimoney. He pleaded not guilty.</p>
+    <p>Mamadou Bah · 22326004 · School of ITC · Supervisor Abdourahman Baldeh.</p>
+  </div>
+  <h3>What this slide is for</h3>
+  <p>You start with money that was already inside a Gambian wallet. The method in the charge was not a failed transfer. It was a changed SIM and a changed PIN, done by someone in customer care. That is the opening for both parts of the project: Sentinel checks the person, and Sutura keeps a record of the money after a payment is allowed.</p>
+  <h3>The report, if they ask for the name</h3>
+  <p>The Standard reported that Yankuba Cham, an Africell customer-care agent, was charged at Kanifing Magistrates’ Court before Magistrate M. Faal. The amount reported is about D899,000 to D900,000. The period in the report is the third quarter of 2022, and the place named is Churchill’s Town. The allegation covers airtime, credit, and Afrimoney. He pleaded not guilty.</p>
+  <p>Say “charged” and “the charge says.” You are using a public court report as the example of the risk. You are not giving a verdict, and you are not saying Africell’s books are broken.</p>
+  <div class="say"><p><strong>Say:</strong> D900,000 left customers’ Afrimoney wallets because someone changed the SIM and the PIN. An Africell staff member was charged in Kanifing. He pleaded not guilty. I am Mamadou Bah, 22326004, School of ITC. My supervisor is Abdourahman Baldeh. The rest of this pitch is a wallet that keeps a record of every payment, and a check on the person before the wallet pays.</p></div>
+  <div class="ask"><p><strong>If they ask</strong> whether he was convicted: no. The plea was not guilty. You are not deciding the case. You are using the charge to show the risk: a wallet that trusts the SIM and the PIN can pay the wrong person.</p></div>
+</section>
+
+<section class="slide">
+  <p class="kicker">Slide 2 · Today</p>
+  <h2>People in The Gambia already use a wallet.</h2>
+  <div class="onslide">
+    <p>Wave is the one most people use. In 2023 it handled about 45 percent of wallet payments. Afrimoney was next. People also cash in and cash out with an agent.</p>
+  </div>
+  <h3>What this slide is for</h3>
+  <p>Sutura is a wallet built for a country that already uses wallets. You are not describing an empty market. Wave is the one people open most. Afrimoney is the next. Cash in and cash out with an agent are part of how the money moves, so the Sutura wallet includes an agent, not only a send button.</p>
+  <h3>The 45 percent</h3>
+  <p>The Gambia Competition Commission’s draft digital-market study reports 2023 digital-wallet transaction shares. Wave is about 44.9 percent. Afrimoney is about 41.2 percent. QMoney and the smaller apps share the rest. On the slide, say about 45 and about 41. Round only when you speak. If they want the exact figures, use 44.9 and 41.2.</p>
+  <h3>The Central Bank list</h3>
+  <p>The Central Bank’s public mobile-money page names Afrimoney and QMoney. Wave is still the service people use most, which is what the Competition Commission share shows. If a panel member says the Bank’s page lists two operators, agree, then give the 2023 share. Do not claim Wave holds the same kind of licence as Afrimoney unless you have the current register in front of you.</p>
+  <h3>Extra figures, only if they ask</h3>
+  <ul>
+    <li>Formal financial inclusion moved from 19 percent in 2019 to 82 percent in the 2025 FinScope consumer survey. Governor Buah Saidy presented this at the FinScope launch on 11 June 2026. He linked the rise to mobile money. The Alliance for Financial Inclusion reported the launch on 12 June 2026.</li>
+    <li>Among adults without a bank account, 68 percent use mobile money as their main service. About six in ten of those users live in rural communities. Same survey, as reported by Foroyaa and Financial Afrik.</li>
+    <li>Second quarter of 2026, fintech and mobile money: cash-in D28.2 billion, cash-out D32.1 billion. Governor Saidy, reported by The Standard. That is why cash in and cash out are in the Sutura wallet.</li>
+  </ul>
+  <p>Do not mix those quarterly billions with the older Central Bank count of active mobile-money users from 2023. The 2025 inclusion figure and the 2026 quarterly volumes are the ones to use.</p>
+  <div class="say"><p><strong>Say:</strong> People here already use a wallet. Wave is the most common. In 2023 it handled about 45 percent of wallet payments. Afrimoney was next, about 41 percent. People also cash in and cash out with an agent. Sutura is a wallet for that kind of use: send, receive, cash in, and cash out.</p></div>
+  <div class="ask"><p><strong>If they ask</strong> whether you are replacing Wave: no. Wave, Afrimoney, and QMoney stay the wallets people use. Sutura is the wallet you are building for this project, so the records and the check can be tested.</p></div>
+</section>
+
+<section class="slide">
+  <p class="kicker">Slide 3 · The problem</p>
+  <h2>Two things go wrong.</h2>
+  <div class="onslide">
+    <p><strong>1. Signup does not check the person.</strong> On Wave you can upload your ID later. On Afrimoney you type an ID number. The wallet can still pay. Change the SIM and the PIN, and the money can move. That is the Kanifing charge.</p>
+    <p><strong>2. The balance is only a number.</strong> If a payment is sent twice, or stops halfway, that number can be wrong. There is no list of records to show what the balance should be.</p>
+  </div>
+  <h3>Card 1, from how the apps work</h3>
+  <p>This is from using the products, not from a press release. Wave does not check the person when the account is opened. The customer can upload an ID later. Afrimoney does not check a document at signup. The customer types an ID number. In both cases the wallet can still be used to pay. The Kanifing charge then shows the next step of that weakness: if someone in customer care changes the SIM and the PIN, the wallet treats them as the customer and the money moves.</p>
+  <p>Do not say Wave or Afrimoney already verify identity at signup. Do not say they take a photo of the ID and a live face check before the first payment. That check is what Sentinel does for Sutura.</p>
+  <h3>Card 2, the one number</h3>
+  <p>Many wallet builds store one balance and add or subtract. Three failures follow.</p>
+  <ul>
+    <li>The phone retries a cash-in after a timeout. If the first request succeeded, the second one adds the same money again.</li>
+    <li>A transfer updates one wallet and then fails before the other wallet is updated. The two balances no longer match.</li>
+    <li>Someone asks which payments produced the figure on the screen. The old number has been overwritten, so there is no list to rebuild from.</li>
+  </ul>
+  <p>You do not have Wave’s or Afrimoney’s internal books. If they ask, say that. Card 2 is the failure of a wallet that keeps only one number. Sutura is built so those three failures are refused in tests.</p>
+  <div class="say"><p><strong>Say:</strong> Two problems. First, signup does not check the person. On Wave you can upload your ID later. On Afrimoney you type an ID number. The wallet can still pay, and if someone changes the SIM and the PIN, the money can move. That is the Kanifing charge. Second, the balance is often just one number. Send the same payment twice, or stop halfway, and there is no list of records to show what the balance should be.</p></div>
+  <div class="ask"><p><strong>If they ask</strong> about the Bank’s rules: the Central Bank’s mobile-money page still links duties to keep anti-money-laundering controls, to cover cash agents, and to report fraud every quarter. A later text may have replaced the 2011 regulation. You are not giving a legal opinion on which gazette is current. You are saying the duty to check and to report already exists, and the project builds the record: a list of payments you can replay, and an allow, review, or block decision with a written reason. gmCSIRT, with the Central Bank and PURA, already works on SIM swap, agents, and app security. The page is gmcsirt.gm/dfs-lab/.</p></div>
+</section>
+
+<section class="slide">
+  <p class="kicker">Slide 4 · The solution</p>
+  <h2>Sutura is the wallet. Sentinel is the check.</h2>
+  <div class="onslide">
+    <p><strong>Sutura.</strong> A wallet that keeps every payment. You send, receive, cash in, and cash out. Each payment is written as two matching records. The balance is those records added up.</p>
+    <p><strong>Sentinel.</strong> A check before the wallet pays. It asks whether this is the real person, and whether this payment is safe. It answers allow, review, or block, and it writes the reason.</p>
+    <p>The customer uses the Sutura wallet. The money stays there. Sentinel never holds it.</p>
+  </div>
+  <h3>What the two names mean</h3>
+  <p>Sutura fixes the second problem. The balance is not a single stored number. It is the sum of records, and each payment has two sides that must match. Sentinel fixes the first problem. Before the wallet pays, it checks the person and the payment. Wave lets the ID wait. Afrimoney takes an ID number. Sutura shows the ID and checks that a live person is there.</p>
+  <p>The last line on the slide is the boundary. Clients talk to Sutura. Sutura talks to its records and to Sentinel. Sentinel talks to its own database and to its staff screen. The customer’s dalasi never sits in Sentinel.</p>
+  <p>Sentinel is also written so a bank could call it later, as a separate institution. In this project the caller is Sutura. You do not need to lead with that. Say it only if they ask whether Sentinel is tied to one wallet forever.</p>
+  <div class="say"><p><strong>Say:</strong> Sutura is the wallet. You send, receive, cash in, and cash out. Every payment is written twice, and the balance is those records added up. Sentinel is the check before the wallet pays. It says allow, review, or block, and it says why. The customer uses Sutura. The money stays there. Sentinel never holds it.</p></div>
+</section>
+
+<section class="slide">
+  <p class="kicker">Slide 5 · Sutura</p>
+  <h2>What the wallet does.</h2>
+  <div class="onslide">
+    <p>A customer opens a wallet, sends money, and receives money. An agent takes cash in, or pays cash out. A shop collects with a payment link. An admin can freeze a wallet, or undo a payment. Each action is saved as two matching records. The balance is those records added up.</p>
+  </div>
+  <h3>The four users</h3>
+  <p><strong>Customer.</strong> Opens a Sutura wallet, sees a balance, sends money to another Sutura wallet, and receives money. The balance on the phone is the sum of the records. The phone does not keep a private number that counts as the truth.</p>
+  <p><strong>Agent.</strong> This is the cash in and cash out the quarterly volumes are about. The customer asks for cash in or cash out. The agent looks up that request and marks the cash as handed over. Only then does Sutura write the two records. An agent cannot undo a customer’s wallet and cannot open the Sentinel staff screen.</p>
+  <p><strong>Shop.</strong> A merchant registers, holds a collections wallet, and can issue a payment link. A customer pays that link the same way they send money: two matching records, after Sentinel has answered.</p>
+  <p><strong>Admin.</strong> Can freeze a wallet so it cannot pay, and can undo a payment. An undo is itself a new pair of records. It is not an edit of the old number. Admin also sees a reconciliation report: if the sum of the records and the payment history disagree, the mismatch is written down.</p>
+  <p>There is also a developer key, so another server can call Sutura. You can skip that unless they ask about integration.</p>
+  <div class="say"><p><strong>Say:</strong> Four people use the Sutura wallet. The customer sends and receives. The agent handles cash in and cash out. A shop collects with a payment link. An admin can freeze a wallet or undo a payment. Every one of those actions is saved as two matching records, and the balance is the sum.</p></div>
+  <div class="ask"><p><strong>If they ask</strong> what “undo” means: a reversal is a new payment written in the opposite direction, with its own record. The original lines stay in the list, so you can still see what happened.</p></div>
+</section>
+
+<section class="slide">
+  <p class="kicker">Slide 6 · Sutura</p>
+  <h2>You cash in D1,000. The wallet writes it twice.</h2>
+  <div class="onslide">
+    <p>The cash box goes up by D1,000. Your wallet goes up by D1,000. If the two amounts do not match, the payment is refused. If the same payment is sent again, it is refused. The number on the screen is the sum of these records.</p>
+  </div>
+  <h3>Why it is written twice</h3>
+  <p>Cash-in is the customer handing notes to an agent and receiving wallet value. Both sides have to be saved, or the books can lie. The cash box is the dalasi the platform is holding. The wallet is what the platform owes that customer. D1,000 in must show up as D1,000 owed to the customer. If one side were D1,000 and the other side were D900, Sutura refuses the whole payment and saves nothing.</p>
+  <p>In the proposal this is double-entry. You do not need the term unless they ask. “Written twice, and the two sides must match” is the idea. If they ask: the wallet account is a liability, because the platform owes the customer. The cash box is an asset. A liability balance is credits minus debits. An asset balance is debits minus credits. The deposit debits platform cash and credits the wallet, under one shared id called a trace.</p>
+  <h3>The repeat</h3>
+  <p>If the agent’s phone times out and sends the same cash-in again, the second copy is refused. The trace, or the idempotency key on the request, already exists. The customer is credited once. That is the answer to “the balance is only a number”: a retry cannot add the money twice, because the second write is rejected.</p>
+  <h3>The screen</h3>
+  <p>Nothing on the phone is allowed to be a separate balance. After the records are saved, the balance shown is the sum of that customer’s records. If the posting fails, the payment is marked failed, and the balance does not change.</p>
+  <div class="say"><p><strong>Say:</strong> Cash in one thousand dalasi. Sutura writes the cash box up by one thousand, and the wallet up by one thousand. Those two lines are one payment. If the amounts do not match, it is refused and nothing is saved. If the same cash-in is sent again, the copy is refused. The number on the screen is the sum of the records.</p></div>
+</section>
+
+<section class="slide">
+  <p class="kicker">Slide 7 · Sutura</p>
+  <h2>She sends D200 to another wallet.</h2>
+  <div class="onslide">
+    <p>Her wallet goes down by D200. The other wallet goes up by D200. Both lines are one payment. If the amounts differ, it is refused. If the phone sends it twice, the second copy is refused. Each wallet balance is the sum of its own records.</p>
+  </div>
+  <h3>Why this slide is separate from cash-in</h3>
+  <p>Cash-in moves value between the cash box and one customer. A transfer moves value between two customers. The rule is the same, and the panel should hear both, because both are in the project. D200 leaves her wallet and D200 enters the other wallet, under one trace. There is no moment where her balance has fallen and the other balance has not yet risen. If the write fails, the payment fails and neither balance changes.</p>
+  <p>The same shape covers a shop. Paying a payment link takes D200 from the customer and adds D200 to the shop’s collections wallet.</p>
+  <p>Before this write happens, Sutura has already asked Sentinel. This slide is only the record. The check is the next slides. If Sentinel said review or block, these two lines are not saved.</p>
+  <div class="say"><p><strong>Say:</strong> Sending money is the same rule. She sends two hundred. Her wallet goes down by two hundred, and the other wallet goes up by two hundred. One payment. If the two amounts differ, Sutura refuses it. If her phone sends it twice, the second copy is refused. Each balance is the sum of that wallet’s records.</p></div>
+  <div class="ask"><p><strong>If they ask</strong> what happens when she does not have D200: the reduction is checked against the computed balance, and against the wallet limit, before the records are saved. The payment is refused. The screen does not go negative.</p></div>
+</section>
+
+<section class="slide">
+  <p class="kicker">Slide 8 · Sentinel</p>
+  <h2>Three questions before the wallet pays.</h2>
+  <div class="onslide">
+    <p><strong>Is this the real person?</strong> You show the ID, and Sentinel checks that a live person is there. A weak result stops the account. Wave and Afrimoney do not do this when you sign up.</p>
+    <p><strong>Is the paper real?</strong> The file is checked for changes. A signature is compared only when we already have a sample. No sample means that check is skipped.</p>
+    <p><strong>Is this payment safe?</strong> Allow, review, or block. The reason is written down. A staff member must add a note before the case is closed.</p>
+  </div>
+  <h3>The person</h3>
+  <p>Sutura opens a check and sends the customer to a hosted page. She captures the identity document and completes a liveness check, meaning a live person is in front of the camera, not a printed photo. Weak face match or weak liveness comes back flagged or rejected. Higher limits on the wallet can wait for a verified result. This is the difference from the apps people use now. Wave lets you upload the ID later. Afrimoney asks for an ID number. Neither of those is a document plus a live check at signup.</p>
+  <h3>The paper</h3>
+  <p>Cheque or invoice images are checked for tampering and for fields that disagree. A signature comparison needs a sample enrolled earlier. If there is no sample, that one check is skipped and the other checks still run. A missing sample is not treated as a match. Say “skipped,” not “matched.”</p>
+  <h3>The payment</h3>
+  <p>Sutura sends the amount, the time, the channel, and who is on the other side. Rules and a model return a score, the flags that fired, a short explanation, and allow, review, or block. The explanation attributes the score to the inputs, using a method such as SHAP, so a reviewer can see which signals mattered. You can say “the reason names the signals” unless they ask for the method name.</p>
+  <p>The model is trained and evaluated on published or synthetic data: PaySim-style payment traces, signature sets such as CEDAR, and synthetic identity and cheque images. It is not trained on live Wave or Afrimoney transactions. If a model is not wired yet, the API returns a fixed rule-based result and records that a model did not run. Say that if they ask whether the score is real.</p>
+  <div class="say"><p><strong>Say:</strong> Before the wallet pays, Sentinel asks three things. Is this the real person? You show the ID, and it checks that you are there. A weak result stops the account. Wave lets the ID wait. Afrimoney takes an ID number. Second, is the document real? A signature is scored only if we already have a sample. Third, is the payment safe? Allow, review, or block, and the reason is written down. Staff must add a note.</p></div>
+</section>
+
+<section class="slide">
+  <p class="kicker">Slide 9 · Sentinel</p>
+  <h2>Three answers. The money follows.</h2>
+  <div class="onslide">
+    <p><strong>Allow.</strong> The wallet pays. Sutura writes the two records, and the balance changes.</p>
+    <p><strong>Review.</strong> The money waits. Staff read the reason and write a note. Then Sutura pays or stops.</p>
+    <p><strong>Block.</strong> The wallet does not pay. No record is saved. If Sentinel cannot be reached, the wallet also does not pay.</p>
+  </div>
+  <h3>The order</h3>
+  <p>The check happens before the records are saved. Allow is the only answer that lets Sutura write the payment. Review leaves the payment pending and opens or links a case. Block rejects the movement. There is no half-written balance on any of the three paths.</p>
+  <p>When staff later approve or reject a review, Sentinel tells Sutura. Sutura then completes the payment, fails it, or keeps it waiting. The write still happens only inside Sutura, and only once.</p>
+  <p>If Sentinel cannot be reached, silence is not treated as allow. The payment stays pending or fails, and the attempt is logged. That is fail closed: when the check cannot answer, the wallet withholds the payment.</p>
+  <div class="say"><p><strong>Say:</strong> The money follows the answer. Allow means Sutura writes the two records and the balance changes. Review means nothing is written yet. Staff read the reason, write a note, and then the wallet pays or stops. Block means no record is saved. If Sentinel is down, the wallet also does not pay.</p></div>
+</section>
+
+<section class="slide">
+  <p class="kicker">Slide 10 · The project</p>
+  <h2>One customer, from signup to payment.</h2>
+  <div class="onslide">
+    <p>She opens a Sutura wallet and shows her ID. Sentinel checks that she is there. She gives an agent D1,000. Sutura writes the cash box up, and her wallet up, by the same amount. She sends D200. Sentinel says allow. Sutura pays, and writes that payment twice. A later payment looks unsafe. Sentinel says review. The money waits. Staff read the reason and write a note. If that payment is sent again, Sutura refuses the copy. If Sentinel does not answer, the wallet does not pay.</p>
+  </div>
+  <h3>Why you walk it as one person</h3>
+  <p>The earlier slides are the parts. This slide is the project running in order. Stay here. Point at each step.</p>
+  <ol>
+    <li>Signup is the check Wave and Afrimoney do not do. She shows the ID. Sentinel checks that she is present. A weak result stops the account before she can pay.</li>
+    <li>Cash-in is the agent. D1,000 into the cash box and D1,000 onto her wallet, one payment. This is the slide 6 rule inside a story.</li>
+    <li>The D200 send is slide 7, and it only happens because Sentinel said allow.</li>
+    <li>The unsafe payment is review. The balance does not change while staff read the reason and write the note.</li>
+    <li>The repeat and the outage are the two refusals: a second copy of the same payment, and a missing answer from Sentinel.</li>
+  </ol>
+  <div class="say"><p><strong>Say:</strong> Here is one customer. She opens a Sutura wallet and shows her ID. Sentinel checks that she is there. She cashes in one thousand with an agent, and Sutura writes both sides. She sends two hundred. Sentinel says allow, so the wallet pays and writes that payment twice. A later payment looks unsafe, so the money waits until staff write a note. A copy of that payment is refused. If Sentinel is down, the wallet does not pay.</p></div>
+</section>
+
+<section class="slide">
+  <p class="kicker">Slide 11 · Two screens</p>
+  <h2>The customer stays in the wallet.</h2>
+  <div class="onslide">
+    <p><strong>Sutura.</strong> The customer, the agent, the shop, and the admin. Sending, cash in, cash out, and payment links all happen here. The balance changes only here.</p>
+    <p><strong>Sentinel.</strong> Staff only. They see the case, the reason for allow, review, or block, and they must write a note. They cannot pay, and they cannot change the balance. The customer has no Sentinel account.</p>
+    <p>Sutura asks Sentinel when the wallet is opened, and again before each payment.</p>
+  </div>
+  <h3>Who logs in where</h3>
+  <p>Sutura roles are customer, merchant, agent, admin, and developer. Each role can call only its own actions. An agent completes a cash reference. An agent cannot reverse a wallet. A customer cannot open Sentinel.</p>
+  <p>Sentinel staff roles are admin, compliance, and analyst. They log in to a desk: overview, cases, customers, tools, analytics, settings, and an audit list. Long lists are paginated. There is no signup for the person who holds the wallet.</p>
+  <p>The two calls are fixed in the project, not added at the end. At onboarding, Sutura creates a Sentinel session and stores the status that comes back. Before a transfer, a cash-in settlement, or a cash-out is completed, Sutura asks for a score. The callback from Sentinel is signed, so a forged message cannot complete a cash-in or a KYC result.</p>
+  <div class="say"><p><strong>Say:</strong> The customer, the agent, the shop, and the admin all stay in Sutura. That is where the balance changes. Sentinel is a staff screen. Staff see the case and the reason, and they write a note. They cannot pay. The customer has no Sentinel account. Sutura asks Sentinel when the wallet is opened, and again before each payment.</p></div>
+</section>
+
+<section class="slide">
+  <p class="kicker">Slide 12 · The staff screen</p>
+  <h2>What staff do with a case.</h2>
+  <div class="onslide">
+    <p>A payment on review opens a case. They see the amount, the person, and the reason for the score. They decide, and they must write a note. A decision with no note is refused. The screen keeps who decided, and when. Sutura then pays, stops, or keeps waiting. Staff never type a new balance.</p>
+  </div>
+  <h3>What the case contains</h3>
+  <p>The case is opened when the score, or a rule, says the payment should not pass quietly. Staff see the amount, the channel, the other party, and the short explanation: which signals drove review or block. They choose a decision. The note is mandatory. Saving a decision with an empty note is rejected by the system. The audit row stores who acted and when. That is the trail behind a quarterly fraud report: not only a score, but a named person and a written reason.</p>
+  <p>After they decide, Sentinel notifies Sutura. Sutura completes the pending payment, fails it, or leaves it waiting. Staff do not edit the wallet balance. If the decision is to pay, Sutura writes the two matching records itself, once.</p>
+  <div class="say"><p><strong>Say:</strong> When a payment is on review, it opens a case. Staff see the amount, the person, and why the score said review. They decide, and they have to write a note. No note, no decision. The screen stores who decided and when. Sutura then pays or stops. Staff never type a new balance.</p></div>
+  <div class="ask"><p><strong>If they ask</strong> where the reason comes from: rules plus a model. The explanation names the features that produced the score. The model is evaluated on published simulated payments, because there is no public file of live Gambian wallet transactions you are allowed to train on.</p></div>
+</section>
+
+<section class="slide">
+  <p class="kicker">Slide 13 · How I will know</p>
+  <h2>I will try to break both sides.</h2>
+  <div class="onslide">
+    <p>A payment whose two sides do not match is refused. The same payment sent twice is saved once. An agent cannot undo a customer’s wallet. A customer cannot open the staff screen. A weak ID check does not pass. No signature sample means that check is skipped. One full run: open a wallet, cash in, allow one payment, hold another, and show the records and the case.</p>
+  </div>
+  <h3>What each test is proving</h3>
+  <p><strong>The two sides.</strong> An unequal payment must be rejected with no rows saved. A reconciliation run on a correct history reports no mismatch. A history broken on purpose reports one mismatch, so the report can see an error.</p>
+  <p><strong>The repeat.</strong> One transfer, sent again with the same key, moves the money once. That is the test for the timeout problem on card 2 of the problem slide.</p>
+  <p><strong>The roles.</strong> An agent token that tries to undo a wallet gets an authorisation failure. A customer token does not open the Sentinel desk. The two logins stay separate.</p>
+  <p><strong>The ID and the signature.</strong> A weak liveness sample comes back flagged or rejected, not verified. A document with no enrolled signature sample does not come back as a signature match.</p>
+  <p><strong>The score.</strong> On a held-out slice of PaySim-style data, the report includes precision, recall, and the false-alarm rate. A sample of explanations is read by hand to check that the named features are the ones that drove the review. Dataset shift is a written limit: simulated payments are not live Gambian transactions.</p>
+  <p><strong>The full run.</strong> Register, pass or fail the ID check, cash in, one payment Sentinel allows, one payment Sentinel reviews, then show the records and the case. That script is the demonstration.</p>
+  <h3>The questions the build has to answer</h3>
+  <ol>
+    <li>After a cash-in is retried, reversed, or disputed, can the balance be rebuilt from the records?</li>
+    <li>Which steps wait for allow, review, or block: opening the wallet, cashing in, and sending money?</li>
+    <li>Can Sentinel give a reason, while the money stays in the Sutura wallet?</li>
+  </ol>
+  <p>The method is design science: state the problem, build the wallet and the check against those rules, and evaluate them with the tests above. The written report includes the failures. There is no live connection to the national switch, and there is no Central Bank licence in this project.</p>
+  <div class="say"><p><strong>Say:</strong> I will try to break it. A payment whose two sides do not match is refused. The same payment sent twice is saved once. An agent cannot undo a customer’s wallet, and a customer cannot open the staff screen. A weak ID check does not pass. Then one full run: open a wallet, cash in, allow one payment, hold another, and show both the records and the case.</p></div>
+  <div class="ask"><p><strong>If they ask</strong> for sources: FinScope and Governor Saidy for the market, the Competition Commission study for Wave’s share, the Central Bank materials for the fraud-report duty, gmCSIRT for SIM swap and agents, Kleppmann for computing a balance from a log, PaySim for the simulated payments, and SHAP for the explanation of a score. The proposal also cites FATF on customer due diligence, the GSMA mobile-money report, Hevner on design science, and XGBoost as the usual model for this kind of table of payment features.</p></div>
+</section>
+
+<section class="slide">
+  <p class="kicker">Slide 14 · Close</p>
+  <h2>Sutura is the wallet. Sentinel checks each payment.</h2>
+  <div class="onslide">
+    <p>Every payment is written twice. Sentinel checks the person and the payment first. The money stays in Sutura.</p>
+    <p>Mamadou Bah · 22326004 · School of ITC · Abdourahman Baldeh.</p>
+  </div>
+  <h3>How to end</h3>
+  <p>This is the last slide. It puts the two systems together: Sutura manages the wallet, and Sentinel checks the person and the payment before money moves. Stop after you say it. Do not add a week plan.</p>
+  <div class="say"><p><strong>Say:</strong> Sutura is the wallet. Every payment is written twice. Sentinel checks the person and the payment first. The money stays in Sutura.</p></div>
+</section>
+
+</body>
+</html>

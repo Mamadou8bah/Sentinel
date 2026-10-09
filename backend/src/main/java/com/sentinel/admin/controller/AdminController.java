@@ -41,7 +41,7 @@ public class AdminController {
     @PutMapping("/settings/webhook")
     @PreAuthorize("hasRole('ADMIN')")
     public WebhookSettingsResponse putWebhook(@Valid @RequestBody WebhookSettingsRequest request) {
-        return adminService.updateWebhook(TenantAccess.requireTenantId(), request.webhookUrl());
+        return adminService.updateWebhook(TenantAccess.requireTenantId(), request.webhookUrl(), request.signingSecret());
     }
 
     @PostMapping("/webhooks/test")

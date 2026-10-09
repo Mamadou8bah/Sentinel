@@ -19,7 +19,7 @@ export function SentinelLogo({ className = '', showWord = true, size = 48 }: Log
         decoding="async"
       />
       {showWord && (
-        <span className="font-display text-xl font-normal tracking-tight text-white md:text-2xl">
+        <span className="font-display text-xl font-normal tracking-tight text-fg md:text-2xl">
           Sentinel
         </span>
       )}

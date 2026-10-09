@@ -13,6 +13,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -21,7 +22,8 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 @Entity
-@Table(name = "transactions")
+@Table(name = "transactions", uniqueConstraints = @UniqueConstraint(
+        name = "uq_transactions_tenant_external", columnNames = {"tenant_id", "external_transaction_id"}))
 public class TransactionEntity {
 
     @Id
@@ -58,6 +60,12 @@ public class TransactionEntity {
 
     @Column(name = "anomaly_score")
     private Double anomalyScore;
+
+    @Column(length = 64)
+    private String caseId;
+
+    public String getCaseId() { return caseId; }
+    public void setCaseId(String caseId) { this.caseId = caseId; }
 
     @Column(nullable = false)
     private boolean flagged = false;

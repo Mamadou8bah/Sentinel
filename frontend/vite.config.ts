@@ -30,7 +30,26 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       proxy: {
-        '/api': { target: apiTarget, changeOrigin: true },
+        '/api': {
+          target: apiTarget,
+          changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on('error', (err, _req, res) => {
+              console.warn(`[vite] API proxy offline (${apiTarget}):`, err.message)
+              const response = res as import('http').ServerResponse
+              if (!response.headersSent) {
+                response.writeHead(503, { 'Content-Type': 'application/json' })
+                response.end(
+                  JSON.stringify({
+                    status: 503,
+                    error: 'Service Unavailable',
+                    message: 'Backend unreachable — frontend will use demo mode',
+                  }),
+                )
+              }
+            })
+          },
+        },
         '/ws': { target: apiTarget, ws: true, changeOrigin: true },
       },
     },

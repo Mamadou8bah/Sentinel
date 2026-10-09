@@ -1,42 +1,44 @@
 package com.sentinel.integration.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sentinel.integration.model.WebhookDelivery;
+import com.sentinel.integration.repository.WebhookDeliveryRepository;
 import com.sentinel.tenant.model.Tenant;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.http.MediaType;
-import org.springframework.scheduling.annotation.Async;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClient;
+import org.springframework.transaction.annotation.Transactional;
 
+/** Enqueue within the domain transaction; dispatch only sees committed rows. */
 @Service
 public class WebhookPublisher {
+    private final WebhookDeliveryRepository repository;
+    private final ObjectMapper mapper;
 
-    private static final Logger log = LoggerFactory.getLogger(WebhookPublisher.class);
+    public WebhookPublisher(WebhookDeliveryRepository repository, ObjectMapper mapper) {
+        this.repository = repository;
+        this.mapper = mapper;
+    }
 
-    private final RestClient restClient = RestClient.create();
-
-    @Async
+    @Transactional
     public void publish(Tenant tenant, String event, Map<String, Object> payload) {
-        if (tenant == null || tenant.getWebhookUrl() == null || tenant.getWebhookUrl().isBlank()) {
-            return;
-        }
-        Map<String, Object> body = new LinkedHashMap<>();
+        if (tenant == null || tenant.getWebhookUrl() == null || tenant.getWebhookUrl().isBlank()) return;
+        var delivery = new WebhookDelivery();
+        delivery.eventId = UUID.randomUUID().toString();
+        delivery.tenantId = tenant.getId();
+        delivery.createdAt = Instant.now();
+        delivery.nextAttemptAt = delivery.createdAt;
+        Map<String, Object> body = new LinkedHashMap<>(payload);
         body.put("event", event);
         body.put("tenantCode", tenant.getCode());
-        body.putAll(payload);
+        body.put("eventId", delivery.eventId);
         try {
-            restClient
-                    .post()
-                    .uri(tenant.getWebhookUrl())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(body)
-                    .retrieve()
-                    .toBodilessEntity();
-            log.info("Webhook {} delivered to tenant {}", event, tenant.getCode());
+            delivery.payload = mapper.writeValueAsString(body);
         } catch (Exception e) {
-            log.warn("Webhook {} failed for tenant {}: {}", event, tenant.getCode(), e.getMessage());
+            throw new IllegalStateException("Unable to serialize webhook event", e);
         }
+        repository.save(delivery);
     }
 }

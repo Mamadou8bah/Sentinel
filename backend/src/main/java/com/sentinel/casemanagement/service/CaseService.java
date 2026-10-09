@@ -117,7 +117,11 @@ public class CaseService {
         if (note == null || note.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Decision note is required");
         }
-        CaseEntity c = getForTenant(tenantId, caseId);
+        CaseEntity c = caseRepository.findForDecision(caseId, tenantId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Case not found"));
+        if (c.getStatus() == CaseStatus.RESOLVED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Resolved cases cannot be decided again");
+        }
         Map<String, Object> before = snapshot(c);
 
         c.setDecision(decision);
@@ -144,6 +148,12 @@ public class CaseService {
         return saved;
     }
 
+    public CaseEntity linkTransaction(CaseEntity c, String externalId, String transactionId) {
+        c.setExternalTransactionId(externalId);
+        c.setRelatedTransactionId(transactionId);
+        return caseRepository.save(c);
+    }
+
     private static Map<String, Object> snapshot(CaseEntity c) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("status", c.getStatus() != null ? c.getStatus().name() : null);
@@ -157,6 +167,8 @@ public class CaseService {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("event", event);
         m.put("caseId", c.getId().toString());
+        if (c.getExternalTransactionId() != null) m.put("externalTransactionId", c.getExternalTransactionId());
+        if (c.getRelatedTransactionId() != null) m.put("transactionId", c.getRelatedTransactionId());
         m.put("customerId", c.getCustomer().getId().toString());
         m.put(
                 "externalCustomerId",

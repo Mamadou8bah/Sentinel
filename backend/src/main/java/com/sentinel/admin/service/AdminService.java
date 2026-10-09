@@ -73,10 +73,10 @@ public class AdminService {
     }
 
     @Transactional
-    public WebhookSettingsResponse updateWebhook(Long tenantId, String webhookUrl) {
+    public WebhookSettingsResponse updateWebhook(Long tenantId, String webhookUrl, String signingSecret) {
         Tenant before = tenantService.requireTenant(tenantId);
         String oldUrl = before.getWebhookUrl();
-        Tenant updated = tenantService.updateWebhookUrl(tenantId, webhookUrl);
+        Tenant updated = tenantService.updateWebhookUrl(tenantId, webhookUrl, signingSecret);
         auditService.record(
                 tenantId,
                 TenantAccess.currentUserIdOrNull(),

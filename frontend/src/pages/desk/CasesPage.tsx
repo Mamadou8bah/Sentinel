@@ -6,6 +6,7 @@ import {
   EmptyState,
   LoadingBlock,
   PageHeader,
+  Pagination,
   Panel,
   RiskBar,
   StatusPill,
@@ -13,8 +14,10 @@ import {
   formatWhen,
 } from '../../components/desk/ui'
 import { useCaseEvents } from '../../hooks/useCaseEvents'
+import { usePagination } from '../../hooks/usePagination'
 
 const statuses: Array<CaseStatus | 'ALL'> = ['ALL', 'OPEN', 'UNDER_REVIEW', 'RESOLVED']
+const PAGE_SIZE = 8
 
 export default function CasesPage() {
   const [status, setStatus] = useState<CaseStatus | 'ALL'>('OPEN')
@@ -23,6 +26,7 @@ export default function CasesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [liveNote, setLiveNote] = useState<string | null>(null)
+  const pager = usePagination(cases, PAGE_SIZE)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -72,8 +76,8 @@ export default function CasesPage() {
             className={[
               'rounded-full px-4 py-2 text-sm transition',
               status === item
-                ? 'bg-ember/30 font-semibold text-white shadow-[inset_0_0_0_1px_rgba(255,69,21,0.45)]'
-                : 'liquid-glass text-white/75 hover:text-white',
+                ? 'bg-ember/30 font-semibold text-fg shadow-[inset_0_0_0_1px_rgba(255,69,21,0.45)]'
+                : 'liquid-glass text-fg/75 hover:text-fg',
             ].join(' ')}
           >
             {item === 'ALL' ? 'All' : item.replaceAll('_', ' ')}
@@ -88,8 +92,8 @@ export default function CasesPage() {
               className={[
                 'rounded-full px-4 py-2 text-sm capitalize transition',
                 sort === item
-                  ? 'bg-white text-ink font-semibold'
-                  : 'liquid-glass text-white/75 hover:text-white',
+                  ? 'bg-fg text-ink font-semibold'
+                  : 'liquid-glass text-fg/75 hover:text-fg',
               ].join(' ')}
             >
               Sort · {item}
@@ -101,7 +105,7 @@ export default function CasesPage() {
       <Panel>
         {loading && <LoadingBlock label="Loading cases…" />}
         {!loading && error && (
-          <div className="px-6 py-10 text-center text-sm text-red-300">{error}</div>
+          <div className="px-6 py-10 text-center text-sm text-red-500 dark:text-[color:var(--status-danger)]">{error}</div>
         )}
         {!loading && !error && cases.length === 0 && (
           <EmptyState
@@ -110,30 +114,40 @@ export default function CasesPage() {
           />
         )}
         {!loading && !error && cases.length > 0 && (
-          <ul className="divide-y divide-white/10">
-            {cases.map((item) => (
-              <li key={item.id}>
-                <Link
-                  to={`/desk/cases/${item.id}`}
-                  className="flex flex-col gap-4 px-5 py-5 transition hover:bg-white/[0.03] sm:flex-row sm:items-center sm:px-6"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-display text-xl font-bold text-white">
-                        {item.customerName}
-                      </p>
-                      <StatusPill tone={caseTone(item.status)}>
-                        {item.status.replaceAll('_', ' ')}
-                      </StatusPill>
+          <>
+            <ul className="divide-y divide-fg/10">
+              {pager.slice.map((item) => (
+                <li key={item.id}>
+                  <Link
+                    to={`/desk/cases/${item.id}`}
+                    className="flex flex-col gap-4 px-5 py-5 transition hover:bg-fg/[0.03] sm:flex-row sm:items-center sm:px-6"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-display text-xl font-bold text-fg">
+                          {item.customerName}
+                        </p>
+                        <StatusPill tone={caseTone(item.status)}>
+                          {item.status.replaceAll('_', ' ')}
+                        </StatusPill>
+                      </div>
+                      <p className="mt-2 line-clamp-2 text-sm text-mute">{item.explanation}</p>
+                      <p className="mt-2 text-xs text-fg/40">{formatWhen(item.createdAt)}</p>
                     </div>
-                    <p className="mt-2 line-clamp-2 text-sm text-mute">{item.explanation}</p>
-                    <p className="mt-2 text-xs text-white/40">{formatWhen(item.createdAt)}</p>
-                  </div>
-                  <RiskBar score={item.riskScoreAtCreation} />
-                </Link>
-              </li>
-            ))}
-          </ul>
+                    <RiskBar score={item.riskScoreAtCreation} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <Pagination
+              page={pager.page}
+              totalPages={pager.totalPages}
+              total={pager.total}
+              from={pager.from}
+              to={pager.to}
+              onChange={pager.setPage}
+            />
+          </>
         )}
       </Panel>
     </div>

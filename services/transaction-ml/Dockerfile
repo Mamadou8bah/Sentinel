@@ -1,8 +1,7 @@
 FROM python:3.11-slim
 WORKDIR /app
-# COPY requirements.txt .
-# RUN pip install --no-cache-dir -r requirements.txt
-# COPY app ./app
-# EXPOSE 8002
-# CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002"]
-CMD ["echo", "transaction-ml scaffold — build not ready"]
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY app ./app
+EXPOSE 8002
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002"]

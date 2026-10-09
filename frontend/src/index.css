@@ -2,8 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+:root,
+[data-theme='dark'] {
   color-scheme: dark;
+  --ink-rgb: 7 10 0;
+  --panel-rgb: 17 20 10;
+  --mute-rgb: 154 154 154;
+  --fg-rgb: 255 255 255;
   --ink: #070a00;
   --panel: #11140a;
   --ember: #ff4515;
@@ -11,6 +16,43 @@
   --ember-glow: #ff6a2a;
   --mute: #9a9a9a;
   --light: #ffffff;
+  --desk-glass: rgba(7, 10, 0, 0.45);
+  --desk-sidebar: rgba(7, 10, 0, 0.4);
+  --desk-overlay: rgba(0, 0, 0, 0.7);
+  --desk-panel-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+  --input-bg: rgba(0, 0, 0, 0.4);
+  --scroll-track: #070a00;
+  --scroll-thumb: #2a2e20;
+  --status-ok: #6ee7b7;
+  --status-warn: #fcd34d;
+  --status-danger: #fca5a5;
+  --status-ember: #ff6a2a;
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+  --ink-rgb: 242 243 238;
+  --panel-rgb: 255 255 255;
+  --mute-rgb: 84 86 78;
+  --fg-rgb: 18 20 14;
+  --ink: #f2f3ee;
+  --panel: #ffffff;
+  --ember: #ff4515;
+  --ember-deep: #c62800;
+  --ember-glow: #d63a0f;
+  --mute: #54564e;
+  --light: #12140e;
+  --desk-glass: rgba(255, 255, 255, 0.92);
+  --desk-sidebar: rgba(255, 255, 255, 0.96);
+  --desk-overlay: rgba(18, 20, 14, 0.35);
+  --desk-panel-shadow: 0 1px 2px rgba(18, 20, 14, 0.05), 0 10px 28px rgba(18, 20, 14, 0.06);
+  --input-bg: #ffffff;
+  --scroll-track: #e6e7e1;
+  --scroll-thumb: #c2c4ba;
+  --status-ok: #047857;
+  --status-warn: #b45309;
+  --status-danger: #b91c1c;
+  --status-ember: #c62800;
 }
 
 * {
@@ -25,7 +67,7 @@ body {
   margin: 0;
   min-height: 100vh;
   background: var(--ink);
-  color: var(--light);
+  color: rgb(var(--fg-rgb));
   font-family: Roboto, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -44,32 +86,31 @@ h4,
 
 @layer utilities {
   .glass {
-    background: rgba(7, 10, 0, 0.55);
+    background: var(--desk-glass);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: 1px solid rgb(var(--fg-rgb) / 0.12);
   }
 
-  /* Apple-style liquid glass for navbar / chrome */
   .liquid-glass {
     position: relative;
     isolation: isolate;
     background:
       linear-gradient(
         135deg,
-        rgba(255, 255, 255, 0.28) 0%,
-        rgba(255, 255, 255, 0.08) 35%,
-        rgba(255, 255, 255, 0.04) 60%,
-        rgba(255, 255, 255, 0.12) 100%
+        rgb(var(--fg-rgb) / 0.1) 0%,
+        rgb(var(--fg-rgb) / 0.04) 35%,
+        rgb(var(--fg-rgb) / 0.02) 60%,
+        rgb(var(--fg-rgb) / 0.06) 100%
       ),
-      rgba(7, 10, 0, 0.35);
-    backdrop-filter: blur(28px) saturate(180%);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.28);
+      var(--desk-glass);
+    backdrop-filter: blur(28px) saturate(160%);
+    -webkit-backdrop-filter: blur(28px) saturate(160%);
+    border: 1px solid rgb(var(--fg-rgb) / 0.14);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.35),
-      inset 0 -1px 0 rgba(255, 255, 255, 0.04),
-      0 4px 16px rgba(0, 0, 0, 0.18);
+      inset 0 1px 0 rgb(var(--fg-rgb) / 0.18),
+      inset 0 -1px 0 rgb(var(--fg-rgb) / 0.03),
+      0 4px 16px rgb(0 0 0 / 0.08);
   }
 
   .liquid-glass::before {
@@ -80,12 +121,47 @@ h4,
     border-radius: inherit;
     background: linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.35) 0%,
-      rgba(255, 255, 255, 0.05) 28%,
+      rgb(var(--fg-rgb) / 0.22) 0%,
+      rgb(var(--fg-rgb) / 0.04) 28%,
       transparent 55%
     );
-    opacity: 0.55;
+    opacity: 0.45;
     mix-blend-mode: soft-light;
+  }
+
+  [data-theme='light'] .liquid-glass {
+    background: rgba(255, 255, 255, 0.94);
+    border-color: rgba(18, 20, 14, 0.1);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      0 1px 2px rgba(18, 20, 14, 0.04),
+      0 12px 32px rgba(18, 20, 14, 0.06);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+  }
+
+  [data-theme='light'] .liquid-glass::before {
+    opacity: 0.15;
+    mix-blend-mode: normal;
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.65) 0%,
+      transparent 45%
+    );
+  }
+
+  [data-theme='light'] .desk-sidebar.liquid-glass {
+    background: #ffffff;
+    border-color: rgba(18, 20, 14, 0.08);
+    box-shadow: 0 8px 32px rgba(18, 20, 14, 0.08);
+  }
+
+  [data-theme='light'] input,
+  [data-theme='light'] textarea,
+  [data-theme='light'] select {
+    background: #ffffff !important;
+    color: #12140e;
+    border-color: rgba(18, 20, 14, 0.12);
   }
 
   .liquid-glass-nav a {
@@ -94,7 +170,7 @@ h4,
   }
 
   .text-fade-agency {
-    background: linear-gradient(180deg, #fff 35%, rgba(255, 255, 255, 0.15) 100%);
+    background: linear-gradient(180deg, rgb(var(--fg-rgb)) 35%, rgb(var(--fg-rgb) / 0.15) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -103,8 +179,8 @@ h4,
   .ribbed {
     background-image: repeating-linear-gradient(
       90deg,
-      rgba(255, 255, 255, 0.035) 0px,
-      rgba(255, 255, 255, 0.035) 1px,
+      rgb(var(--fg-rgb) / 0.035) 0px,
+      rgb(var(--fg-rgb) / 0.035) 1px,
       transparent 1px,
       transparent 14px
     );
@@ -128,9 +204,9 @@ textarea {
   width: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #070a00;
+  background: var(--scroll-track);
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a2e20;
+  background: var(--scroll-thumb);
   border-radius: 999px;
 }

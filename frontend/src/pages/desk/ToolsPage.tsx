@@ -100,23 +100,23 @@ function ScoreTxPanel() {
             <input className={inputClass} value={channel} onChange={(e) => setChannel(e.target.value)} />
           </Field>
         </div>
-        {error && <p className="text-sm text-red-300">{error}</p>}
+        {error && <p className="text-sm text-[color:var(--status-danger)]">{error}</p>}
         <button
           type="submit"
           disabled={busy}
-          className="rounded-full bg-ember-grad px-6 py-3 text-sm font-semibold disabled:opacity-50"
+          className="rounded-full bg-ember-grad px-6 py-3 text-sm font-semibold text-white disabled:opacity-50"
         >
           {busy ? 'Scoring…' : 'Score now'}
         </button>
       </form>
       {result && (
-        <div className="mt-6 rounded-2xl border border-white/10 bg-black/30 p-5">
+        <div className="mt-6 rounded-2xl border border-fg/10 bg-fg/[0.04] p-5">
           <div className="flex flex-wrap items-center gap-2">
             <StatusPill tone={result.flagged ? 'danger' : 'ok'}>{result.recommendation}</StatusPill>
             <StatusPill tone="neutral">anomaly {pct(result.anomalyScore)}</StatusPill>
             {result.caseId && <StatusPill tone="ember">case #{result.caseId}</StatusPill>}
           </div>
-          <p className="mt-3 text-sm text-white/80">{result.explanation}</p>
+          <p className="mt-3 text-sm text-fg/80">{result.explanation}</p>
           {result.ruleFlags?.length > 0 && (
             <p className="mt-2 text-xs text-mute">{result.ruleFlags.join(' · ')}</p>
           )}
@@ -186,27 +186,27 @@ function VerifyDocumentPanel() {
           <input
             type="file"
             accept="image/*,.pdf"
-            className="block w-full text-sm text-white/70 file:mr-4 file:rounded-full file:border-0 file:bg-ember/20 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-ember-glow"
+            className="block w-full text-sm text-fg/70 file:mr-4 file:rounded-full file:border-0 file:bg-ember/20 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-ember-glow"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           />
         </Field>
-        {error && <p className="text-sm text-red-300">{error}</p>}
+        {error && <p className="text-sm text-[color:var(--status-danger)]">{error}</p>}
         <button
           type="submit"
           disabled={busy}
-          className="rounded-full bg-ember-grad px-6 py-3 text-sm font-semibold disabled:opacity-50"
+          className="rounded-full bg-ember-grad px-6 py-3 text-sm font-semibold text-white disabled:opacity-50"
         >
           {busy ? 'Verifying…' : 'Verify document'}
         </button>
       </form>
       {result && (
-        <div className="mt-6 rounded-2xl border border-white/10 bg-black/30 p-5 text-sm">
+        <div className="mt-6 rounded-2xl border border-fg/10 bg-fg/[0.04] p-5 text-sm">
           <div className="flex flex-wrap gap-2">
             <StatusPill tone="neutral">#{result.id}</StatusPill>
             <StatusPill tone="ember">{result.type}</StatusPill>
             <StatusPill tone="neutral">{result.signatureMatchStatus}</StatusPill>
           </div>
-          <p className="mt-3 text-white/80">
+          <p className="mt-3 text-fg/80">
             Tampering {pct(result.tamperingScore)} · Fraud {pct(result.fraudRiskScore)}
             {result.signatureMatchScore != null
               ? ` · Signature ${pct(result.signatureMatchScore)}`
@@ -255,7 +255,7 @@ function ImportCsvPanel() {
             <input
               type="file"
               accept=".csv,text/csv"
-              className="block w-full text-sm text-white/70 file:mr-4 file:rounded-full file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
+              className="block w-full text-sm text-fg/70 file:mr-4 file:rounded-full file:border-0 file:bg-fg/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-fg"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             />
           </Field>
@@ -263,12 +263,12 @@ function ImportCsvPanel() {
         <button
           type="submit"
           disabled={busy}
-          className="rounded-full bg-ember-grad px-6 py-3 text-sm font-semibold disabled:opacity-50"
+          className="rounded-full bg-ember-grad px-6 py-3 text-sm font-semibold text-white disabled:opacity-50"
         >
           {busy ? 'Importing…' : 'Import CSV'}
         </button>
       </form>
-      {error && <p className="mt-3 text-sm text-red-300">{error}</p>}
+      {error && <p className="mt-3 text-sm text-[color:var(--status-danger)]">{error}</p>}
       {result && (
         <p className="mt-4 text-sm text-ember-glow">
           Processed {result.processed} · failed {result.failed}

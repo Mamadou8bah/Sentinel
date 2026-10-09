@@ -80,7 +80,17 @@ public class TransactionScoringService {
             var existing = transactionRepository.findByTenant_IdAndExternalTransactionId(
                     tenantId, externalTransactionId);
             if (existing.isPresent()) {
-                return TxScoreResponse.from(existing.get(), customer.getRiskScore(), externalCustomerId, null);
+                TransactionEntity previous = existing.get();
+                String effectiveCurrency = currency == null || currency.isBlank() ? "GMD" : currency;
+                if (!previous.getCustomer().getId().equals(customer.getId())
+                        || previous.getAmount().compareTo(amount) != 0
+                        || !previous.getCurrency().equals(effectiveCurrency)
+                        || !java.util.Objects.equals(previous.getChannel(), channel)
+                        || !java.util.Objects.equals(previous.getLocation(), location)
+                        || !java.util.Objects.equals(previous.getCounterparty(), counterparty)) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "Transaction reference reused with different payment details");
+                }
+                return TxScoreResponse.from(previous, customer.getRiskScore(), externalCustomerId, previous.getCaseId());
             }
         }
 
@@ -124,6 +134,12 @@ public class TransactionScoringService {
                     null,
                     customer.getRiskScore(),
                     scores.explanation() + " · recommendation " + recommendation);
+        }
+
+        if (opened != null) {
+            caseService.linkTransaction(opened, externalTransactionId, tx.getId().toString());
+            tx.setCaseId(opened.getId().toString());
+            transactionRepository.save(tx);
         }
 
         auditService.record(

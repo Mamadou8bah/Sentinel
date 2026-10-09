@@ -5,6 +5,7 @@ interface ImportMetaEnv {
   readonly VITE_WS_URL?: string
   readonly VITE_API_PROXY?: string
   readonly VITE_SITE_URL?: string
+  readonly VITE_DEMO_MODE?: string
   readonly VITE_GA_MEASUREMENT_ID?: string
   readonly VITE_GTM_ID?: string
   readonly VITE_GOOGLE_SITE_VERIFICATION?: string

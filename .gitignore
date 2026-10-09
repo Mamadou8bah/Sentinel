@@ -34,6 +34,8 @@ venv/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+services/*/runtime/
+services/transaction-ml/artifacts/local/
 *.pt
 *.pth
 *.onnx
@@ -69,3 +71,13 @@ coverage/
 htmlcov/
 *.lcov
 test-results/
+
+# Service-local datasets and generated models
+services/*/data/**
+!services/*/data/README.md
+!services/*/data/.gitkeep
+services/*/artifacts/**
+!services/*/artifacts/README.md
+
+# TypeScript incremental build state
+*.tsbuildinfo

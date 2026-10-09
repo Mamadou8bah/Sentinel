@@ -86,11 +86,13 @@ public class KycService {
         session.setTenant(tenant);
         session.setExternalCustomerId(externalCustomerId.trim());
         session.setStatus(KycSessionStatus.PENDING);
-        session.setChallengeId("chal_" + Hashing.randomHex(8));
-        session.setLivenessHint("Turn head slowly left, then right");
+        var challenge = mlGateway.startLivenessChallenge();
+        session.setChallengeId(challenge.id());
+        session.setLivenessHint(challenge.hint());
         session.setPublicToken(Hashing.randomHex(24));
         session.setExpiresAt(Instant.now()
                 .plus(properties.getHosted().getSessionTtlMinutes(), ChronoUnit.MINUTES));
+        if (challenge.expiresAt().isBefore(session.getExpiresAt())) session.setExpiresAt(challenge.expiresAt());
         if (returnUrl != null && !returnUrl.isBlank()) {
             session.setReturnUrl(returnUrl.trim());
         }
@@ -125,6 +127,11 @@ public class KycService {
 
     @Transactional
     public KycSession submitByPublicToken(String token, String idImageBase64, String selfieImageBase64, String name) {
+        return submitByPublicToken(token, idImageBase64, selfieImageBase64, name, List.of());
+    }
+
+    @Transactional
+    public KycSession submitByPublicToken(String token, String idImageBase64, String selfieImageBase64, String name, List<String> frames) {
         KycSession session = requireByPublicToken(token);
         if (isExpired(session) && session.getStatus() != KycSessionStatus.COMPLETE) {
             throw new ResponseStatusException(HttpStatus.GONE, "This verification link has expired");
@@ -135,7 +142,7 @@ public class KycService {
                 session.getChallengeId(),
                 idImageBase64,
                 selfieImageBase64,
-                name);
+                name, frames);
     }
 
     @Transactional
@@ -146,7 +153,14 @@ public class KycService {
             String idImageBase64,
             String selfieImageBase64,
             String providedName) {
-        KycSession session = getSession(tenantId, sessionId);
+        return submitSession(tenantId, sessionId, challengeId, idImageBase64, selfieImageBase64, providedName, List.of());
+    }
+
+    @Transactional
+    public KycSession submitSession(Long tenantId, Long sessionId, String challengeId,
+            String idImageBase64, String selfieImageBase64, String providedName, List<String> frames) {
+        KycSession session = kycSessionRepository.findForSubmission(sessionId, tenantId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "KYC session not found"));
         if (session.getStatus() == KycSessionStatus.COMPLETE) {
             return session;
         }
@@ -156,12 +170,11 @@ public class KycService {
         verifyChallenge(session, challengeId);
 
         Tenant tenant = session.getTenant();
-        storageService.storeBase64(tenantId, "kyc/" + sessionId, idImageBase64, "jpg");
-        storageService.storeBase64(tenantId, "kyc/" + sessionId, selfieImageBase64, "jpg");
-
         session.setStatus(KycSessionStatus.SUBMITTED);
         KycScores scores = mlGateway.scoreKyc(
-                session.getExternalCustomerId(), providedName, idImageBase64, selfieImageBase64);
+                session.getExternalCustomerId(), providedName, idImageBase64, selfieImageBase64, session.getChallengeId(), frames);
+        storageService.storeBase64(tenantId, "kyc/" + sessionId, idImageBase64, "jpg");
+        storageService.storeBase64(tenantId, "kyc/" + sessionId, selfieImageBase64, "jpg");
 
         Customer customer = customerRepository
                 .findByTenant_IdAndExternalCustomerId(tenantId, session.getExternalCustomerId())
@@ -170,6 +183,7 @@ public class KycService {
         customer.setTenant(tenant);
         customer.setExternalCustomerId(session.getExternalCustomerId());
         customer.setName(scores.name());
+        customer.setDob(null);
         try {
             customer.setDob(LocalDate.parse(scores.dob()));
         } catch (Exception ignored) {
@@ -181,6 +195,7 @@ public class KycService {
 
         RiskSettings settings = riskEngine.requireSettings(tenantId);
         KycStatus status = riskEngine.decideKycStatus(scores.faceMatch(), scores.liveness(), settings);
+        if (!scores.evidenceTrusted() || scores.tampering() >= settings.getTamperingThreshold()) status = KycStatus.REJECTED;
         customer.setKycStatus(status);
 
         List<Document> docs = created
@@ -192,7 +207,8 @@ public class KycService {
 
         session.setCustomer(customer);
         session.setStatus(KycSessionStatus.COMPLETE);
-        session.setExplanation(riskEngine.explainKyc(customer, settings));
+        session.setExplanation(riskEngine.explainKyc(customer, settings)
+                + " · " + scores.explanation());
         session = kycSessionRepository.save(session);
 
         if (status == KycStatus.FLAGGED || status == KycStatus.REJECTED || riskEngine.shouldOpenCase(risk, settings)) {

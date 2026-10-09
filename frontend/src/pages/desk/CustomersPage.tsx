@@ -6,16 +6,21 @@ import {
   EmptyState,
   LoadingBlock,
   PageHeader,
+  Pagination,
   Panel,
   RiskBar,
   StatusPill,
   kycTone,
 } from '../../components/desk/ui'
+import { usePagination } from '../../hooks/usePagination'
+
+const PAGE_SIZE = 8
 
 export default function CustomersPage() {
   const [rows, setRows] = useState<CustomerSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const pager = usePagination(rows, PAGE_SIZE)
 
   useEffect(() => {
     api
@@ -36,7 +41,7 @@ export default function CustomersPage() {
       <Panel>
         {loading && <LoadingBlock />}
         {!loading && error && (
-          <div className="px-6 py-10 text-center text-sm text-red-300">{error}</div>
+          <div className="px-6 py-10 text-center text-sm text-red-500 dark:text-[color:var(--status-danger)]">{error}</div>
         )}
         {!loading && !error && rows.length === 0 && (
           <EmptyState
@@ -45,28 +50,38 @@ export default function CustomersPage() {
           />
         )}
         {!loading && !error && rows.length > 0 && (
-          <ul className="divide-y divide-white/10">
-            {rows.map((row) => (
-              <li key={row.id}>
-                <Link
-                  to={`/desk/customers/${row.id}`}
-                  className="flex flex-col gap-4 px-5 py-5 transition hover:bg-white/[0.03] sm:flex-row sm:items-center sm:px-6"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-display text-xl font-bold">{row.name}</p>
-                      <StatusPill tone={kycTone(row.kycStatus)}>{row.kycStatus}</StatusPill>
-                      {row.hasSignatureSpecimen && (
-                        <StatusPill tone="neutral">Specimen</StatusPill>
-                      )}
+          <>
+            <ul className="divide-y divide-fg/10">
+              {pager.slice.map((row) => (
+                <li key={row.id}>
+                  <Link
+                    to={`/desk/customers/${row.id}`}
+                    className="flex flex-col gap-4 px-5 py-5 transition hover:bg-fg/[0.03] sm:flex-row sm:items-center sm:px-6"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-display text-xl font-bold text-fg">{row.name}</p>
+                        <StatusPill tone={kycTone(row.kycStatus)}>{row.kycStatus}</StatusPill>
+                        {row.hasSignatureSpecimen && (
+                          <StatusPill tone="neutral">Specimen</StatusPill>
+                        )}
+                      </div>
+                      <p className="mt-2 text-sm text-mute">{row.externalCustomerId || '—'}</p>
                     </div>
-                    <p className="mt-2 text-sm text-mute">{row.externalCustomerId || '—'}</p>
-                  </div>
-                  <RiskBar score={row.riskScore} />
-                </Link>
-              </li>
-            ))}
-          </ul>
+                    <RiskBar score={row.riskScore} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <Pagination
+              page={pager.page}
+              totalPages={pager.totalPages}
+              total={pager.total}
+              from={pager.from}
+              to={pager.to}
+              onChange={pager.setPage}
+            />
+          </>
         )}
       </Panel>
     </div>

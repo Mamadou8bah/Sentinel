@@ -15,7 +15,8 @@ import org.springframework.stereotype.Service;
 public class StubMlService {
 
     public record KycScores(
-            String name, String dob, String idNumber, double faceMatch, double liveness, double tampering) {}
+            String name, String dob, String idNumber, double faceMatch, double liveness, double tampering,
+            boolean evidenceTrusted, String explanation) {}
 
     public record DocumentScores(
             Map<String, Object> ocr,
@@ -32,14 +33,10 @@ public class StubMlService {
 
     public KycScores scoreKyc(String externalCustomerId, String providedName) {
         int h = Math.abs((externalCustomerId == null ? "x" : externalCustomerId).hashCode());
-        double face = 0.72 + (h % 25) / 100.0;
-        double live = 0.68 + ((h / 7) % 28) / 100.0;
-        if (externalCustomerId != null && externalCustomerId.toLowerCase().contains("fraud")) {
-            face = 0.41;
-            live = 0.38;
-        }
         String name = (providedName != null && !providedName.isBlank()) ? providedName : "Demo Customer " + (h % 1000);
-        return new KycScores(name, "1990-01-15", "ID-" + (h % 100000), clamp(face), clamp(live), 0.12);
+        // No image model ran: synthetic identity evidence cannot verify a customer.
+        return new KycScores(name, "", "", 0.0, 0.0, 1.0, false,
+                "Synthetic evidence; identity models did not run");
     }
 
     public DocumentScores scoreDocument(
@@ -90,16 +87,14 @@ public class StubMlService {
 
         anomaly = clamp(anomaly + (Math.abs(Double.hashCode(amount) % 17) / 200.0));
 
-        List<Map<String, Object>> shap = List.of(
-                Map.of("feature", "amount_vs_avg_30d", "contribution", round(anomaly * 0.55)),
-                Map.of("feature", "tx_count_24h", "contribution", round(anomaly * 0.22)),
-                Map.of("feature", "channel_risk", "contribution", round(anomaly * 0.12)));
+        // Rule output has no SHAP attribution because no trained model ran.
+        List<Map<String, Object>> shap = List.of();
 
         String explanation = flags.isEmpty()
                 ? "Within normal pattern for this customer"
                 : "Triggered: " + String.join(", ", flags);
 
-        return new TxScores(anomaly, flags, explanation, shap);
+        return new TxScores(anomaly, flags, "DEMO RULES (no trained model): " + explanation, shap);
     }
 
     private static double clamp(double v) {

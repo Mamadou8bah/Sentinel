@@ -1,4 +1,14 @@
 import type { ApiErrorBody, AuthResponse } from './types'
+import { handleDemoRequest } from './demo/handlers'
+import {
+  disableDemoMode,
+  enableDemoMode,
+  isDemoActive,
+  isDemoDisabled,
+  isDemoForced,
+  isDemoToken,
+  demoSetting,
+} from './demo/mode'
 
 const ACCESS_KEY = 'sentinel.access'
 const REFRESH_KEY = 'sentinel.refresh'
@@ -41,6 +51,9 @@ export function persistAuth(auth: AuthResponse) {
       tenantId: auth.tenantId,
     } satisfies StoredSession),
   )
+  if (isDemoToken(auth.accessToken)) {
+    enableDemoMode('demo login')
+  }
 }
 
 export const AUTH_EXPIRED_EVENT = 'sentinel:auth-expired'
@@ -67,22 +80,58 @@ export class ApiError extends Error {
 
 let refreshPromise: Promise<boolean> | null = null
 
+function preferDemoOnly(token: string | null) {
+  return isDemoForced() || isDemoToken(token)
+}
+
 async function tryRefresh(): Promise<boolean> {
   const refreshToken = getRefreshToken()
   if (!refreshToken) return false
+  if (isDemoToken(refreshToken) || isDemoActive()) {
+    enableDemoMode('demo refresh')
+    const auth = (await handleDemoRequest('/api/auth/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ refreshToken }),
+    })) as AuthResponse
+    persistAuth(auth)
+    return true
+  }
 
-  const res = await fetch('/api/auth/refresh', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken }),
-  })
-  if (!res.ok) {
+  try {
+    const res = await fetch('/api/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    })
+    if (!res.ok) {
+      notifyAuthExpired()
+      return false
+    }
+    const auth = (await res.json()) as AuthResponse
+    persistAuth(auth)
+    return true
+  } catch {
+    if (!isDemoDisabled() && enableDemoMode('refresh unreachable')) {
+      const auth = (await handleDemoRequest('/api/auth/refresh', {
+        method: 'POST',
+        body: JSON.stringify({ refreshToken }),
+      })) as AuthResponse
+      persistAuth(auth)
+      return true
+    }
     notifyAuthExpired()
     return false
   }
-  const auth = (await res.json()) as AuthResponse
-  persistAuth(auth)
-  return true
+}
+
+async function fromDemo<T>(path: string, init?: RequestInit): Promise<T> {
+  try {
+    return (await handleDemoRequest(path, init)) as T
+  } catch (err) {
+    const status = typeof err === 'object' && err && 'status' in err ? Number((err as { status: number }).status) : 500
+    const message = err instanceof Error ? err.message : 'Demo request failed'
+    throw new ApiError(status, message)
+  }
 }
 
 export async function apiFetch<T>(
@@ -90,15 +139,28 @@ export async function apiFetch<T>(
   init: RequestInit = {},
   retry = true,
 ): Promise<T> {
+  const token = getAccessToken()
+  if (preferDemoOnly(token)) {
+    enableDemoMode('demo session')
+    return fromDemo<T>(path, init)
+  }
+
   const headers = new Headers(init.headers)
   const isForm = init.body instanceof FormData
   if (!headers.has('Content-Type') && init.body && !isForm) {
     headers.set('Content-Type', 'application/json')
   }
-  const token = getAccessToken()
   if (token) headers.set('Authorization', `Bearer ${token}`)
 
-  const res = await fetch(path, { ...init, headers })
+  let res: Response
+  try {
+    res = await fetch(path, { ...init, headers })
+  } catch {
+    if (!isDemoDisabled() && enableDemoMode('network error')) {
+      return fromDemo<T>(path, init)
+    }
+    throw new ApiError(503, 'Backend unreachable')
+  }
 
   if (res.status === 401 && retry) {
     refreshPromise ??= tryRefresh().finally(() => {
@@ -106,18 +168,48 @@ export async function apiFetch<T>(
     })
     const ok = await refreshPromise
     if (ok) return apiFetch<T>(path, init, false)
+    if (!isDemoDisabled() && enableDemoMode('auth failed')) {
+      return fromDemo<T>(path, init)
+    }
     notifyAuthExpired()
     throw new ApiError(401, 'Session expired')
   }
 
-  if (res.status === 204) return undefined as T
+  // Vite proxy (backend down) often returns 500; gateways use 502–504
+  if (res.status >= 500 && !isDemoDisabled()) {
+    enableDemoMode(`HTTP ${res.status}`)
+    return fromDemo<T>(path, init)
+  }
+
+  if (res.status === 204) {
+    if (demoSetting() === 'auto' && isDemoActive()) {
+      disableDemoMode()
+    }
+    return undefined as T
+  }
 
   const text = await res.text()
-  const data = text ? (JSON.parse(text) as unknown) : null
+  let data: unknown = null
+  if (text) {
+    try {
+      data = JSON.parse(text) as unknown
+    } catch {
+      // Non-JSON error body from a dead proxy — treat as offline
+      if (!res.ok && !isDemoDisabled()) {
+        enableDemoMode('proxy error')
+        return fromDemo<T>(path, init)
+      }
+      data = null
+    }
+  }
 
   if (!res.ok) {
     const body = data as ApiErrorBody | null
     throw new ApiError(res.status, body?.message || body?.error || res.statusText)
+  }
+
+  if (demoSetting() === 'auto' && isDemoActive()) {
+    disableDemoMode()
   }
 
   return data as T
@@ -134,3 +226,5 @@ export const api = {
   patch: <T>(path: string, body?: unknown) =>
     apiFetch<T>(path, { method: 'PATCH', body: body == null ? undefined : JSON.stringify(body) }),
 }
+
+export { isDemoActive, enableDemoMode, disableDemoMode, isDemoForced, demoSetting } from './demo/mode'

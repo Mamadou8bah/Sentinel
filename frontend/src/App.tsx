@@ -11,6 +11,7 @@ import CasesPage from './pages/desk/CasesPage'
 import CustomerDetailPage from './pages/desk/CustomerDetailPage'
 import CustomersPage from './pages/desk/CustomersPage'
 import LoginPage from './pages/desk/LoginPage'
+import OverviewPage from './pages/desk/OverviewPage'
 import SettingsPage from './pages/desk/SettingsPage'
 import ToolsPage from './pages/desk/ToolsPage'
 
@@ -24,7 +25,7 @@ export default function App() {
 
         <Route element={<RequireAuth />}>
           <Route path="/desk" element={<DeskShell />}>
-            <Route index element={<Navigate to="cases" replace />} />
+            <Route index element={<OverviewPage />} />
             <Route path="cases" element={<CasesPage />} />
             <Route path="cases/:id" element={<CaseDetailPage />} />
             <Route path="customers" element={<CustomersPage />} />

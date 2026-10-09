@@ -8,12 +8,14 @@ import {
   Field,
   LoadingBlock,
   PageHeader,
+  Pagination,
   Panel,
   RiskBar,
   StatusPill,
   formatWhen,
   kycTone,
 } from '../../components/desk/ui'
+import { usePagination } from '../../hooks/usePagination'
 import { fileToBase64, pct } from '../../lib/files'
 
 export default function CustomerDetailPage() {
@@ -29,6 +31,8 @@ export default function CustomerDetailPage() {
   const [specimenFile, setSpecimenFile] = useState<File | null>(null)
   const [specimenMsg, setSpecimenMsg] = useState<string | null>(null)
   const [specimenBusy, setSpecimenBusy] = useState(false)
+  const docPager = usePagination(docs, 6)
+  const txPager = usePagination(txs, 8)
 
   async function reload() {
     if (!id) return
@@ -70,7 +74,7 @@ export default function CustomerDetailPage() {
 
   if (loading) return <LoadingBlock label="Loading 360°…" />
   if (error || !customer) {
-    return <div className="text-sm text-red-300">{error || 'Customer not found'}</div>
+    return <div className="text-sm text-[color:var(--status-danger)]">{error || 'Customer not found'}</div>
   }
 
   const scores = [
@@ -102,7 +106,7 @@ export default function CustomerDetailPage() {
           },
         ].map((stat) => (
           <Panel key={stat.label} className="p-6">
-            <p className="text-xs uppercase tracking-[0.14em] text-white/45">{stat.label}</p>
+            <p className="text-xs uppercase tracking-[0.14em] text-fg/45">{stat.label}</p>
             <p className="mt-3 font-display text-3xl font-bold">{stat.value}</p>
           </Panel>
         ))}
@@ -112,18 +116,18 @@ export default function CustomerDetailPage() {
         <Panel className="p-6 md:p-8">
           <h2 className="font-display text-2xl font-bold">Identity</h2>
           <dl className="mt-6 space-y-4 text-sm">
-            <div className="flex justify-between gap-4 border-b border-white/10 pb-3">
+            <div className="flex justify-between gap-4 border-b border-fg/10 pb-3">
               <dt className="text-mute">Date of birth</dt>
               <dd>{customer.dob || '—'}</dd>
             </div>
-            <div className="flex justify-between gap-4 border-b border-white/10 pb-3">
+            <div className="flex justify-between gap-4 border-b border-fg/10 pb-3">
               <dt className="text-mute">Created</dt>
               <dd>{formatWhen(customer.createdAt)}</dd>
             </div>
             {scores.map((score) => (
               <div
                 key={score.label}
-                className="flex justify-between gap-4 border-b border-white/10 pb-3"
+                className="flex justify-between gap-4 border-b border-fg/10 pb-3"
               >
                 <dt className="text-mute">{score.label}</dt>
                 <dd>{pct(score.value)}</dd>
@@ -132,7 +136,7 @@ export default function CustomerDetailPage() {
           </dl>
 
           {canEnroll && (
-            <form onSubmit={enrollSpecimen} className="mt-8 border-t border-white/10 pt-6">
+            <form onSubmit={enrollSpecimen} className="mt-8 border-t border-fg/10 pt-6">
               <h3 className="font-display text-lg font-bold">Signature specimen</h3>
               <p className="mt-1 text-sm text-mute">
                 Required before signature matching can score on documents.
@@ -142,7 +146,7 @@ export default function CustomerDetailPage() {
                   <input
                     type="file"
                     accept="image/*"
-                    className="block w-full text-sm text-white/70 file:mr-4 file:rounded-full file:border-0 file:bg-ember/20 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-ember-glow"
+                    className="block w-full text-sm text-fg/70 file:mr-4 file:rounded-full file:border-0 file:bg-ember/20 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-ember-glow"
                     onChange={(e) => setSpecimenFile(e.target.files?.[0] ?? null)}
                   />
                 </Field>
@@ -150,7 +154,7 @@ export default function CustomerDetailPage() {
                 <button
                   type="submit"
                   disabled={specimenBusy || !specimenFile}
-                  className="rounded-full bg-ember-grad px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
+                  className="rounded-full bg-ember-grad px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                 >
                   {specimenBusy ? 'Uploading…' : 'Enroll specimen'}
                 </button>
@@ -160,65 +164,85 @@ export default function CustomerDetailPage() {
         </Panel>
 
         <Panel className="overflow-hidden">
-          <div className="border-b border-white/10 px-6 py-5">
+          <div className="border-b border-fg/10 px-6 py-5">
             <h2 className="font-display text-2xl font-bold">Documents</h2>
           </div>
           {docs.length === 0 ? (
             <p className="px-6 py-10 text-sm text-mute">No documents verified yet.</p>
           ) : (
-            <ul className="divide-y divide-white/10">
-              {docs.map((doc) => (
-                <li key={doc.id} className="px-6 py-4 text-sm">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium text-white">
-                      #{doc.id} · {doc.type}
+            <>
+              <ul className="divide-y divide-fg/10">
+                {docPager.slice.map((doc) => (
+                  <li key={doc.id} className="px-6 py-4 text-sm">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium text-fg">
+                        #{doc.id} · {doc.type}
+                      </p>
+                      <StatusPill tone="neutral">{doc.status}</StatusPill>
+                      <StatusPill tone={doc.signatureMatchStatus === 'SCORED' ? 'ok' : 'warn'}>
+                        {doc.signatureMatchStatus}
+                      </StatusPill>
+                    </div>
+                    <p className="mt-2 text-mute">
+                      Tampering {pct(doc.tamperingScore)} · Fraud {pct(doc.fraudRiskScore)}
+                      {doc.signatureMatchScore != null
+                        ? ` · Signature ${pct(doc.signatureMatchScore)}`
+                        : ''}
                     </p>
-                    <StatusPill tone="neutral">{doc.status}</StatusPill>
-                    <StatusPill tone={doc.signatureMatchStatus === 'SCORED' ? 'ok' : 'warn'}>
-                      {doc.signatureMatchStatus}
-                    </StatusPill>
-                  </div>
-                  <p className="mt-2 text-mute">
-                    Tampering {pct(doc.tamperingScore)} · Fraud {pct(doc.fraudRiskScore)}
-                    {doc.signatureMatchScore != null
-                      ? ` · Signature ${pct(doc.signatureMatchScore)}`
-                      : ''}
-                  </p>
-                  <p className="mt-1 text-xs text-white/40">{formatWhen(doc.createdAt)}</p>
-                </li>
-              ))}
-            </ul>
+                    <p className="mt-1 text-xs text-fg/40">{formatWhen(doc.createdAt)}</p>
+                  </li>
+                ))}
+              </ul>
+              <Pagination
+                page={docPager.page}
+                totalPages={docPager.totalPages}
+                total={docPager.total}
+                from={docPager.from}
+                to={docPager.to}
+                onChange={docPager.setPage}
+              />
+            </>
           )}
         </Panel>
       </div>
 
       <Panel className="overflow-hidden">
-        <div className="border-b border-white/10 px-6 py-5">
+        <div className="border-b border-fg/10 px-6 py-5">
           <h2 className="font-display text-2xl font-bold">Recent payments</h2>
         </div>
         {txs.length === 0 ? (
           <p className="px-6 py-10 text-sm text-mute">No scored transactions yet.</p>
         ) : (
-          <ul className="divide-y divide-white/10">
-            {txs.slice(0, 12).map((tx) => (
-              <li key={tx.id} className="flex items-center justify-between gap-4 px-6 py-4 text-sm">
-                <div>
-                  <p className="font-medium text-white">
-                    {tx.amount} {tx.currency}
-                  </p>
-                  <p className="mt-1 text-xs text-mute">
-                    {tx.channel || 'channel'} · {formatWhen(tx.occurredAt)}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <StatusPill tone={tx.flagged ? 'danger' : 'ok'}>
-                    {tx.recommendation || (tx.flagged ? 'FLAG' : 'OK')}
-                  </StatusPill>
-                  <p className="mt-2 text-xs text-mute">anomaly {pct(tx.anomalyScore)}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="divide-y divide-fg/10">
+              {txPager.slice.map((tx) => (
+                <li key={tx.id} className="flex items-center justify-between gap-4 px-6 py-4 text-sm">
+                  <div>
+                    <p className="font-medium text-fg">
+                      {tx.amount} {tx.currency}
+                    </p>
+                    <p className="mt-1 text-xs text-mute">
+                      {tx.channel || 'channel'} · {formatWhen(tx.occurredAt)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <StatusPill tone={tx.flagged ? 'danger' : 'ok'}>
+                      {tx.recommendation || (tx.flagged ? 'FLAG' : 'OK')}
+                    </StatusPill>
+                    <p className="mt-2 text-xs text-mute">anomaly {pct(tx.anomalyScore)}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <Pagination
+              page={txPager.page}
+              totalPages={txPager.totalPages}
+              total={txPager.total}
+              from={txPager.from}
+              to={txPager.to}
+              onChange={txPager.setPage}
+            />
+          </>
         )}
       </Panel>
     </div>

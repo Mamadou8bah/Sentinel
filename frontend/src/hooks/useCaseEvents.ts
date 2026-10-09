@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Client } from '@stomp/stompjs'
-import { getAccessToken } from '../api/client'
+import { getAccessToken, isDemoActive } from '../api/client'
 import type { CaseEventMessage } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 
@@ -10,15 +10,16 @@ function wsUrl() {
 }
 
 export function useCaseEvents(onEvent: (message: CaseEventMessage) => void) {
-  const { session, isAuthenticated } = useAuth()
+  const { session, isAuthenticated, isDemo } = useAuth()
   const handler = useRef(onEvent)
   handler.current = onEvent
 
   useEffect(() => {
     if (!isAuthenticated || !session?.tenantId) return
+    if (isDemo || isDemoActive()) return
 
     const token = getAccessToken()
-    if (!token) return
+    if (!token || token.startsWith('demo.')) return
 
     const client = new Client({
       brokerURL: wsUrl(),
@@ -40,5 +41,5 @@ export function useCaseEvents(onEvent: (message: CaseEventMessage) => void) {
     return () => {
       void client.deactivate()
     }
-  }, [isAuthenticated, session?.tenantId])
+  }, [isAuthenticated, isDemo, session?.tenantId])
 }
