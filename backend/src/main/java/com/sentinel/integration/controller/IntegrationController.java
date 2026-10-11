@@ -135,7 +135,8 @@ public class IntegrationController {
                 request.timestamp(),
                 request.channel(),
                 request.location(),
-                request.counterparty());
+                request.counterparty(),
+                request.transactionType(), request.availableBalance());
     }
 
     @PostMapping(value = "/transactions/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

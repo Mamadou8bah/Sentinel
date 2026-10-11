@@ -18,6 +18,8 @@ class TransactionInput(BaseModel):
     currency: Annotated[str, Field(pattern=r"^[A-Z]{3}$")] = "GMD"
     timestamp: datetime
     channel: Annotated[str, Field(min_length=1, max_length=64)] = "api"
+    availableBalance: Annotated[Decimal | None, Field(ge=0, le=Decimal("1000000000000"), max_digits=17, decimal_places=4)] = None
+    transactionType: Annotated[str | None, Field(max_length=32)] = None
     location: Annotated[str | None, Field(max_length=128)] = None
     counterparty: Annotated[str | None, Field(max_length=256)] = None
     customerFeatures: CustomerFeatures = Field(default_factory=CustomerFeatures)

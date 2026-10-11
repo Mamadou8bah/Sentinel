@@ -173,3 +173,42 @@ reservations and rollback/retry; 10 targeted Sentinel tests pass, including real
 HTTP UTF-8 signature and failed delivery retry checks. Sutura web and customer
 mobile TypeScript checks pass. These checks do not establish complete PostgreSQL
 atomicity, all payment concurrency invariants, or native-device integration.
+
+
+## PaySim model update — 9 October 2026
+
+The real local PaySim CSV has been trained. The initial amount/time baseline
+achieved 5.53% recall and 91% precision on the final chronological window.
+The revised amount/time/type model uses a 60/20/20 split by distinct step,
+training-only negative sampling with inverse weights, positive weighting and
+validation-only threshold selection under a 0.5% FPR budget. Its same-window
+model-only test results are 45.32% recall, 59.25% precision and 0.4207% FPR
+(746 true positives, 513 false positives, 900 false negatives). Average precision
+improved from 0.2693 to 0.5126. This remains a simulated-data result with substantial
+missed fraud, not evidence of production readiness. The original model is retained.
+
+Sentinel accepts optional transactionType separately from channel and binds it
+to the idempotent transaction reference. Sutura forwards operation_type through
+its API client. Sentinel upgrades ALLOW to REVIEW when a version 2 model crosses
+its validation threshold; raw scores remain unchanged. Version 1 artifacts retain
+their prior score semantics. Apply Sentinel migration 002 before deploying the
+optional-type API update. Models/datasets/logs remain local ignored files.
+
+
+## Pre-debit context comparison — 9 October 2026
+
+Version 3 adds actual pre-debit ledger balance context through the independent
+Sutura -> Sentinel -> Python API contracts. Credit-recipient balances are never
+used as debit-origin balances; missing and zero balances are distinct. Existing
+ledger posting locks and limits still govern spending, independent of scoring.
+Sentinel migration 003 stores the initial snapshot; retries reuse its decision.
+
+Two fixed candidates were compared on validation only. Gradient boosting won
+with 100% validation recall and four false positives. The reused final PaySim
+window yielded 1,645 true positives, one missed fraud, one false positive and
+121,925 true negatives (99.94% precision/recall). This depends on simulator
+balance patterns and is not independent or production evidence. Missing-context
+recall was 16.52%. Combining current amount rules with the model produced
+93,813 false positives (76.94% FPR). Representative real data and currency-aware
+policy/review-workload validation remain essential. The complete local report
+is artifacts/paysim-v3/evaluation.json. No running model was switched.

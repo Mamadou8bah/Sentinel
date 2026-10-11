@@ -29,7 +29,11 @@ public class StubMlService {
             double anomalyScore,
             List<String> ruleFlags,
             String explanation,
-            List<Map<String, Object>> shapTopFeatures) {}
+            List<Map<String, Object>> shapTopFeatures, boolean modelFlagged) {
+        public TxScores(double anomalyScore, List<String> ruleFlags, String explanation, List<Map<String, Object>> shapTopFeatures) {
+            this(anomalyScore, ruleFlags, explanation, shapTopFeatures, false);
+        }
+    }
 
     public KycScores scoreKyc(String externalCustomerId, String providedName) {
         int h = Math.abs((externalCustomerId == null ? "x" : externalCustomerId).hashCode());

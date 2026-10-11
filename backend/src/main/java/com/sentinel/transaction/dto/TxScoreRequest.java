@@ -14,4 +14,7 @@ public record TxScoreRequest(
         Instant timestamp,
         String channel,
         String location,
-        String counterparty) {}
+        String counterparty,
+        @jakarta.validation.constraints.Pattern(regexp = "(?i)CASH_IN|CASH_OUT|DEBIT|PAYMENT|TRANSFER|DEPOSIT|WITHDRAWAL|UNKNOWN") String transactionType,
+        @DecimalMin("0") @jakarta.validation.constraints.DecimalMax("1000000000000")
+        @jakarta.validation.constraints.Digits(integer = 13, fraction = 4) BigDecimal availableBalance) {}

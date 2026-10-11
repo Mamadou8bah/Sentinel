@@ -31,18 +31,35 @@ services:
       timeout: 5s
       retries: 10
 
-  # Placeholders — uncomment Dockerfiles when services are implemented
-  # backend:
-  #   build: ./backend
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #   env_file: .env
-  #   ports:
-  #     - "8080:8080"
+  backend:
+    profiles: ["app"]
+    build: ./backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      cv-ml:
+        condition: service_healthy
+      transaction-ml:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-sentinel}
+      POSTGRES_USER: ${POSTGRES_USER:-sentinel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sentinel_change_me}
+      JWT_SECRET: ${JWT_SECRET:-change_me_to_a_long_random_string_at_least_32_chars}
+      FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY:-sentinel-dev-field-key-change-me}
+      SENTINEL_ML_STUB: "false"
+      CV_ML_BASE_URL: http://cv-ml:8001
+      TRANSACTION_ML_BASE_URL: http://transaction-ml:8002
+      SENTINEL_PUBLIC_BASE_URL: ${SENTINEL_PUBLIC_BASE_URL:-http://localhost:5173}
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - uploads:/app/uploads
 
   cv-ml:
-    profiles: ["inference"]
+    profiles: ["inference", "app"]
     build: ./services/cv-ml
     environment:
       CV_ML_ARTIFACT_DIR: /app/artifacts/identity
@@ -58,11 +75,11 @@ services:
       retries: 5
 
   transaction-ml:
-    profiles: ["inference"]
+    profiles: ["inference", "app"]
     build: ./services/transaction-ml
     environment:
       TRANSACTION_ML_MODE: ${TRANSACTION_ML_MODE:-rules}
-      TRANSACTION_ML_MODEL_PATH: /app/artifacts/paysim/model.joblib
+      TRANSACTION_ML_MODEL_PATH: /app/artifacts/${TRANSACTION_ML_MODEL_ARTIFACT:-paysim/model.joblib}
     volumes:
       - ./services/transaction-ml/artifacts:/app/artifacts:ro
     ports:
@@ -73,13 +90,15 @@ services:
       timeout: 5s
       retries: 5
 
-  # frontend:
-  #   build: ./frontend
-  #   ports:
-  #     - "5173:80"
-  #   depends_on:
-  #     - backend
+  frontend:
+    profiles: ["app"]
+    build: ./frontend
+    ports:
+      - "127.0.0.1:5173:80"
+    depends_on:
+      - backend
 
 volumes:
   pgdata:
   cv_challenges:
+  uploads:

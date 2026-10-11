@@ -111,6 +111,20 @@ class MlGatewayTest {
     }
 
     @Test
+    void validationThresholdFlagSurvivesEvenBelowTenantAnomalyThreshold() {
+        status = 200;
+        body = """
+                {"scores":[{"anomalyScore":0.2,"modelRan":true,"modelFlagged":true,
+                  "modelScore":0.15,"modelThreshold":0.1,"ruleFlags":[],"shapTopFeatures":[]}]}
+                """;
+        var result = gateway.scoreTransaction(100, "api", "7", Map.of("transactionType", "TRANSFER"));
+        assertThat(result.modelFlagged()).isTrue();
+        assertThat(result.anomalyScore()).isEqualTo(.2);
+        body = body.replace("\"modelRan\":true", "\"modelRan\":false");
+        assertThatThrownBy(() -> gateway.scoreTransaction(100, "api", "7", Map.of())).isInstanceOf(ResponseStatusException.class);
+    }
+
+    @Test
     void syntheticEvidenceNeverPassesIdentityChecksAndDoesNotInventShap() {
         var demo = new StubMlService();
         assertThat(demo.scoreKyc("7", "Customer").faceMatch()).isZero();

@@ -53,6 +53,12 @@ public class TransactionEntity {
     @Column(length = 64)
     private String channel;
 
+    @Column(length = 32)
+    private String transactionType;
+
+    @Column(precision = 19, scale = 4)
+    private BigDecimal availableBalance;
+
     private String location;
 
     @Column(length = 256)
@@ -212,4 +218,8 @@ public class TransactionEntity {
     public void setShapTopFeatures(List<Map<String, Object>> shapTopFeatures) {
         this.shapTopFeatures = shapTopFeatures;
     }
+    public String getTransactionType() { return transactionType; }
+    public void setTransactionType(String transactionType) { this.transactionType = transactionType; }
+    public BigDecimal getAvailableBalance() { return availableBalance; }
+    public void setAvailableBalance(BigDecimal availableBalance) { this.availableBalance = availableBalance; }
 }

@@ -63,6 +63,18 @@ public class TransactionScoringService {
     }
 
     @Transactional
+    public TxScoreResponse score(Long tenantId, String externalCustomerId, String externalTransactionId,
+            BigDecimal amount, String currency, Instant timestamp, String channel, String location, String counterparty) {
+        return score(tenantId, externalCustomerId, externalTransactionId, amount, currency, timestamp, channel, location, counterparty, null);
+    }
+
+    @Transactional
+    public TxScoreResponse score(Long tenantId, String externalCustomerId, String externalTransactionId,
+            BigDecimal amount, String currency, Instant timestamp, String channel, String location, String counterparty, String transactionType) {
+        return score(tenantId, externalCustomerId, externalTransactionId, amount, currency, timestamp, channel, location, counterparty, transactionType, null);
+    }
+
+    @Transactional
     public TxScoreResponse score(
             Long tenantId,
             String externalCustomerId,
@@ -72,7 +84,8 @@ public class TransactionScoringService {
             Instant timestamp,
             String channel,
             String location,
-            String counterparty) {
+            String counterparty, String transactionType, BigDecimal availableBalance) {
+        transactionType = transactionType == null ? null : transactionType.trim().toUpperCase(java.util.Locale.ROOT);
         Customer customer = customerService.requireByExternalId(tenantId, externalCustomerId);
         Tenant tenant = customer.getTenant();
 
@@ -87,7 +100,8 @@ public class TransactionScoringService {
                         || !previous.getCurrency().equals(effectiveCurrency)
                         || !java.util.Objects.equals(previous.getChannel(), channel)
                         || !java.util.Objects.equals(previous.getLocation(), location)
-                        || !java.util.Objects.equals(previous.getCounterparty(), counterparty)) {
+                        || !java.util.Objects.equals(previous.getCounterparty(), counterparty)
+                        || !java.util.Objects.equals(previous.getTransactionType(), transactionType)) {
                     throw new ResponseStatusException(HttpStatus.CONFLICT, "Transaction reference reused with different payment details");
                 }
                 return TxScoreResponse.from(previous, customer.getRiskScore(), externalCustomerId, previous.getCaseId());
@@ -95,6 +109,8 @@ public class TransactionScoringService {
         }
 
         Map<String, Object> features = new LinkedHashMap<>();
+        if (transactionType != null) features.put("transactionType", transactionType);
+        if (availableBalance != null) features.put("availableBalance", availableBalance);
         features.put("currency", currency);
         features.put("location", location);
         features.put("counterparty", counterparty);
@@ -105,6 +121,9 @@ public class TransactionScoringService {
         RiskSettings settings = riskEngine.requireSettings(tenantId);
         TxRecommendation recommendation = riskEngine.recommendationFromAnomaly(scores.anomalyScore(), settings);
 
+        // Validation-selected model thresholds request review; tenant rules retain block authority.
+        if (scores.modelFlagged() && recommendation == TxRecommendation.ALLOW) recommendation = TxRecommendation.REVIEW;
+
         TransactionEntity tx = new TransactionEntity();
         tx.setTenant(tenant);
         tx.setCustomer(customer);
@@ -113,6 +132,8 @@ public class TransactionScoringService {
         tx.setCurrency(currency == null || currency.isBlank() ? "GMD" : currency);
         tx.setOccurredAt(timestamp != null ? timestamp : Instant.now());
         tx.setChannel(channel);
+        tx.setTransactionType(transactionType);
+        tx.setAvailableBalance(availableBalance);
         tx.setLocation(location);
         tx.setCounterparty(counterparty);
         tx.setAnomalyScore(scores.anomalyScore());

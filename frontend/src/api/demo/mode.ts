@@ -3,7 +3,7 @@ const DEMO_FLAG = 'sentinel.demo'
 export type DemoModeSetting = 'auto' | 'true' | 'false'
 
 export function demoSetting(): DemoModeSetting {
-  const raw = (import.meta.env.VITE_DEMO_MODE || 'auto').toLowerCase()
+  const raw = (import.meta.env.VITE_DEMO_MODE || (import.meta.env.PROD ? 'false' : 'auto')).toLowerCase()
   if (raw === 'true' || raw === '1' || raw === 'on') return 'true'
   if (raw === 'false' || raw === '0' || raw === 'off') return 'false'
   return 'auto'

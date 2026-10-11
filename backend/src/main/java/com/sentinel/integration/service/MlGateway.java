@@ -192,7 +192,12 @@ public class MlGateway {
             String explanation = first.get("explanation") != null
                     ? String.valueOf(first.get("explanation"))
                     : (flags.isEmpty() ? "Model scored transaction" : "Triggered: " + String.join(", ", flags));
-            return new TxScores(anomaly, flags, explanation, shap);
+            boolean modelFlagged = Boolean.TRUE.equals(first.get("modelFlagged"));
+            if (modelFlagged && (!Boolean.TRUE.equals(first.get("modelRan"))
+                    || requireScore(first.get("modelScore")) < requireScore(first.get("modelThreshold")))) {
+                throw new IllegalStateException("Invalid threshold decision from transaction model");
+            }
+            return new TxScores(anomaly, flags, explanation, shap, modelFlagged);
         } catch (Exception e) {
             throw unavailable("Transaction", e);
         }
