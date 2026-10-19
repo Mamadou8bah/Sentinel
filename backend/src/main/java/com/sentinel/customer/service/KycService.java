@@ -22,6 +22,13 @@ import com.sentinel.risk.model.RiskSettings;
 import com.sentinel.risk.service.RiskEngine;
 import com.sentinel.tenant.model.Tenant;
 import com.sentinel.tenant.service.TenantService;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
@@ -30,11 +37,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class KycService {
@@ -90,9 +92,11 @@ public class KycService {
         session.setChallengeId(challenge.id());
         session.setLivenessHint(challenge.hint());
         session.setPublicToken(Hashing.randomHex(24));
-        session.setExpiresAt(Instant.now()
-                .plus(properties.getHosted().getSessionTtlMinutes(), ChronoUnit.MINUTES));
-        if (challenge.expiresAt().isBefore(session.getExpiresAt())) session.setExpiresAt(challenge.expiresAt());
+        session.setExpiresAt(
+                Instant.now()
+                        .plus(properties.getHosted().getSessionTtlMinutes(), ChronoUnit.MINUTES));
+        if (challenge.expiresAt().isBefore(session.getExpiresAt()))
+            session.setExpiresAt(challenge.expiresAt());
         if (returnUrl != null && !returnUrl.isBlank()) {
             session.setReturnUrl(returnUrl.trim());
         }
@@ -108,7 +112,10 @@ public class KycService {
     public KycSession getSession(Long tenantId, Long sessionId) {
         return kycSessionRepository
                 .findByIdAndTenant_Id(sessionId, tenantId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "KYC session not found"));
+                .orElseThrow(
+                        () ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND, "KYC session not found"));
     }
 
     @Transactional(readOnly = true)
@@ -118,7 +125,10 @@ public class KycService {
         }
         return kycSessionRepository
                 .findByPublicToken(token.trim())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "KYC session not found"));
+                .orElseThrow(
+                        () ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND, "KYC session not found"));
     }
 
     public boolean isExpired(KycSession session) {
@@ -126,15 +136,33 @@ public class KycService {
     }
 
     @Transactional
-    public KycSession submitByPublicToken(String token, String idImageBase64, String selfieImageBase64, String name) {
+    public KycSession submitByPublicToken(
+            String token, String idImageBase64, String selfieImageBase64, String name) {
         return submitByPublicToken(token, idImageBase64, selfieImageBase64, name, List.of());
     }
 
     @Transactional
-    public KycSession submitByPublicToken(String token, String idImageBase64, String selfieImageBase64, String name, List<String> frames) {
+    public KycSession submitByPublicToken(
+            String token,
+            String idImageBase64,
+            String selfieImageBase64,
+            String name,
+            List<String> frames) {
+        return submitByPublicToken(token, idImageBase64, selfieImageBase64, name, frames, null);
+    }
+
+    @Transactional
+    public KycSession submitByPublicToken(
+            String token,
+            String idImageBase64,
+            String selfieImageBase64,
+            String name,
+            List<String> frames,
+            String videoBase64) {
         KycSession session = requireByPublicToken(token);
         if (isExpired(session) && session.getStatus() != KycSessionStatus.COMPLETE) {
-            throw new ResponseStatusException(HttpStatus.GONE, "This verification link has expired");
+            throw new ResponseStatusException(
+                    HttpStatus.GONE, "This verification link has expired");
         }
         return submitSession(
                 session.getTenant().getId(),
@@ -142,7 +170,9 @@ public class KycService {
                 session.getChallengeId(),
                 idImageBase64,
                 selfieImageBase64,
-                name, frames);
+                name,
+                frames,
+                videoBase64);
     }
 
     @Transactional
@@ -153,32 +183,104 @@ public class KycService {
             String idImageBase64,
             String selfieImageBase64,
             String providedName) {
-        return submitSession(tenantId, sessionId, challengeId, idImageBase64, selfieImageBase64, providedName, List.of());
+        return submitSession(
+                tenantId,
+                sessionId,
+                challengeId,
+                idImageBase64,
+                selfieImageBase64,
+                providedName,
+                List.of());
     }
 
     @Transactional
-    public KycSession submitSession(Long tenantId, Long sessionId, String challengeId,
-            String idImageBase64, String selfieImageBase64, String providedName, List<String> frames) {
-        KycSession session = kycSessionRepository.findForSubmission(sessionId, tenantId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "KYC session not found"));
+    public KycSession submitSession(
+            Long tenantId,
+            Long sessionId,
+            String challengeId,
+            String idImageBase64,
+            String selfieImageBase64,
+            String providedName,
+            List<String> frames) {
+        return submitSession(
+                tenantId,
+                sessionId,
+                challengeId,
+                idImageBase64,
+                selfieImageBase64,
+                providedName,
+                frames,
+                null);
+    }
+
+    @Transactional
+    public KycSession submitSession(
+            Long tenantId,
+            Long sessionId,
+            String challengeId,
+            String idImageBase64,
+            String selfieImageBase64,
+            String providedName,
+            List<String> frames,
+            String videoBase64) {
+        KycSession session =
+                kycSessionRepository
+                        .findForSubmission(sessionId, tenantId)
+                        .orElseThrow(
+                                () ->
+                                        new ResponseStatusException(
+                                                HttpStatus.NOT_FOUND, "KYC session not found"));
         if (session.getStatus() == KycSessionStatus.COMPLETE) {
             return session;
         }
         if (isExpired(session)) {
-            throw new ResponseStatusException(HttpStatus.GONE, "This verification link has expired");
+            throw new ResponseStatusException(
+                    HttpStatus.GONE, "This verification link has expired");
         }
         verifyChallenge(session, challengeId);
 
         Tenant tenant = session.getTenant();
         session.setStatus(KycSessionStatus.SUBMITTED);
-        KycScores scores = mlGateway.scoreKyc(
-                session.getExternalCustomerId(), providedName, idImageBase64, selfieImageBase64, session.getChallengeId(), frames);
+        boolean recording = videoBase64 != null && !videoBase64.isBlank();
+        KycScores scores =
+                recording
+                        ? mlGateway.scoreRecordingKyc(
+                                session.getExternalCustomerId(),
+                                providedName,
+                                idImageBase64,
+                                videoBase64,
+                                session.getChallengeId())
+                        : mlGateway.scoreKyc(
+                                session.getExternalCustomerId(),
+                                providedName,
+                                idImageBase64,
+                                selfieImageBase64,
+                                session.getChallengeId(),
+                                frames);
         storageService.storeBase64(tenantId, "kyc/" + sessionId, idImageBase64, "jpg");
-        storageService.storeBase64(tenantId, "kyc/" + sessionId, selfieImageBase64, "jpg");
+        if (recording) {
+            byte[] raw =
+                    java.util.Base64.getDecoder()
+                            .decode(
+                                    videoBase64.contains(",")
+                                            ? videoBase64.substring(videoBase64.indexOf(',') + 1)
+                                            : videoBase64);
+            String extension =
+                    raw.length > 8
+                                    && raw[4] == 'f'
+                                    && raw[5] == 't'
+                                    && raw[6] == 'y'
+                                    && raw[7] == 'p'
+                            ? "mp4"
+                            : "webm";
+            storageService.storeBase64(tenantId, "kyc/" + sessionId, videoBase64, extension);
+        } else storageService.storeBase64(tenantId, "kyc/" + sessionId, selfieImageBase64, "jpg");
 
-        Customer customer = customerRepository
-                .findByTenant_IdAndExternalCustomerId(tenantId, session.getExternalCustomerId())
-                .orElseGet(Customer::new);
+        Customer customer =
+                customerRepository
+                        .findByTenant_IdAndExternalCustomerId(
+                                tenantId, session.getExternalCustomerId())
+                        .orElseGet(Customer::new);
         boolean created = customer.getId() == null;
         customer.setTenant(tenant);
         customer.setExternalCustomerId(session.getExternalCustomerId());
@@ -194,24 +296,30 @@ public class KycService {
         customer.setLivenessScore(scores.liveness());
 
         RiskSettings settings = riskEngine.requireSettings(tenantId);
-        KycStatus status = riskEngine.decideKycStatus(scores.faceMatch(), scores.liveness(), settings);
-        if (!scores.evidenceTrusted() || scores.tampering() >= settings.getTamperingThreshold()) status = KycStatus.REJECTED;
+        KycStatus status =
+                riskEngine.decideKycStatus(scores.faceMatch(), scores.liveness(), settings);
+        if (!scores.evidenceTrusted() || scores.tampering() >= settings.getTamperingThreshold())
+            status = KycStatus.REJECTED;
         customer.setKycStatus(status);
 
-        List<Document> docs = created
-                ? List.of()
-                : documentRepository.findByCustomer_IdAndTenant_Id(customer.getId(), tenantId);
+        List<Document> docs =
+                created
+                        ? List.of()
+                        : documentRepository.findByCustomer_IdAndTenant_Id(
+                                customer.getId(), tenantId);
         int risk = riskEngine.computeCustomerRisk(customer, docs, null);
         customer.setRiskScore(risk);
         customer = customerRepository.save(customer);
 
         session.setCustomer(customer);
         session.setStatus(KycSessionStatus.COMPLETE);
-        session.setExplanation(riskEngine.explainKyc(customer, settings)
-                + " · " + scores.explanation());
+        session.setExplanation(
+                riskEngine.explainKyc(customer, settings) + " · " + scores.explanation());
         session = kycSessionRepository.save(session);
 
-        if (status == KycStatus.FLAGGED || status == KycStatus.REJECTED || riskEngine.shouldOpenCase(risk, settings)) {
+        if (status == KycStatus.FLAGGED
+                || status == KycStatus.REJECTED
+                || riskEngine.shouldOpenCase(risk, settings)) {
             caseService.create(tenant, customer, null, risk, session.getExplanation());
         }
 
@@ -259,7 +367,8 @@ public class KycService {
         byte[] expected = session.getChallengeId().getBytes(StandardCharsets.UTF_8);
         byte[] provided = challengeId.trim().getBytes(StandardCharsets.UTF_8);
         if (!MessageDigest.isEqual(expected, provided)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid liveness challengeId");
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Invalid liveness challengeId");
         }
     }
 }

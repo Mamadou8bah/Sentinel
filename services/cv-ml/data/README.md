@@ -47,3 +47,13 @@ OCR: one document image with canonical structured text, at most 96 characters:
 OCR supports uppercase A-Z, digits, space, newline, `=:/-.`. This is supervised
 field transcription, not general document understanding or signature checking.
 See the service README for training commands and model limitations.
+
+
+Face and liveness training now use the bundled YuNet detector to crop one clear
+face from each source image. Supply original document/face images in manifests;
+images with missing, multiple, tiny or blurred faces fail preprocessing. Runtime
+uses the same detector and crop version. Retrain schema-v1 artifacts: schema-v2
+reports bind the preprocessing version and detector checksum. For liveness,
+extract the settled forward/left/right frames from continuous challenge videos
+in their issued order. Include physical and replay attacks and evaluate full
+recordings separately; still-frame metrics alone do not validate capture safety.

@@ -1,23 +1,25 @@
 package com.sentinel.integration.controller;
 
 import com.sentinel.common.util.TenantAccess;
-import com.sentinel.customer.model.Customer;
-import com.sentinel.customer.service.CustomerService;
-import com.sentinel.customer.service.KycService;
 import com.sentinel.customer.dto.KycSessionResponse;
 import com.sentinel.customer.dto.SpecimenRequest;
 import com.sentinel.customer.dto.SpecimenResponse;
 import com.sentinel.customer.dto.StartKycSessionRequest;
 import com.sentinel.customer.dto.SubmitKycSessionRequest;
-import com.sentinel.document.service.DocumentService;
-import com.sentinel.document.model.DocumentType;
+import com.sentinel.customer.model.Customer;
+import com.sentinel.customer.service.CustomerService;
+import com.sentinel.customer.service.KycService;
 import com.sentinel.document.dto.DocumentResponse;
 import com.sentinel.document.dto.DocumentVerifyRequest;
-import com.sentinel.transaction.service.TransactionScoringService;
+import com.sentinel.document.model.DocumentType;
+import com.sentinel.document.service.DocumentService;
 import com.sentinel.transaction.dto.TxImportResponse;
 import com.sentinel.transaction.dto.TxScoreRequest;
 import com.sentinel.transaction.dto.TxScoreResponse;
+import com.sentinel.transaction.service.TransactionScoringService;
+
 import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -33,8 +35,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * Bank integration facade — thin controller over customer / document / transaction services.
- * DTOs live in those domain packages (shared by staff + integration channels).
+ * Bank integration facade — thin controller over customer / document / transaction services. DTOs
+ * live in those domain packages (shared by staff + integration channels).
  */
 @RestController
 @RequestMapping("/api/integration")
@@ -60,33 +62,47 @@ public class IntegrationController {
     @PostMapping("/kyc/sessions")
     @ResponseStatus(HttpStatus.CREATED)
     public KycSessionResponse startKyc(@Valid @RequestBody StartKycSessionRequest request) {
-        var session = kycService.startSession(
-                TenantAccess.requireTenantId(), request.externalCustomerId(), request.returnUrl());
+        var session =
+                kycService.startSession(
+                        TenantAccess.requireTenantId(),
+                        request.externalCustomerId(),
+                        request.returnUrl());
         return KycSessionResponse.from(session, kycService.hostedUrl(session));
     }
 
     @PostMapping("/kyc/sessions/{id}/submit")
     public KycSessionResponse submitKyc(
             @PathVariable Long id, @Valid @RequestBody SubmitKycSessionRequest request) {
-        var session = kycService.submitSession(
-                TenantAccess.requireTenantId(),
-                id,
-                request.challengeId(),
-                request.idImage(),
-                request.selfieImage(),
-                request.name(), request.frames());
+        var session =
+                kycService.submitSession(
+                        TenantAccess.requireTenantId(),
+                        id,
+                        request.challengeId(),
+                        request.idImage(),
+                        request.selfieImage(),
+                        request.name(),
+                        request.frames(),
+                        request.videoBase64());
         return KycSessionResponse.from(session, kycService.hostedUrl(session));
     }
 
-    @PostMapping(value = "/kyc/sessions/{id}/submit-multipart", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(
+            value = "/kyc/sessions/{id}/submit-multipart",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public KycSessionResponse submitKycMultipart(
             @PathVariable Long id,
             @RequestParam String challengeId,
             @RequestPart("idImage") MultipartFile idImage,
             @RequestPart("selfieImage") MultipartFile selfieImage,
             @RequestParam(required = false) String name) {
-        var session = kycService.submitSessionMultipart(
-                TenantAccess.requireTenantId(), id, challengeId, idImage, selfieImage, name);
+        var session =
+                kycService.submitSessionMultipart(
+                        TenantAccess.requireTenantId(),
+                        id,
+                        challengeId,
+                        idImage,
+                        selfieImage,
+                        name);
         return KycSessionResponse.from(session, kycService.hostedUrl(session));
     }
 
@@ -99,19 +115,23 @@ public class IntegrationController {
     @PostMapping("/customers/{externalCustomerId}/signature-specimen")
     public SpecimenResponse enrollSpecimen(
             @PathVariable String externalCustomerId, @Valid @RequestBody SpecimenRequest request) {
-        Customer customer = customerService.enrollSpecimenByExternalId(
-                TenantAccess.requireTenantId(), externalCustomerId, request.signatureImage());
+        Customer customer =
+                customerService.enrollSpecimenByExternalId(
+                        TenantAccess.requireTenantId(),
+                        externalCustomerId,
+                        request.signatureImage());
         return new SpecimenResponse(customer.getId(), customer.getExternalCustomerId(), true);
     }
 
     @PostMapping("/documents")
     @ResponseStatus(HttpStatus.CREATED)
     public DocumentResponse verifyDocument(@Valid @RequestBody DocumentVerifyRequest request) {
-        return DocumentResponse.from(documentService.verify(
-                TenantAccess.requireTenantId(),
-                request.externalCustomerId(),
-                request.docType(),
-                request.documentImage()));
+        return DocumentResponse.from(
+                documentService.verify(
+                        TenantAccess.requireTenantId(),
+                        request.externalCustomerId(),
+                        request.docType(),
+                        request.documentImage()));
     }
 
     @PostMapping(value = "/documents/multipart", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -120,8 +140,12 @@ public class IntegrationController {
             @RequestParam String externalCustomerId,
             @RequestParam DocumentType docType,
             @RequestPart("documentImage") MultipartFile documentImage) {
-        return DocumentResponse.from(documentService.verifyMultipart(
-                TenantAccess.requireTenantId(), externalCustomerId, docType, documentImage));
+        return DocumentResponse.from(
+                documentService.verifyMultipart(
+                        TenantAccess.requireTenantId(),
+                        externalCustomerId,
+                        docType,
+                        documentImage));
     }
 
     @PostMapping("/transactions/score")
@@ -136,7 +160,8 @@ public class IntegrationController {
                 request.channel(),
                 request.location(),
                 request.counterparty(),
-                request.transactionType(), request.availableBalance());
+                request.transactionType(),
+                request.availableBalance());
     }
 
     @PostMapping(value = "/transactions/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

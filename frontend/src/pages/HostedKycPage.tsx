@@ -30,9 +30,8 @@ export default function HostedKycPage() {
   const [idPreview, setIdPreview] = useState<string | null>(null)
   const [selfiePreview, setSelfiePreview] = useState<string | null>(null)
   const [idBase64, setIdBase64] = useState<string | null>(null)
-  const [selfieBase64, setSelfieBase64] = useState<string | null>(null)
+  const [videoBase64,setVideoBase64]=useState<string|null>(null)
   const [busy, setBusy] = useState(false)
-  const [frames, setFrames] = useState<string[]>([])
 
   useEffect(() => () => {
     if (idPreview?.startsWith('blob:')) URL.revokeObjectURL(idPreview)
@@ -69,24 +68,25 @@ export default function HostedKycPage() {
       setIdBase64(b64)
       setIdPreview(preview)
     } else {
-      setSelfieBase64(b64)
       setSelfiePreview(preview)
     }
   }
 
   async function submit() {
-    if (!token || !idBase64 || !selfieBase64) return
+    if (!token || !idBase64 || !videoBase64) return
     setBusy(true)
     setError(null)
     try {
       const data = await api.post<HostedSession>(`/api/kyc/hosted/${token}/submit`, {
         idImage: idBase64,
-        selfieImage: selfieBase64,
+        videoBase64,
         name: name.trim() || undefined,
-        frames,
       })
       setSession(data)
       setStep('done')
+      setVideoBase64(null)
+      setIdBase64(null)
+      setSelfiePreview(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Submit failed')
     } finally {
@@ -166,7 +166,7 @@ export default function HostedKycPage() {
               <p>You will:</p>
               <ul className="mt-3 list-disc space-y-1 pl-5 text-mute">
                 <li>Photograph your government ID</li>
-                <li>Record three camera frames following the liveness prompts</li>
+                <li>Record a continuous video following the liveness prompts</li>
                 <li>Submit once — do not refresh mid-check</li>
               </ul>
             </div>
@@ -197,14 +197,12 @@ export default function HostedKycPage() {
         {step === 'selfie' && (
           <div className="space-y-5">
             <h2 className="font-display text-2xl font-bold">Liveness challenge</h2>
-            <LivenessCapture hint={session.livenessHint} onCapture={(captured) => {
-              setFrames(captured)
-              const last = captured[captured.length - 1] ?? null
-              setSelfieBase64(last)
-              setSelfiePreview(last ? `data:image/jpeg;base64,${last}` : null)
+            <LivenessCapture hint={session.livenessHint} onCapture={(capture) => {
+              setVideoBase64(capture?.videoBase64??null)
+              setSelfiePreview(capture?.preview??null)
             }} />
             <GhostButton onClick={() => setStep('id')}>Back</GhostButton>
-            <PrimaryButton onClick={() => setStep('review')} disabled={frames.length !== 3}>Continue</PrimaryButton>
+            <PrimaryButton onClick={() => setStep('review')} disabled={!videoBase64}>Continue</PrimaryButton>
           </div>
         )}
 
@@ -212,7 +210,7 @@ export default function HostedKycPage() {
           <div className="space-y-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <PreviewCard label="ID" src={idPreview} />
-              <PreviewCard label="Selfie" src={selfiePreview} />
+              <PreviewCard label="Recording preview" src={selfiePreview} />
             </div>
             {error && <p className="text-sm text-red-300">{error}</p>}
             <div className="flex flex-wrap gap-3">

@@ -11,6 +11,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
 
+from app.services.faces import PREPROCESSING, DETECTOR_SHA256
 from app.models.evaluation import binary_metrics, passes_gate
 from app.models.network import ALPHABET, TASKS, IdentityModel, decode_text
 from app.models.preprocessing import image_tensor, challenge_order
@@ -164,7 +165,7 @@ def train(args):
     args.output.mkdir(parents=True, exist_ok=True)
     weights = args.output / 'weights.pt'
     torch.save(best_state, weights)
-    metadata = {"schemaVersion": 1, "task": args.task, "threshold": threshold, "evaluation": report,
+    metadata = {"schemaVersion": 2, "preprocessing": PREPROCESSING, "detectorSha256": DETECTOR_SHA256, "task": args.task, "threshold": threshold, "evaluation": report,
                 "datasetSha256": digest.hexdigest(), "weightsSha256": hashlib.sha256(weights.read_bytes()).hexdigest(),
                 "seed": args.seed, "epochs": args.epochs, "torchVersion": torch.__version__,
                 "accepted": passes_gate(args.task, report),

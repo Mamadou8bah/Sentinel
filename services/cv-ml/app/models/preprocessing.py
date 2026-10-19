@@ -7,13 +7,16 @@ from PIL import Image, ImageOps
 import torch
 
 
-def image_tensor(source, task, encoded=False):
-    if encoded:
-        payload = source.partition(",")[2] if source.startswith("data:") else source
-        source = BytesIO(base64.b64decode(payload, validate=True))
+def image_tensor(source, task, encoded=False, cropped=False):
+    if task in {"face", "liveness"} and not cropped:
+        from app.services.faces import face_image
+        image = face_image(source, encoded=encoded)
     else:
-        source = Path(source)
-    with Image.open(source) as image:
+        if encoded:
+            payload = source.partition(",")[2] if source.startswith("data:") else source
+            source = BytesIO(base64.b64decode(payload, validate=True))
+        image = Image.open(source)
+    with image:
         image = ImageOps.exif_transpose(image).convert("RGB")
         image = ImageOps.pad(image, (512, 128) if task == "ocr" else (96, 96))
         array = np.array(image, dtype=np.float32) / 255.0

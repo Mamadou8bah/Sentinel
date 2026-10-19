@@ -34,7 +34,8 @@ def test_subject_and_image_leakage_are_rejected(tmp_path):
     with pytest.raises(ValueError, match='image content'): load_manifest(path, 'face')
 
 
-def test_small_smoke_training_writes_artifact_but_cannot_enable_verification(tmp_path):
+def test_small_smoke_training_writes_artifact_but_cannot_enable_verification(tmp_path, monkeypatch):
+    monkeypatch.setattr('app.services.faces.face_image', lambda source, encoded=False: Image.open(source).convert('RGB'))
     # Limit threads for this tiny CPU fixture; restore the host setting afterwards.
     threads = torch.get_num_threads()
     torch.set_num_threads(1)
@@ -99,7 +100,8 @@ def test_artifact_loading_checks_checksum_and_finite_weights(tmp_path):
     torch.save(IdentityModel('face').state_dict(), weights)
     counts = {'tp': 100, 'tn': 100, 'fp': 0, 'fn': 0}
     # Fixture reports exercise loader validation, not measured model performance.
-    report = {'schemaVersion': 1, 'task': 'face', 'threshold': .5,
+    from app.services.faces import PREPROCESSING, DETECTOR_SHA256
+    report = {'schemaVersion': 2, 'preprocessing': PREPROCESSING, 'detectorSha256': DETECTOR_SHA256, 'task': 'face', 'threshold': .5,
               'evaluation': {'validation': counts, 'test': counts},
               'weightsSha256': hashlib.sha256(weights.read_bytes()).hexdigest()}
     metadata = folder / 'evaluation.json'

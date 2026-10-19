@@ -81,3 +81,6 @@ services/*/artifacts/**
 
 # TypeScript incremental build state
 *.tsbuildinfo
+
+# Small, pinned and licensed runtime face detector (not identity verification weights).
+!services/cv-ml/app/models/assets/face_detection_yunet_2023mar.onnx

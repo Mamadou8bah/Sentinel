@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sentinel.auth.security.DataSeeder;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -22,28 +23,30 @@ import org.springframework.test.web.servlet.MvcResult;
 @ActiveProfiles("h2")
 class HostedKycIntegrationTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Autowired private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    @Autowired private ObjectMapper objectMapper;
 
     @Test
     void bankStartsSessionAndCustomerCompletesViaHostedToken() throws Exception {
-        MvcResult started = mockMvc.perform(post("/api/integration/kyc/sessions")
-                        .header("X-Api-Key", DataSeeder.DEMO_API_KEY)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(
-                                """
+        MvcResult started =
+                mockMvc.perform(
+                                post("/api/integration/kyc/sessions")
+                                        .header("X-Api-Key", DataSeeder.DEMO_API_KEY)
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(
+                                                """
                                 {
                                   "externalCustomerId":"ext-hosted-1",
                                   "returnUrl":"https://bank.example/continue"
                                 }
                                 """))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.publicToken").isNotEmpty())
-                .andExpect(jsonPath("$.hostedUrl").value(org.hamcrest.Matchers.containsString("/kyc/")))
-                .andReturn();
+                        .andExpect(status().isCreated())
+                        .andExpect(jsonPath("$.publicToken").isNotEmpty())
+                        .andExpect(
+                                jsonPath("$.hostedUrl")
+                                        .value(org.hamcrest.Matchers.containsString("/kyc/")))
+                        .andReturn();
 
         JsonNode body = objectMapper.readTree(started.getResponse().getContentAsString());
         String token = body.get("publicToken").asText();
@@ -54,10 +57,11 @@ class HostedKycIntegrationTest {
                 .andExpect(jsonPath("$.status").value("PENDING"))
                 .andExpect(jsonPath("$.returnUrl").value("https://bank.example/continue"));
 
-        mockMvc.perform(post("/api/kyc/hosted/" + token + "/submit")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(
-                                """
+        mockMvc.perform(
+                        post("/api/kyc/hosted/" + token + "/submit")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
                                 {
                                   "idImage":"aWQx",
                                   "selfieImage":"c2VsZmll",
@@ -67,5 +71,24 @@ class HostedKycIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("COMPLETE"))
                 .andExpect(jsonPath("$.kycStatus").isNotEmpty());
+    }
+
+    @Test
+    void mixedRecordingAndStillEvidenceIsRejected() throws Exception {
+        mockMvc.perform(
+                        post("/api/kyc/hosted/invalid/submit")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        "{\"idImage\":\"aWQ=\",\"selfieImage\":\"aWQ=\",\"videoBase64\":\"video\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void oversizedRecordingRequestIsRejectedBeforeParsing() throws Exception {
+        mockMvc.perform(
+                        post("/api/kyc/hosted/invalid/submit")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(new byte[16000001]))
+                .andExpect(status().isPayloadTooLarge());
     }
 }

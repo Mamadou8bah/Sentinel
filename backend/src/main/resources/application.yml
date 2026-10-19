@@ -67,4 +67,6 @@ management:
 logging:
   level:
     org.springframework.security: INFO
+    org.springframework.web.client: INFO
+    org.springframework.web.servlet.mvc.method.annotation: INFO
     com.sentinel: INFO

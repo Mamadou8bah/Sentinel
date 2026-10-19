@@ -7,6 +7,8 @@ from datetime import date
 
 from app.models.evaluation import passes_gate
 
+from app.services.faces import PREPROCESSING, DETECTOR_SHA256
+
 TASKS = ("face", "liveness", "tampering", "ocr")
 
 
@@ -21,7 +23,7 @@ class IdentityModels:
             try:
                 folder = Path(directory) / task
                 metadata = json.loads((folder / 'evaluation.json').read_text(encoding='utf-8'))
-                if metadata['schemaVersion'] != 1 or metadata['task'] != task or not passes_gate(task, metadata['evaluation']):
+                if metadata['schemaVersion'] != 2 or metadata.get('preprocessing') != PREPROCESSING or metadata.get('detectorSha256') != DETECTOR_SHA256 or metadata['task'] != task or not passes_gate(task, metadata['evaluation']):
                     raise ValueError('Artifact evaluation gate failed')
                 threshold = metadata['threshold']
                 if not isinstance(threshold, (int, float)) or not 0 < threshold < 1:
@@ -47,14 +49,14 @@ class IdentityModels:
                 'ocrModelLoaded': 'ocr' in self.models, 'tamperingModelLoaded': 'tampering' in self.models,
                 'verificationReady': self.ready, 'modelErrors': self.errors}
 
-    def liveness(self, frames, instructions):
+    def liveness(self, frames, instructions, cropped=False):
         if 'liveness' not in self.models:
             return {'livenessScore': 0., 'modelRan': False, 'spoofLikely': False, 'signals': ['ANTI_SPOOF_MODEL_UNAVAILABLE']}
         if len(frames) != 3:
             raise ValueError('Trained liveness requires exactly three challenge frames')
         import torch
         from app.models.preprocessing import image_tensor, challenge_order
-        images = torch.stack([image_tensor(frame, 'liveness', encoded=True) for frame in frames[:3]]).unsqueeze(0)
+        images = torch.stack([image_tensor(frame, 'liveness', encoded=True, cropped=cropped) for frame in frames[:3]]).unsqueeze(0)
         with torch.inference_mode():
             score = float(self.models['liveness'](images, challenge_order(instructions).unsqueeze(0)).sigmoid().item())
         accepted = score >= self.metadata['liveness']['threshold']
@@ -73,7 +75,7 @@ class IdentityModels:
         with torch.inference_mode():
             pair = torch.stack((doc, face)).unsqueeze(0)
             face_score = float(self.models['face'](pair).sigmoid().item())
-            tamper_score = float(self.models['tampering'](doc.unsqueeze(0)).sigmoid().item())
+            tamper_score = float(self.models['tampering'](image_tensor(document, 'tampering', encoded=True).unsqueeze(0)).sigmoid().item())
             text = decode_text(self.models['ocr'](image_tensor(document, 'ocr', encoded=True).unsqueeze(0)).argmax(-1)[:, 0].tolist())
         fields = extract_fields(text)
         signals = []
@@ -85,6 +87,41 @@ class IdentityModels:
         return {'extractedFields': fields, 'faceMatchScore': face_score, 'tamperingScore': tamper_score,
                 'modelRan': True, 'signals': signals,
                 'modelVersions': {task: meta['weightsSha256'][:16] for task, meta in self.metadata.items()}}
+
+    def recording_kyc(self, document, track, instructions):
+        if not self.ready:
+            return {"extractedFields": {}, "faceMatchScore": 0., "livenessScore": 0., "tamperingScore": 1.,
+                    "spoofLikely": False, "modelRan": False,
+                    "signals": [task.upper() + "_MODEL_UNAVAILABLE" for task in TASKS if task not in self.models]}
+        import torch
+        from app.models.preprocessing import image_tensor
+        from app.models.network import decode_text
+        from app.services.faces import face_image
+        portrait = face_image(document, encoded=True)
+        # Crops and training use the same preprocessing; document OCR/tamper keep the full image.
+        from app.services.faces import encode_image
+        import numpy as np
+        portrait_tensor = image_tensor(encode_image(np.asarray(portrait)), "face", encoded=True, cropped=True)
+        comparisons = []
+        with torch.inference_mode():
+            captured = torch.stack([image_tensor(crop, "face", encoded=True, cropped=True) for crop in track["faceCrops"]])
+            pairs = torch.stack((portrait_tensor.unsqueeze(0).expand_as(captured), captured), dim=1)
+            comparisons = self.models['face'](pairs).sigmoid().tolist()
+            tamper = float(self.models['tampering'](image_tensor(document, 'tampering', encoded=True).unsqueeze(0)).sigmoid().item())
+            text = decode_text(self.models['ocr'](image_tensor(document, 'ocr', encoded=True).unsqueeze(0)).argmax(-1)[:, 0].tolist())
+        live = self.liveness(track["challengeCrops"], instructions, cropped=True)
+        fields = extract_fields(text)
+        face_score = min(comparisons) if comparisons else 0.
+        signals = list(live["signals"])
+        if face_score < self.metadata['face']['threshold']:
+            signals.append('RECORDING_FACE_MISMATCH'); face_score = 0.
+        if tamper >= self.metadata['tampering']['threshold']:
+            signals.append('DOCUMENT_TAMPERING_DETECTED'); tamper = 1.
+        if len(fields) != 2: signals.append('REQUIRED_ID_FIELDS_UNREADABLE')
+        return {"extractedFields": fields, "faceMatchScore": face_score, "livenessScore": live['livenessScore'],
+                "tamperingScore": tamper, "spoofLikely": live['spoofLikely'], "modelRan": True, "signals": signals,
+                "comparedFrames": len(comparisons),
+                "modelVersions": {task: meta['weightsSha256'][:16] for task, meta in self.metadata.items()}}
 
 
 def extract_fields(text):

@@ -1,19 +1,21 @@
 package com.sentinel.integration;
 
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
 import com.sentinel.common.config.SentinelProperties;
 import com.sentinel.integration.service.MlGateway;
 import com.sentinel.integration.service.StubMlService;
 import com.sun.net.httpserver.HttpServer;
-import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
-import java.util.Map;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 class MlGatewayTest {
     private HttpServer server;
@@ -25,14 +27,16 @@ class MlGatewayTest {
     @BeforeEach
     void start() throws Exception {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/", exchange -> {
-            exchange.getRequestBody().readAllBytes();
-            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
-            exchange.getResponseHeaders().set("Content-Type", "application/json");
-            exchange.sendResponseHeaders(status, bytes.length);
-            exchange.getResponseBody().write(bytes);
-            exchange.close();
-        });
+        server.createContext(
+                "/",
+                exchange -> {
+                    exchange.getRequestBody().readAllBytes();
+                    byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+                    exchange.getResponseHeaders().set("Content-Type", "application/json");
+                    exchange.sendResponseHeaders(status, bytes.length);
+                    exchange.getResponseBody().write(bytes);
+                    exchange.close();
+                });
         server.start();
         var properties = new SentinelProperties();
         properties.getMl().setStub(false);
@@ -51,7 +55,8 @@ class MlGatewayTest {
     @Test
     void failedLiveKycNeverUsesSyntheticVerification() {
         assertThatThrownBy(() -> gateway.scoreKyc("7", "Customer", "id", "selfie"))
-                .isInstanceOfSatisfying(ResponseStatusException.class,
+                .isInstanceOfSatisfying(
+                        ResponseStatusException.class,
                         ex -> assertThat(ex.getStatusCode().value()).isEqualTo(503));
         verifyNoInteractions(stub);
     }
@@ -84,44 +89,75 @@ class MlGatewayTest {
     @Test
     void highScoresWithoutModelsOrQualityCannotGrantTrustedEvidence() {
         status = 200;
-        body = """
+        body =
+                """
                 {"extractedFields":{"dob":"1990-01-01","idNumber":"TEST-ID"},
                  "faceMatchScore":0.99,"livenessScore":0.99,"tamperingScore":0.1,
                  "modelRan":false,"qualityOk":true,"spoofLikely":false}
                 """;
-        assertThat(gateway.scoreKyc("7", "Customer", "id", "selfie", "challenge", java.util.List.of("a", "b", "c"))
-                .evidenceTrusted()).isFalse();
-        body = body.replace("\"modelRan\":false", "\"modelRan\":true").replace("\"qualityOk\":true", "\"qualityOk\":false");
-        assertThat(gateway.scoreKyc("7", "Customer", "id", "selfie", "challenge", java.util.List.of("a", "b", "c"))
-                .evidenceTrusted()).isFalse();
+        assertThat(
+                        gateway.scoreKyc(
+                                        "7",
+                                        "Customer",
+                                        "id",
+                                        "selfie",
+                                        "challenge",
+                                        java.util.List.of("a", "b", "c"))
+                                .evidenceTrusted())
+                .isFalse();
+        body =
+                body.replace("\"modelRan\":false", "\"modelRan\":true")
+                        .replace("\"qualityOk\":true", "\"qualityOk\":false");
+        assertThat(
+                        gateway.scoreKyc(
+                                        "7",
+                                        "Customer",
+                                        "id",
+                                        "selfie",
+                                        "challenge",
+                                        java.util.List.of("a", "b", "c"))
+                                .evidenceTrusted())
+                .isFalse();
     }
 
     @Test
     void stillImageCannotGrantTrustedEvidenceEvenWithHighProviderScores() {
         status = 200;
-        body = """
+        body =
+                """
                 {"extractedFields":{"dob":"1990-01-01","idNumber":"TEST-ID"},
                  "faceMatchScore":0.99,"livenessScore":0.99,"tamperingScore":0.1,
                  "modelRan":true,"qualityOk":true,"spoofLikely":false}
                 """;
         assertThat(gateway.scoreKyc("7", "Customer", "id", "selfie").evidenceTrusted()).isFalse();
         body = body.replace("\"spoofLikely\":false", "\"spoofLikely\":true");
-        assertThat(gateway.scoreKyc("7", "Customer", "id", "selfie", "challenge", java.util.List.of("a", "b", "c"))
-                .evidenceTrusted()).isFalse();
+        assertThat(
+                        gateway.scoreKyc(
+                                        "7",
+                                        "Customer",
+                                        "id",
+                                        "selfie",
+                                        "challenge",
+                                        java.util.List.of("a", "b", "c"))
+                                .evidenceTrusted())
+                .isFalse();
     }
 
     @Test
     void validationThresholdFlagSurvivesEvenBelowTenantAnomalyThreshold() {
         status = 200;
-        body = """
+        body =
+                """
                 {"scores":[{"anomalyScore":0.2,"modelRan":true,"modelFlagged":true,
                   "modelScore":0.15,"modelThreshold":0.1,"ruleFlags":[],"shapTopFeatures":[]}]}
                 """;
-        var result = gateway.scoreTransaction(100, "api", "7", Map.of("transactionType", "TRANSFER"));
+        var result =
+                gateway.scoreTransaction(100, "api", "7", Map.of("transactionType", "TRANSFER"));
         assertThat(result.modelFlagged()).isTrue();
         assertThat(result.anomalyScore()).isEqualTo(.2);
         body = body.replace("\"modelRan\":true", "\"modelRan\":false");
-        assertThatThrownBy(() -> gateway.scoreTransaction(100, "api", "7", Map.of())).isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(() -> gateway.scoreTransaction(100, "api", "7", Map.of()))
+                .isInstanceOf(ResponseStatusException.class);
     }
 
     @Test
@@ -132,5 +168,51 @@ class MlGatewayTest {
         var tx = demo.scoreTransaction(100, "api", "7");
         assertThat(tx.explanation()).contains("no trained model");
         assertThat(tx.shapTopFeatures()).isEmpty();
+    }
+
+    @Test
+    void recordingScoresMustMatchEvidenceAndCannotVerifyWithoutModels() throws Exception {
+        byte[] bytes = new byte[] {0, 0, 0, 24, 'f', 't', 'y', 'p', 'i', 's', 'o', 'm'};
+        String recording = java.util.Base64.getEncoder().encodeToString(bytes);
+        String hash =
+                java.util.HexFormat.of()
+                        .formatHex(
+                                java.security.MessageDigest.getInstance("SHA-256").digest(bytes));
+        status = 200;
+        body =
+                """
+        {"pipeline":"recording-face-v2","challengeId":"challenge","recordingSha256":"%s","sampledFrames":36,
+         "faceMatchScore":0.99,"livenessScore":0.99,"tamperingScore":0.01,"qualityOk":true,"spoofLikely":false,"modelRan":true,
+         "extractedFields":{"idNumber":"TEST123","dob":"1990-01-01"}}
+        """
+                        .formatted(hash);
+        assertThat(
+                        gateway.scoreRecordingKyc("7", "Customer", "id", recording, "challenge")
+                                .evidenceTrusted())
+                .isTrue();
+        body = body.replace("\"modelRan\":true", "\"modelRan\":false");
+        assertThat(
+                        gateway.scoreRecordingKyc("7", "Customer", "id", recording, "challenge")
+                                .evidenceTrusted())
+                .isFalse();
+        body = body.replace(hash, "different-hash");
+        assertThatThrownBy(
+                        () ->
+                                gateway.scoreRecordingKyc(
+                                        "7", "Customer", "id", recording, "challenge"))
+                .isInstanceOf(ResponseStatusException.class);
+        verifyNoInteractions(stub);
+    }
+
+    @Test
+    void invalidRecordingNeverReachesInference() {
+        assertThatThrownBy(
+                        () ->
+                                gateway.scoreRecordingKyc(
+                                        "7", "Customer", "id", "not-video", "challenge"))
+                .isInstanceOfSatisfying(
+                        ResponseStatusException.class,
+                        e -> assertThat(e.getStatusCode().value()).isEqualTo(400));
+        verifyNoInteractions(stub);
     }
 }
