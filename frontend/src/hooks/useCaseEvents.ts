@@ -5,6 +5,8 @@ import type { CaseEventMessage } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 
 function wsUrl() {
+  if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL
+  if (import.meta.env.VITE_API_BASE_URL) return `${import.meta.env.VITE_API_BASE_URL.replace(/^http/, 'ws').replace(/\/$/, '')}/ws`
   const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
   return `${proto}://${window.location.host}/ws`
 }

@@ -22,8 +22,19 @@ public class SentinelProperties {
     }
 
     public static class Ml {
+        private String apiKey = "";
+
+        public String getApiKey() {
+            return apiKey;
+        }
+
+        public void setApiKey(String apiKey) {
+            this.apiKey = apiKey;
+        }
+
         private String cvBaseUrl = "http://localhost:8001";
         private String transactionBaseUrl = "http://localhost:8002";
+
         /** When true, use local stub scores instead of calling Python services. */
         private boolean stub = true;
 
@@ -76,6 +87,7 @@ public class SentinelProperties {
     public static class Hosted {
         /** Public SPA origin used to build hostedUrl (e.g. http://localhost:5173). */
         private String publicBaseUrl = "http://localhost:5173";
+
         private int sessionTtlMinutes = 30;
 
         public String getPublicBaseUrl() {

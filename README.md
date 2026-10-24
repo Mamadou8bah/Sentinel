@@ -379,3 +379,13 @@ Large files are gitignored; keep README stubs in those folders.
 ## License / data
 
 Academic / FYP use. Prefer synthetic PII in public demos. See [docs/nfr.md](docs/nfr.md) for retention and privacy notes.
+
+## Render and Hugging Face presentation deployment
+
+`render-free.yaml` deploys the Java API and static desk. Reuse Sutura's free
+PostgreSQL connection; Sentinel migrates its isolated `sentinel` schema.
+Supply all dashboard secrets, including the explicit first-tenant bootstrap.
+Development users and anonymous tenant registration are disabled in this profile.
+See [ML hosting and training](docs/deploy-huggingface.md) for preparing Docker
+Spaces and the identity data requirements. This setup has ephemeral evidence
+storage and does not establish production identity or payment acceptance.

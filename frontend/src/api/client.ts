@@ -10,6 +10,9 @@ import {
   demoSetting,
 } from './demo/mode'
 
+const apiOrigin = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
+const apiUrl = (path: string) => `${apiOrigin}${path}`
+
 const ACCESS_KEY = 'sentinel.access'
 const REFRESH_KEY = 'sentinel.refresh'
 const SESSION_KEY = 'sentinel.session'
@@ -98,7 +101,7 @@ async function tryRefresh(): Promise<boolean> {
   }
 
   try {
-    const res = await fetch('/api/auth/refresh', {
+    const res = await fetch(apiUrl('/api/auth/refresh'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
@@ -154,7 +157,7 @@ export async function apiFetch<T>(
 
   let res: Response
   try {
-    res = await fetch(path, { ...init, headers })
+    res = await fetch(apiUrl(path), { ...init, headers })
   } catch {
     if (!isDemoDisabled() && enableDemoMode('network error')) {
       return fromDemo<T>(path, init)

@@ -1,6 +1,5 @@
 package com.sentinel.auth.security;
 
-
 import com.sentinel.auth.model.Role;
 import com.sentinel.auth.model.User;
 import com.sentinel.auth.repository.UserRepository;
@@ -11,6 +10,7 @@ import com.sentinel.tenant.model.TenantApiKey;
 import com.sentinel.tenant.repository.TenantApiKeyRepository;
 import com.sentinel.tenant.repository.TenantRepository;
 import com.sentinel.tenant.service.TenantService;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -20,11 +20,16 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+        name = "sentinel.seed-demo",
+        havingValue = "true",
+        matchIfMissing = true)
 public class DataSeeder implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataSeeder.class);
     private static final String DEMO_PASSWORD = "ChangeMe123!";
     private static final String DEMO_TENANT_CODE = "demo-bank";
+
     /** Documented demo key — hashed at rest; shown in logs once when seeded. */
     public static final String DEMO_API_KEY = "sen_demo_bank_local_dev_key_do_not_use_prod";
 
@@ -70,15 +75,16 @@ public class DataSeeder implements ApplicationRunner {
     private Tenant ensureDemoTenant() {
         return tenantRepository
                 .findByCode(DEMO_TENANT_CODE)
-                .orElseGet(() -> {
-                    Tenant t = new Tenant();
-                    t.setCode(DEMO_TENANT_CODE);
-                    t.setName("Demo Bank");
-                    t.setEnabled(true);
-                    Tenant saved = tenantRepository.save(t);
-                    log.info("Seeded tenant '{}'", DEMO_TENANT_CODE);
-                    return saved;
-                });
+                .orElseGet(
+                        () -> {
+                            Tenant t = new Tenant();
+                            t.setCode(DEMO_TENANT_CODE);
+                            t.setName("Demo Bank");
+                            t.setEnabled(true);
+                            Tenant saved = tenantRepository.save(t);
+                            log.info("Seeded tenant '{}'", DEMO_TENANT_CODE);
+                            return saved;
+                        });
     }
 
     private void ensureRiskSettings(Tenant tenant) {

@@ -1,10 +1,11 @@
 package com.sentinel.tenant.controller;
 
-
-import com.sentinel.tenant.service.TenantService;
 import com.sentinel.tenant.dto.RegisterTenantRequest;
 import com.sentinel.tenant.dto.RegisterTenantResponse;
+import com.sentinel.tenant.service.TenantService;
+
 import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -22,9 +23,15 @@ public class TenantController {
         this.tenantService = tenantService;
     }
 
+    @org.springframework.beans.factory.annotation.Value("${sentinel.registration-open:true}")
+    private boolean registrationOpen;
+
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     public RegisterTenantResponse register(@Valid @RequestBody RegisterTenantRequest request) {
+        if (!registrationOpen)
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.FORBIDDEN, "Tenant registration is managed by the operator");
         return tenantService.register(request);
     }
 }

@@ -44,11 +44,13 @@ public class MlGateway {
         txTimeouts.setReadTimeout(2500);
         this.cvClient =
                 RestClient.builder()
+                        .defaultHeader("X-ML-API-Key", properties.getMl().getApiKey())
                         .requestFactory(cvTimeouts)
                         .baseUrl(properties.getMl().getCvBaseUrl())
                         .build();
         this.txClient =
                 RestClient.builder()
+                        .defaultHeader("X-ML-API-Key", properties.getMl().getApiKey())
                         .requestFactory(txTimeouts)
                         .baseUrl(properties.getMl().getTransactionBaseUrl())
                         .build();
@@ -251,12 +253,12 @@ public class MlGateway {
                 throw new ResponseStatusException(
                         HttpStatus.UNPROCESSABLE_ENTITY,
                         "Recording could not be verified. Keep one face visible and follow each"
-                            + " prompt, then record again.");
+                                + " prompt, then record again.");
             if (invalid.getStatusCode().value() == 409)
                 throw new ResponseStatusException(
                         HttpStatus.CONFLICT,
                         "This challenge is bound to different evidence. Start a new verification"
-                            + " session.");
+                                + " session.");
             throw unavailable("Recording KYC", invalid);
         } catch (Exception failure) {
             throw unavailable("Recording KYC", failure);

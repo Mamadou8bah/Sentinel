@@ -18,6 +18,12 @@ def create_app(mode: str | None = None, model_path: str | None = None) -> FastAP
         log.exception("Transaction scorer configuration failed")
         scorer = None
 
+    from app.api.security import InferenceAuth
+    api.add_middleware(InferenceAuth)
+    @api.get("/")
+    def service_info():
+        return {"service": api.title, "health": "/health"}
+
     api.include_router(create_router(scorer, configured_mode))
     return api
 

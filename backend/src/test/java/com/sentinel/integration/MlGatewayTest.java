@@ -23,6 +23,7 @@ class MlGatewayTest {
     private StubMlService stub;
     private int status = 503;
     private String body = "{}";
+    private volatile String receivedKey;
 
     @BeforeEach
     void start() throws Exception {
@@ -30,6 +31,7 @@ class MlGatewayTest {
         server.createContext(
                 "/",
                 exchange -> {
+                    receivedKey = exchange.getRequestHeaders().getFirst("X-ML-API-Key");
                     exchange.getRequestBody().readAllBytes();
                     byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
                     exchange.getResponseHeaders().set("Content-Type", "application/json");
@@ -40,6 +42,7 @@ class MlGatewayTest {
         server.start();
         var properties = new SentinelProperties();
         properties.getMl().setStub(false);
+        properties.getMl().setApiKey("test-inference-service-key");
         String url = "http://127.0.0.1:" + server.getAddress().getPort();
         properties.getMl().setCvBaseUrl(url);
         properties.getMl().setTransactionBaseUrl(url);
@@ -214,5 +217,16 @@ class MlGatewayTest {
                         ResponseStatusException.class,
                         e -> assertThat(e.getStatusCode().value()).isEqualTo(400));
         verifyNoInteractions(stub);
+    }
+
+    @Test
+    void forwardsInferenceSecretToBothRemoteServices() {
+        assertThatThrownBy(() -> gateway.scoreKyc("7", "Customer", "id", "selfie"))
+                .isInstanceOf(ResponseStatusException.class);
+        assertThat(receivedKey).isEqualTo("test-inference-service-key");
+        receivedKey = null;
+        assertThatThrownBy(() -> gateway.scoreTransaction(100, "api", "7", Map.of()))
+                .isInstanceOf(ResponseStatusException.class);
+        assertThat(receivedKey).isEqualTo("test-inference-service-key");
     }
 }

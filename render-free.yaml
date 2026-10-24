@@ -1,0 +1,67 @@
+# Uses the SAME free PostgreSQL instance as Sutura, isolated in schema sentinel.
+services:
+- type: web
+  name: sentinel-api
+  runtime: docker
+  plan: free
+  region: frankfurt
+  dockerfilePath: ./backend/Dockerfile
+  dockerContext: ./backend
+  healthCheckPath: /actuator/health
+  envVars:
+  - key: SPRING_PROFILES_ACTIVE
+    value: render
+  - key: JAVA_TOOL_OPTIONS
+    value: -XX:MaxRAMPercentage=45 -XX:MaxMetaspaceSize=160m -XX:ReservedCodeCacheSize=32m
+      -Xss512k
+  - key: JWT_SECRET
+    generateValue: true
+  - key: FIELD_ENCRYPTION_KEY
+    generateValue: true
+  - key: SENTINEL_BOOTSTRAP_ENABLED
+    value: 'true'
+  - key: RENDER_DB_HOST
+    sync: false
+  - key: RENDER_DB_NAME
+    sync: false
+  - key: POSTGRES_USER
+    sync: false
+  - key: POSTGRES_PASSWORD
+    sync: false
+  - key: SENTINEL_CORS_ALLOWED_ORIGINS
+    sync: false
+  - key: SENTINEL_PUBLIC_BASE_URL
+    sync: false
+  - key: CV_ML_BASE_URL
+    sync: false
+  - key: TRANSACTION_ML_BASE_URL
+    sync: false
+  - key: ML_SERVICE_API_KEY
+    sync: false
+  - key: SENTINEL_BOOTSTRAP_TENANT_CODE
+    sync: false
+  - key: SENTINEL_BOOTSTRAP_ADMIN_USERNAME
+    sync: false
+  - key: SENTINEL_BOOTSTRAP_ADMIN_PASSWORD
+    sync: false
+  - key: SENTINEL_BOOTSTRAP_API_KEY
+    sync: false
+  - key: SENTINEL_BOOTSTRAP_WEBHOOK_SECRET
+    sync: false
+  - key: SENTINEL_BOOTSTRAP_WEBHOOK_URL
+    sync: false
+- type: web
+  name: sentinel-desk
+  runtime: static
+  rootDir: frontend
+  buildCommand: npm ci && npm run build
+  staticPublishPath: dist
+  envVars:
+  - key: VITE_API_BASE_URL
+    sync: false
+  - key: VITE_DEMO_MODE
+    value: 'false'
+  routes:
+  - type: rewrite
+    source: /*
+    destination: /index.html

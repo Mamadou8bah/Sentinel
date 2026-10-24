@@ -33,6 +33,7 @@ sentinel:
     access-token-expiry-minutes: ${JWT_ACCESS_TOKEN_EXPIRY_MINUTES:15}
     refresh-token-expiry-days: ${JWT_REFRESH_TOKEN_EXPIRY_DAYS:7}
   ml:
+    api-key: ${ML_SERVICE_API_KEY:}
     cv-base-url: ${CV_ML_BASE_URL:http://localhost:8001}
     transaction-base-url: ${TRANSACTION_ML_BASE_URL:http://localhost:8002}
     stub: ${SENTINEL_ML_STUB:true}

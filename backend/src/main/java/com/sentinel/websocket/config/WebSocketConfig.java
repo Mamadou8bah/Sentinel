@@ -1,6 +1,7 @@
 package com.sentinel.websocket.config;
 
 import com.sentinel.websocket.security.AuthChannelInterceptor;
+
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -24,10 +25,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registry.setApplicationDestinationPrefixes("/app");
     }
 
+    @org.springframework.beans.factory.annotation.Value("${sentinel.cors-origins:*}")
+    private String origins;
+
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws").setAllowedOriginPatterns("*");
-        registry.addEndpoint("/ws").setAllowedOriginPatterns("*").withSockJS();
+        registry.addEndpoint("/ws").setAllowedOriginPatterns(origins.split(","));
+        registry.addEndpoint("/ws").setAllowedOriginPatterns(origins.split(",")).withSockJS();
     }
 
     @Override
