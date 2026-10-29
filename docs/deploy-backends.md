@@ -7,8 +7,10 @@ services; it is an alternative deployment, not an additional Blueprint to apply.
 1. Create Sutura's backend Blueprint first. It provisions the shared PostgreSQL
    database and Sutura's Key Value cache. Keep the repositories separate.
 2. Create a Sentinel Blueprint from this repo, with path `render-backend.yaml`.
-   Copy the internal hostname, name, user and password of Sutura's PostgreSQL
-   into its database fields. Sentinel migrates its own **`sentinel` schema**;
+   Fill `SPRING_DATASOURCE_URL=jdbc:postgresql://HOST:5432/DATABASE`,
+   `SPRING_DATASOURCE_USERNAME` and `SPRING_DATASOURCE_PASSWORD` using Sutura's
+   PostgreSQL connection details. Credentials belong in the separate fields, not
+   embedded in the URL. Sentinel migrates its own **`sentinel` schema**;
    Sutura uses `public`. Never run automatic adoption on an old database.
 3. Use `.env.example` as the single settings reference. Generate the private
    `.env.render` with the preparation command from the parent workspace; it

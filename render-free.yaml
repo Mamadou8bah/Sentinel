@@ -20,14 +20,6 @@ services:
     generateValue: true
   - key: SENTINEL_BOOTSTRAP_ENABLED
     value: 'true'
-  - key: RENDER_DB_HOST
-    sync: false
-  - key: RENDER_DB_NAME
-    sync: false
-  - key: POSTGRES_USER
-    sync: false
-  - key: POSTGRES_PASSWORD
-    sync: false
   - key: SENTINEL_CORS_ALLOWED_ORIGINS
     sync: false
   - key: SENTINEL_PUBLIC_BASE_URL
@@ -49,6 +41,12 @@ services:
   - key: SENTINEL_BOOTSTRAP_WEBHOOK_SECRET
     sync: false
   - key: SENTINEL_BOOTSTRAP_WEBHOOK_URL
+    sync: false
+  - key: SPRING_DATASOURCE_URL
+    sync: false
+  - key: SPRING_DATASOURCE_USERNAME
+    sync: false
+  - key: SPRING_DATASOURCE_PASSWORD
     sync: false
 - type: web
   name: sentinel-desk
