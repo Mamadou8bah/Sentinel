@@ -22,6 +22,16 @@ public class SentinelProperties {
     }
 
     public static class Ml {
+        private boolean enabled = true;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
         private String apiKey = "";
 
         public String getApiKey() {

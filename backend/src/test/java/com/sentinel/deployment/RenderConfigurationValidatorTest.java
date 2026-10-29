@@ -34,6 +34,24 @@ class RenderConfigurationValidatorTest {
     }
 
     @Test
+    void permitsDeferredMlButStillRefusesStubDecisions() {
+        var env =
+                valid().withProperty("sentinel.ml.enabled", "false")
+                        .withProperty("sentinel.ml.api-key", "")
+                        .withProperty("sentinel.ml.cv-base-url", "")
+                        .withProperty("sentinel.ml.transaction-base-url", "");
+        assertDoesNotThrow(() -> new RenderConfigurationValidator(env).afterPropertiesSet());
+        env.withProperty("sentinel.ml.stub", "true");
+        assertThrows(
+                IllegalStateException.class,
+                () -> new RenderConfigurationValidator(env).afterPropertiesSet());
+        env.withProperty("sentinel.ml.stub", "false").withProperty("sentinel.ml.enabled", "true");
+        assertThrows(
+                IllegalStateException.class,
+                () -> new RenderConfigurationValidator(env).afterPropertiesSet());
+    }
+
+    @Test
     void refusesPublicDefaultsAndWeakSecrets() {
         for (String[] entry :
                 new String[][] {

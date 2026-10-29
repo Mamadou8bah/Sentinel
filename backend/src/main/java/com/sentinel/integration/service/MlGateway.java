@@ -59,6 +59,7 @@ public class MlGateway {
     public record LivenessChallenge(String id, String hint, java.time.Instant expiresAt) {}
 
     public LivenessChallenge startLivenessChallenge() {
+        requireEnabled();
         if (properties.getMl().isStub()) {
             return new LivenessChallenge(
                     "chal_" + java.util.UUID.randomUUID(),
@@ -118,6 +119,7 @@ public class MlGateway {
             String selfieImageBase64,
             String challengeId,
             List<String> frames) {
+        requireEnabled();
         if (properties.getMl().isStub()) {
             return stubMlService.scoreKyc(externalCustomerId, providedName);
         }
@@ -167,6 +169,7 @@ public class MlGateway {
 
     public KycScores scoreRecordingKyc(
             String customer, String name, String document, String recording, String challengeId) {
+        requireEnabled();
         if (recording == null
                 || recording.length() > 10666768
                 || challengeId == null
@@ -272,6 +275,7 @@ public class MlGateway {
             String externalCustomerId,
             String documentImageBase64,
             String referenceSignatureBase64) {
+        requireEnabled();
         if (properties.getMl().isStub()) {
             return stubMlService.scoreDocument(
                     docType, hasSpecimen, customerName, externalCustomerId);
@@ -312,6 +316,7 @@ public class MlGateway {
             String channel,
             String externalCustomerId,
             Map<String, Object> features) {
+        requireEnabled();
         if (properties.getMl().isStub()) {
             return stubMlService.scoreTransaction(amount, channel, externalCustomerId);
         }
@@ -363,6 +368,13 @@ public class MlGateway {
         } catch (Exception e) {
             throw unavailable("Transaction", e);
         }
+    }
+
+    private void requireEnabled() {
+        if (!properties.getMl().isEnabled())
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "ML services have not been enabled for this deployment");
     }
 
     private ResponseStatusException unavailable(String operation, Exception cause) {

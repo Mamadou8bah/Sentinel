@@ -56,6 +56,31 @@ class MlGatewayTest {
     }
 
     @Test
+    void disabledMlRefusesAllInferenceWithoutNetworkOrStubCalls() {
+        var properties = new SentinelProperties();
+        properties.getMl().setEnabled(false);
+        properties.getMl().setStub(true); // Disabling takes precedence over every inference mode.
+        var disabled = new MlGateway(properties, stub);
+        java.util.List<Runnable> calls =
+                java.util.List.of(
+                        () -> disabled.startLivenessChallenge(),
+                        () -> disabled.scoreKyc("7", "Customer", "id", "selfie"),
+                        () ->
+                                disabled.scoreRecordingKyc(
+                                        "7", "Customer", "id", "video", "challenge"),
+                        () -> disabled.scoreDocument("ID", false, "Customer", "7", "id", null),
+                        () -> disabled.scoreTransaction(100, "api", "7", Map.of()));
+        for (Runnable call : calls) {
+            assertThatThrownBy(call::run)
+                    .isInstanceOfSatisfying(
+                            ResponseStatusException.class,
+                            error -> assertThat(error.getStatusCode().value()).isEqualTo(503));
+        }
+        verifyNoInteractions(stub);
+        assertThat(receivedKey).isNull();
+    }
+
+    @Test
     void failedLiveKycNeverUsesSyntheticVerification() {
         assertThatThrownBy(() -> gateway.scoreKyc("7", "Customer", "id", "selfie"))
                 .isInstanceOfSatisfying(

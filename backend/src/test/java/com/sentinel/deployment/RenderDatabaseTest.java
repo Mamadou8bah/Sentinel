@@ -25,7 +25,7 @@ import org.springframework.test.context.ActiveProfiles;
 @ActiveProfiles("render")
 @EnabledIfEnvironmentVariable(
         named = "SENTINEL_DEPLOYMENT_TEST_URL",
-        matches = "jdbc:postgresql://127\\.0\\.0\\.1:15432/sentinel_render_[a-z0-9_]+_test.*")
+        matches = "jdbc:postgresql://127\\.0\\.0\\.1:[0-9]{1,5}/sentinel_render_[a-z0-9_]+_test.*")
 class RenderDatabaseTest {
     @Autowired JdbcTemplate jdbc;
 

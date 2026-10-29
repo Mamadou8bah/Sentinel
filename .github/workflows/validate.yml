@@ -16,6 +16,43 @@ jobs:
           java-version: '17'
           cache: maven
       - run: .\mvnw.cmd -B test
+  backend-deployment:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: sentinel_render_ci_test
+          POSTGRES_USER: validation
+          POSTGRES_PASSWORD: local-test-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U validation -d sentinel_render_ci_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      SENTINEL_DEPLOYMENT_TEST_URL: jdbc:postgresql://127.0.0.1:5432/sentinel_render_ci_test?currentSchema=sentinel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - run: bash mvnw -B -Dtest=RenderDatabaseTest test
+        working-directory: backend
+  backend-image:
+    needs: [backend, backend-deployment]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: false
+          tags: sentinel-api:validation
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
   dashboard:
     runs-on: ubuntu-latest
     defaults:
@@ -42,7 +79,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
       - if: matrix.service == 'cv-ml'
         run: python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
       - run: python -m pip install -r requirements.txt

@@ -382,6 +382,11 @@ Academic / FYP use. Prefer synthetic PII in public demos. See [docs/nfr.md](docs
 
 ## Render and Hugging Face presentation deployment
 
+For the backend-only deployment with HF deferred, use
+[render-backend.yaml](render-backend.yaml) and
+[the backend runbook](docs/deploy-backends.md). ML inference remains unavailable
+until explicitly enabled with configured services.
+
 `render-free.yaml` deploys the Java API and static desk. Reuse Sutura's free
 PostgreSQL connection; Sentinel migrates its isolated `sentinel` schema.
 Supply all dashboard secrets, including the explicit first-tenant bootstrap.

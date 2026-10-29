@@ -51,19 +51,21 @@ public class RenderConfigurationValidator implements InitializingBean {
         equal("spring.flyway.enabled", "true");
         equal("spring.jpa.hibernate.ddl-auto", "validate");
         equal("spring.flyway.baseline-on-migrate", "false");
-        for (String key :
-                new String[] {
-                    "sentinel.jwt.secret", "sentinel.crypto.field-key", "sentinel.ml.api-key"
-                })
+        for (String key : new String[] {"sentinel.jwt.secret", "sentinel.crypto.field-key"})
             if (required(key).length() < 32)
                 throw new IllegalStateException(key + " must contain at least 32 characters");
         for (String origin : required("sentinel.cors-origins").split(","))
             https("sentinel.cors-origins", origin.trim(), true);
         https("sentinel.hosted.public-base-url", required("sentinel.hosted.public-base-url"), true);
-        https("sentinel.ml.cv-base-url", required("sentinel.ml.cv-base-url"), true);
-        https(
-                "sentinel.ml.transaction-base-url",
-                required("sentinel.ml.transaction-base-url"),
-                true);
+        if (env.getProperty("sentinel.ml.enabled", Boolean.class, true)) {
+            if (required("sentinel.ml.api-key").length() < 32)
+                throw new IllegalStateException(
+                        "sentinel.ml.api-key must contain at least 32 characters");
+            https("sentinel.ml.cv-base-url", required("sentinel.ml.cv-base-url"), true);
+            https(
+                    "sentinel.ml.transaction-base-url",
+                    required("sentinel.ml.transaction-base-url"),
+                    true);
+        }
     }
 }
