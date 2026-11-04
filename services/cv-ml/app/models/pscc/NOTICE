@@ -1,0 +1,7 @@
+PSCC-Net by Xiaohong Liu et al., MIT.
+Source: https://github.com/proteus1991/PSCC-Net/tree/53e5ff77d8dc5feddda060cd085f9b765761f816
+HRNet source includes Microsoft/Ke Sun MIT attribution.
+DetectionHead config import adapted to package-relative form.
+Only backbone and classification head are used; no localisation claim is made.
+HRNet np.int alias replaced by builtin int for NumPy 2 compatibility.
+Unused upstream pretrained loader restricted to weights_only=True on CPU.

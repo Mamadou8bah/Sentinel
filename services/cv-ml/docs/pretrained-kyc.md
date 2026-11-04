@@ -1,6 +1,10 @@
 # Pretrained KYC
 
 Live API: https://mamadoubah-sentinel-kyc.hf.space (free ZeroGPU).
+
+The pretrained PSCC-Net document classifier and explicit automatic-decision
+contract are described in [automatic-kyc.md](automatic-kyc.md). Configure
+`CV_TAMPERING_DIR` to use it; no custom tampering training is required.
 Deployment acceptance on 4 November 2026 confirmed protected inference routes,
 authorised challenge creation, generated-document OCR, and actual CUDA execution
 of both MiniFASNet models. These are infrastructure smoke checks, not identity
@@ -56,9 +60,9 @@ them into full-KYC acceptance evidence.
 Loaded weights allow real inference, but do not automatically grant VERIFIED.
 The service reports loaded and evaluated status separately. Face matching,
 anti-spoof detection and head-turn checks do not authenticate an identity document.
-OCR and document tampering remain separate dependencies. When missing, the
-response includes real face scores, `faceModelsRan: true`, `modelRan: false`,
-`DOCUMENT_CHECKS_UNAVAILABLE` and a conservative tampering score of 1.
+OCR and document tampering remain separate dependencies. Missing models or
+acceptance reports return HTTP 503 with `KYC_AUTOMATION_UNAVAILABLE`, leaving
+the recording challenge unconsumed. They do not reject the customer's identity.
 
 Collect consented genuine/mismatched identity pairs and genuine/photo/screen
 attack recordings from the intended cameras and documents. Record them following
@@ -87,7 +91,8 @@ rejects reused videos and cross-split subject overlap, and writes measured metri
 Only passing reports become `acceptance.json`; failed candidates remain
 `evaluation-candidate.json`. Reports bind model hashes and pipeline version.
 Full verification additionally requires accepted OCR evaluation and an evaluated
-tampering artifact in `CV_ML_ARTIFACT_DIR`. Face and OCR loading alone cannot
+PSCC report in `CV_TAMPERING_DIR` (or a custom evaluated tampering artifact in
+`CV_ML_ARTIFACT_DIR`). Face and OCR loading alone cannot
 establish document authenticity.
 
 ## Document OCR and checks
@@ -108,7 +113,7 @@ It validates MRZ check digits, printed/MRZ disagreement, conflicting fields,
 birth dates and expiry. Ambiguous numeric dates are refused instead of guessing
 the issuing country's convention. TD1/TD2 MRZ layouts and arbitrary ID templates
 are not inferred. Missing expiry, unsupported layouts and unreadable fields
-remain flagged for review. These are consistency checks, not issuer validation
+prevent automatic acceptance. These are consistency checks, not issuer validation
 or a tamper detector. A counterfeit document can contain valid check digits.
 References: [ICAO 9303 Part 3](https://www.icao.int/publications/documents/9303_p3_cons_en.pdf)
 and [Part 4](https://www.icao.int/publications/Documents/9303_p4_cons_en.pdf).
@@ -128,12 +133,13 @@ At least 100 documents and 95% exact field matches are required in each split.
 Only a passing report becomes `ocr-acceptance.json`. No supplied sample or unit
 test is representative evaluation. Keep all identity data outside Git.
 
-An evaluated document-tampering model is still not supplied. Its original
-artifact loader and tests remain available. Without it, the API returns real OCR
-fields with `manualReviewRequired=true`, `documentChecksAccepted=false`,
-`DOCUMENT_AUTHENTICITY_UNAVAILABLE` and a conservative score of 1. Sentinel keeps
-the flags and opens its existing risk/case path; it cannot report a low-risk
-authenticity result merely because OCR worked. Automatic KYC stays disabled.
+PSCC-Net now supplies real pretrained image-manipulation inference; installation,
+document-specific evaluation and the automatic-decision contract are documented
+in [automatic-kyc.md](automatic-kyc.md). The original custom artifact loader also
+remains available. Without accepted document evaluation, the document endpoint
+returns real OCR/tampering diagnostics with `verificationDecision=UNAVAILABLE`,
+`manualReviewRequired=false` and `documentChecksAccepted=false`. Recording KYC
+returns HTTP 503. OCR success alone cannot establish authenticity.
 
 ## Hugging Face export
 

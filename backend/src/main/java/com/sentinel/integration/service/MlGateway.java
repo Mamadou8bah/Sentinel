@@ -219,6 +219,8 @@ public class MlGateway {
                             .retrieve()
                             .body(new ParameterizedTypeReference<Map<String, Object>>() {});
             if (response == null) throw new IllegalStateException("Empty recording response");
+            if ("UNAVAILABLE".equals(response.get("verificationDecision")))
+                throw new IllegalStateException("Required automatic KYC checks unavailable");
             String hash =
                     java.util.HexFormat.of()
                             .formatHex(
@@ -235,6 +237,9 @@ public class MlGateway {
                     dob = fields.get("dob") instanceof String value ? value : "";
             boolean trusted =
                     Boolean.TRUE.equals(response.get("modelRan"))
+                            && (!response.containsKey("verificationDecision")
+                                    || ("APPROVED".equals(response.get("verificationDecision"))
+                                            && Boolean.TRUE.equals(response.get("automaticApproval"))))
                             && Boolean.TRUE.equals(response.get("qualityOk"))
                             && Boolean.FALSE.equals(response.get("spoofLikely"))
                             && !identifier.isBlank()

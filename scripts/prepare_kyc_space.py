@@ -8,7 +8,7 @@ import shutil
 from prepare_hf_space import prepare
 
 
-def prepare_kyc(pretrained, output, documents=None, sdk='docker'):
+def prepare_kyc(pretrained, output, documents=None, sdk='docker', tampering=None):
     source = Path(__file__).resolve().parents[1] / 'services/cv-ml'
     pretrained, output = Path(pretrained).resolve(), Path(output).resolve()
     manifest = json.loads((source / 'app/models/assets/pretrained-manifest.json').read_text())['models']
@@ -24,6 +24,16 @@ def prepare_kyc(pretrained, output, documents=None, sdk='docker'):
         for name in ('weights.pt', 'evaluation.json'):
             if not (documents / 'tampering' / name).is_file():
                 raise ValueError('Missing tampering artifact: ' + name)
+    tamper_files = []
+    if tampering:
+        tampering = Path(tampering).resolve()
+        tamper_manifest = json.loads((source / 'app/models/assets/pscc-manifest.json').read_text())['models']
+        for spec in tamper_manifest.values():
+            path = tampering / spec['file']
+            if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != spec['sha256']:
+                raise ValueError('PSCC weights missing or checksum mismatch')
+            tamper_files.append(path)
+        if (tampering / 'acceptance.json').is_file(): tamper_files.append(tampering / 'acceptance.json')
     # The common exporter supports the original trained backend and is shared with fraud.
     prepare('cv-ml', output)
     target = output / 'artifacts/pretrained'
@@ -35,12 +45,16 @@ def prepare_kyc(pretrained, output, documents=None, sdk='docker'):
         target_doc.mkdir()
         for name in ('weights.pt', 'evaluation.json'):
             shutil.copy2(documents / 'tampering' / name, target_doc / name)
+    if tamper_files:
+        (output / 'artifacts/pscc').mkdir()
+        for path in tamper_files: shutil.copy2(path, output / 'artifacts/pscc' / path.name)
     dockerfile = output / 'Dockerfile'
     text = dockerfile.read_text(encoding='utf-8')
     libraries = 'RUN apt-get update && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*\n'
     lines = text.splitlines(keepends=True)
     text = ''.join(lines[:1]) + libraries + ''.join(lines[1:])
     text += '\nENV CV_PRETRAINED_DIR=/home/user/app/artifacts/pretrained CV_DOCUMENT_OCR=true\n'
+    if tamper_files: text += 'ENV CV_TAMPERING_DIR=/home/user/app/artifacts/pscc\n'
     dockerfile.write_text(text, encoding='utf-8')
     readme_path = output / 'README.md'
     readme_path.write_text(readme_path.read_text(encoding='utf-8').replace('colorFrom: orange', 'colorFrom: yellow'), encoding='utf-8')
@@ -56,7 +70,7 @@ Set ML_SERVICE_API_KEY as a Space secret (at least 32 characters), matching the
 Sentinel Java API. The health endpoint reports loading and evaluation separately.
 Automatic verification requires independent face/OCR holdout acceptance and an
 evaluated document-authenticity artifact. OCR and MRZ checks do not prove that an
-ID is genuine. Missing checks return review flags and cannot grant VERIFIED.
+ID is genuine. Missing checks return UNAVAILABLE and cannot grant VERIFIED.
 
 Routes: GET /health, POST /cv/liveness/challenge,
 POST /cv/kyc-verify-recording, POST /cv/document-verify.
@@ -84,7 +98,9 @@ app_file: space_app.py
 Authenticated KYC REST service, hosted using Gradio's ZeroGPU lifecycle.
 There is no public identity upload form or demo inference interface.
 MiniFASNet anti-spoof inference runs on actual CUDA inside a ZeroGPU allocation.
-YuNet, SFace and PP-OCRv4 run on CPU. Model weights are bundled and hash-verified.
+YuNet, SFace, PP-OCRv4 and optional PSCC-Net run on CPU. Model weights are bundled
+and hash-verified. PSCC-Net detects image manipulation; it does not prove issuer
+authenticity or replace representative identity-document evaluation.
 
 Set ML_SERVICE_API_KEY as a Space secret (32+ characters), matching Sentinel.
 GET / and GET /health are public; every inference and Gradio route requires
@@ -99,7 +115,9 @@ POST /cv/runtime-check (authenticated diagnostic; consumes a GPU allocation)
 Model loading and actual CUDA execution do not establish identity accuracy.
 Automatic verification remains unavailable until independent face/OCR holdout
 acceptance and evaluated document-authenticity checks are supplied. Missing
-checks are explicitly flagged and cannot grant VERIFIED status.
+checks return UNAVAILABLE (HTTP 503) without consuming the recording challenge.
+Validated evidence produces APPROVED or REJECTED automatically, with reason codes.
+There is no manual approval fallback.
 
 ZeroGPU quotas, queues and cold starts apply. Challenges use ephemeral SQLite;
 restart interrupted sessions after a Space restart. This free host does not
@@ -115,5 +133,6 @@ if __name__ == '__main__':
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--documents', type=Path, help='Optional evaluated directory containing tampering/weights.pt and evaluation.json')
     parser.add_argument('--sdk', choices=['docker', 'gradio'], default='docker')
+    parser.add_argument('--tampering', type=Path, help='Pinned PSCC-Net weight directory and optional document acceptance report')
     args = parser.parse_args()
-    prepare_kyc(args.pretrained, args.output, args.documents, args.sdk)
+    prepare_kyc(args.pretrained, args.output, args.documents, args.sdk, args.tampering)

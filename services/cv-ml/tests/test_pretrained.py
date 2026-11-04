@@ -90,6 +90,28 @@ def test_missing_weights_fail_closed(tmp_path):
     assert not models.loaded and not models.evaluated and models.error
 
 
+@pytest.mark.parametrize('tampered', [False, True])
+def test_complete_pretrained_pipeline_automatically_decides_with_document_models(monkeypatch, tampered):
+    from types import SimpleNamespace
+    face_models, track = fixture_models(monkeypatch)
+    face_models.accept(acceptance(face_models))
+    track['challengeVerified'] = True
+    models = IdentityModels(); models.pretrained = face_models
+    models.document_ocr = SimpleNamespace(loaded=True, evaluated=True, error=None, inspect=lambda _: {
+        'extractedFields': {'idNumber': 'TEST123', 'dob': '1990-01-01', 'expiryDate': '2099-01-01'},
+        'signals': [], 'modelVersions': {'ocr': 'fixture'}})
+    models.tampering = SimpleNamespace(loaded=True, evaluated=True, error=None, score=lambda _: {
+        'tamperingScore': .99 if tampered else .01, 'tamperingModelRan': True,
+        'tamperingDetected': tampered, 'modelVersions': {'tampering': 'fixture'},
+        'signals': ['DOCUMENT_TAMPERING_DETECTED'] if tampered else []})
+    assert models.ready and not models.health()['readinessBlockers']
+    result = models.recording_kyc('fixture', track, [])
+    assert result['verificationDecision'] == ('REJECTED' if tampered else 'APPROVED')
+    assert result['automaticApproval'] is not tampered
+    models.tampering.evaluated = False
+    assert models.recording_kyc('fixture', track, [])['verificationDecision'] == 'UNAVAILABLE'
+
+
 def test_evaluator_rejects_subject_leakage_before_inference(tmp_path):
     from app.models.evaluate_pretrained import evaluate
     rows = [{'split': split, 'subjectIds': ['same-person'], 'faceMatch': True, 'live': True}

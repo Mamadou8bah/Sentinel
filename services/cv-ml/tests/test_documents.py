@@ -75,7 +75,8 @@ def test_ocr_alone_cannot_assert_document_authenticity_or_signatures():
     models = IdentityModels()
     models.document_ocr = fake_ocr(evaluated=True)
     result = models.document_verify('fixture', reference='fixture')
-    assert result['ocrModelRan'] and not result['modelRan'] and result['manualReviewRequired']
+    assert result['ocrModelRan'] and not result['modelRan'] and not result['manualReviewRequired']
+    assert result['verificationDecision'] == 'UNAVAILABLE'
     assert result['tamperingScore'] == 1. and result['signatureMatchScore'] is None
     assert 'DOCUMENT_AUTHENTICITY_UNAVAILABLE' in result['signals']
     assert 'SIGNATURE_MODEL_UNAVAILABLE' in result['signals']
@@ -95,7 +96,7 @@ def test_ocr_acceptance_binds_models_and_measured_counts():
     with pytest.raises(ValueError, match='pipeline'): models.accept(report)
 
 
-def test_document_endpoint_is_bounded_and_preserves_review_flags(tmp_path):
+def test_document_endpoint_is_bounded_and_reports_unavailable_without_manual_review(tmp_path):
     models = IdentityModels()
     models.document_ocr = fake_ocr()
     app = FastAPI(); app.include_router(create_router(ChallengeStore(str(tmp_path / 'state.sqlite')), models))
@@ -104,7 +105,8 @@ def test_document_endpoint_is_bounded_and_preserves_review_flags(tmp_path):
     client = TestClient(app)
     response = client.post('/cv/document-verify', json={'documentImage': encoded, 'docType': 'ID'})
     assert response.status_code == 200
-    assert response.json()['manualReviewRequired'] and not response.json()['modelRan']
+    assert not response.json()['manualReviewRequired'] and not response.json()['modelRan']
+    assert response.json()['verificationDecision'] == 'UNAVAILABLE'
     assert response.json()['extractedFields']['idNumber'] == 'TEST123'
     assert client.post('/cv/document-verify', json={'documentImage': encoded, 'docType': 'UNKNOWN'}).status_code == 422
     assert client.post('/cv/document-verify', json={'documentImage': 'invalid'}).status_code == 422

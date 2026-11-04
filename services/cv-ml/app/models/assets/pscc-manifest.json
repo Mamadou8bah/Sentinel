@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "sourceRevision": "53e5ff77d8dc5feddda060cd085f9b765761f816",
+  "license": "MIT",
+  "models": {
+    "HRNet": {
+      "url": "https://raw.githubusercontent.com/proteus1991/PSCC-Net/53e5ff77d8dc5feddda060cd085f9b765761f816/checkpoint/HRNet_checkpoint/HRNet.pth",
+      "file": "HRNet.pth",
+      "sha256": "d3b21edc4930187a6801cc818bd7b999fb5d8078d8f2e2193572e91ea5160096"
+    },
+    "DetectionHead": {
+      "url": "https://raw.githubusercontent.com/proteus1991/PSCC-Net/53e5ff77d8dc5feddda060cd085f9b765761f816/checkpoint/DetectionHead_checkpoint/DetectionHead.pth",
+      "file": "DetectionHead.pth",
+      "sha256": "a17581e8a3489a360257a266ca9b2db1b7c9b43337fbcc4aeb8d751f593f66f5"
+    }
+  }
+}

@@ -137,6 +137,6 @@ def analyze_recording(raw, extension, instructions):
         if (instruction == "TURN_LEFT" and shift < .12) or (instruction == "TURN_RIGHT" and shift > -.12):
             raise ValueError("Head turns do not match the issued prompt order")
     selected = [min(phase, key=lambda item: abs(item[0] - poses[index]))[1] for index, phase in enumerate(phases)]
-    return {"faceCrops": crops, "challengeCrops": selected, "observations": observations,
+    return {"faceCrops": crops, "challengeCrops": selected, "observations": observations, "challengeVerified": True,
             "durationSeconds": round(duration, 3),
             "sampledFrames": len(crops), "recordingSha256": hashlib.sha256(raw).hexdigest()}

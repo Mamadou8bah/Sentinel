@@ -138,7 +138,7 @@ export default function HostedKycPage() {
       </h1>
       <p className="mt-3 max-w-md text-sm text-white/70">
         {step === 'done'
-          ? 'You can return to your bank. Compliance may review if anything needs a human look.'
+          ? 'Your automatic verification result is ready. You can return to your bank.'
           : 'Secure capture powered by Sentinel — your bank started this check for you.'}
       </p>
 

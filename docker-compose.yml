@@ -65,6 +65,7 @@ services:
       CV_ML_ARTIFACT_DIR: /app/artifacts/identity
       CV_PRETRAINED_DIR: ${CV_PRETRAINED_DIR:-}
       CV_DOCUMENT_OCR: ${CV_DOCUMENT_OCR:-false}
+      CV_TAMPERING_DIR: ${CV_TAMPERING_DIR:-}
     ports:
       - "127.0.0.1:8001:8001"
     volumes:

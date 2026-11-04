@@ -8,6 +8,8 @@ os.environ.setdefault('CV_ZERO_GPU', 'true')
 os.environ.setdefault('CV_DOCUMENT_OCR', 'true')
 os.environ.setdefault('CV_PRETRAINED_DIR', str(Path(__file__).parent / 'artifacts/pretrained'))
 os.environ.setdefault('CV_ML_ARTIFACT_DIR', str(Path(__file__).parent / 'artifacts'))
+if (Path(__file__).parent / 'artifacts/pscc').is_dir():
+    os.environ.setdefault('CV_TAMPERING_DIR', str(Path(__file__).parent / 'artifacts/pscc'))
 
 import gradio as gr
 from fastapi import HTTPException

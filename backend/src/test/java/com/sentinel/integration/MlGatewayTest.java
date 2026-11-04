@@ -218,6 +218,18 @@ class MlGatewayTest {
                         gateway.scoreRecordingKyc("7", "Customer", "id", recording, "challenge")
                                 .evidenceTrusted())
                 .isTrue();
+        String legacyBody = body;
+        body = body.replace("\"modelRan\":true", "\"modelRan\":true,\"verificationDecision\":\"APPROVED\",\"automaticApproval\":true");
+        assertThat(gateway.scoreRecordingKyc("7", "Customer", "id", recording, "challenge").evidenceTrusted()).isTrue();
+        body = body.replace("\"automaticApproval\":true", "\"automaticApproval\":false");
+        assertThat(gateway.scoreRecordingKyc("7", "Customer", "id", recording, "challenge").evidenceTrusted()).isFalse();
+        body = body.replace("APPROVED", "REJECTED");
+        assertThat(gateway.scoreRecordingKyc("7", "Customer", "id", recording, "challenge").evidenceTrusted()).isFalse();
+        body = body.replace("REJECTED", "UNAVAILABLE");
+        assertThatThrownBy(() -> gateway.scoreRecordingKyc("7", "Customer", "id", recording, "challenge"))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        e -> assertThat(e.getStatusCode().value()).isEqualTo(503));
+        body = legacyBody;
         body = body.replace("\"modelRan\":true", "\"modelRan\":false");
         assertThat(
                         gateway.scoreRecordingKyc("7", "Customer", "id", recording, "challenge")

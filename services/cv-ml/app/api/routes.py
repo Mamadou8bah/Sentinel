@@ -123,6 +123,11 @@ def create_router(store: ChallengeStore, models: IdentityModels) -> APIRouter:
             locate_face(rgb_image(request.idImage, encoded=True))
             track = analyze_recording(raw, extension, instructions)
             result = models.recording_kyc(request.idImage, track, instructions)
+            if result.get('verificationDecision') == 'UNAVAILABLE':
+                # Do not consume/cache an infrastructure failure or permanently
+                # reject a customer because a required model is not ready.
+                raise HTTPException(503, {'code': 'KYC_AUTOMATION_UNAVAILABLE',
+                                          'reasons': result.get('decisionReasons', [])})
             response = {**result, "qualityOk": True, "pipeline": "recording-face-v2",
                         "challengeId": request.challengeId, "recordingFormat": extension[1:],
                         "recordingSha256": track['recordingSha256'], "sampledFrames": track['sampledFrames'],

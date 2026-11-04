@@ -13,10 +13,14 @@ TASKS = ("face", "liveness", "tampering", "ocr")
 
 
 class IdentityModels:
-    def __init__(self, directory=None, pretrained_directory=None, document_ocr=False):
+    def __init__(self, directory=None, pretrained_directory=None, document_ocr=False, tampering_directory=None):
         self.models, self.metadata, self.errors = {}, {}, {}
         self.pretrained = None
         self.document_ocr = None
+        self.tampering = None
+        if tampering_directory:
+            from app.services.tampering import TamperingModel
+            self.tampering = TamperingModel(tampering_directory)
         if document_ocr:
             from app.services.document_ocr import DocumentOcr
             acceptance = Path(pretrained_directory or directory or 'artifacts/pretrained') / 'ocr-acceptance.json'
@@ -57,7 +61,8 @@ class IdentityModels:
     @property
     def documents_ready(self):
         ocr_ready = (self.document_ocr.loaded and self.document_ocr.evaluated) if self.document_ocr else 'ocr' in self.models
-        return bool(ocr_ready and 'tampering' in self.models)
+        tamper_ready = (self.tampering.loaded and self.tampering.evaluated) if self.tampering else 'tampering' in self.models
+        return bool(ocr_ready and tamper_ready)
 
     def health(self):
         result = {'mode': 'trained-identity' if self.ready else 'evidence-validation',
@@ -74,8 +79,30 @@ class IdentityModels:
         if self.document_ocr is not None:
             result.update(ocrModelLoaded=self.document_ocr.loaded, ocrModelEvaluated=self.document_ocr.evaluated,
                           ocrError=self.document_ocr.error)
+            result['modelErrors'] = {key: error for key, error in result['modelErrors'].items() if key != 'ocr'}
+        if self.tampering is not None:
+            result.update(tamperingModelLoaded=self.tampering.loaded, tamperingModelEvaluated=self.tampering.evaluated,
+                          tamperingError=self.tampering.error)
+            result['modelErrors'] = {key: error for key, error in result['modelErrors'].items() if key != 'tampering'}
         result['documentChecksReady'] = self.documents_ready
+        result['automaticApprovalReady'] = self.ready
+        result['readinessBlockers'] = self.readiness_blockers()
         return result
+
+    def readiness_blockers(self):
+        blockers = []
+        for component, loaded, evaluated in (
+            ('FACE', self.pretrained.loaded if self.pretrained else 'face' in self.models,
+             self.pretrained.evaluated if self.pretrained else 'face' in self.models),
+            ('OCR', self.document_ocr.loaded if self.document_ocr else 'ocr' in self.models,
+             self.document_ocr.evaluated if self.document_ocr else 'ocr' in self.models),
+            ('TAMPERING', self.tampering.loaded if self.tampering else 'tampering' in self.models,
+             self.tampering.evaluated if self.tampering else 'tampering' in self.models)):
+            if not loaded: blockers.append(component + '_MODEL_UNAVAILABLE')
+            elif not evaluated: blockers.append(component + '_HOLDOUT_EVALUATION_REQUIRED')
+        if self.pretrained is None and 'liveness' not in self.models:
+            blockers.append('LIVENESS_MODEL_UNAVAILABLE')
+        return blockers
 
     def liveness(self, frames, instructions, cropped=False):
         if 'liveness' not in self.models:
@@ -155,18 +182,20 @@ class IdentityModels:
 
     def pretrained_recording(self, document, track):
         if not self.pretrained.loaded:
-            return {'extractedFields': {}, 'faceMatchScore': 0., 'livenessScore': 0., 'tamperingScore': 1.,
+            return self.decide({'extractedFields': {}, 'faceMatchScore': 0., 'livenessScore': 0., 'tamperingScore': 1.,
                     'spoofLikely': False, 'modelRan': False, 'signals': ['PRETRAINED_FACE_MODELS_UNAVAILABLE']}
+                    )
         result = self.pretrained.score_recording(document, track)
         if self.document_ocr is not None:
             document_result = self.document_verify(document, 'ID')
-            return {**result, 'extractedFields': document_result['extractedFields'],
+            return self.decide({**result, 'recordingChallengePassed': track.get('challengeVerified') is True,
+                    'extractedFields': document_result['extractedFields'],
                     'tamperingScore': document_result['tamperingScore'],
                     'documentChecksAccepted': document_result['documentChecksAccepted'],
                     'signals': result['signals'] + document_result['signals'],
                     'modelVersions': {**result['modelVersions'], **document_result['modelVersions']},
                     'faceModelsRan': True, 'ocrModelRan': document_result['ocrModelRan'],
-                    'modelRan': self.ready and document_result['documentChecksAccepted']}
+                    'modelRan': self.ready and document_result['documentChecksAccepted']})
         fields, tamper = {}, 1.
         if all(task in self.models for task in ('ocr', 'tampering')):
             import torch
@@ -183,8 +212,15 @@ class IdentityModels:
             result['signals'].append('DOCUMENT_CHECKS_UNAVAILABLE')
         if len(fields) != 2:
             result['signals'].append('REQUIRED_ID_FIELDS_UNREADABLE')
-        return {**result, 'extractedFields': fields, 'tamperingScore': tamper,
-                'faceModelsRan': True, 'modelRan': self.ready}
+        return self.decide({**result, 'recordingChallengePassed': track.get('challengeVerified') is True,
+                'extractedFields': fields, 'tamperingScore': tamper,
+                'faceModelsRan': True, 'modelRan': self.ready})
+
+    def decide(self, result):
+        from app.services.decision import automatic_decision
+        face_threshold = self.pretrained.face_threshold if self.pretrained else self.metadata['face']['threshold']
+        live_threshold = self.pretrained.live_threshold if self.pretrained else self.metadata['liveness']['threshold']
+        return {**result, **automatic_decision(result, self.ready, face_threshold, live_threshold)}
 
     def document_verify(self, document, doc_type='ID', reference=None):
         signals, fields, versions = [], {}, {}
@@ -206,7 +242,13 @@ class IdentityModels:
             signals.append('OCR_MODEL_UNAVAILABLE')
         if doc_type == 'ID' and not all(key in fields for key in ('idNumber', 'dob')):
             signals.append('REQUIRED_ID_FIELDS_UNREADABLE')
-        if 'tampering' in self.models:
+        if self.tampering is not None and self.tampering.loaded:
+            result = self.tampering.score(document)
+            score, tamper_ran = result['tamperingScore'], result['tamperingModelRan']
+            signals.extend(result['signals'])
+            versions.update(result['modelVersions'])
+            if result['tamperingDetected']: score = 1.
+        elif self.tampering is None and 'tampering' in self.models:
             import torch
             import math
             from app.models.preprocessing import image_tensor
@@ -229,7 +271,8 @@ class IdentityModels:
                 'signatureMatchScore': None, 'signatureModelRan': False,
                 'ocrModelRan': ocr_ran, 'tamperingModelRan': tamper_ran,
                 'modelRan': bool(ocr_ran and tamper_ran and self.documents_ready and reference is None),
-                'documentChecksAccepted': bool(accepted), 'manualReviewRequired': not accepted,
+                'documentChecksAccepted': bool(accepted), 'manualReviewRequired': False,
+                'verificationDecision': 'APPROVED' if accepted else ('UNAVAILABLE' if not self.documents_ready else 'REJECTED'),
                 'signals': sorted(set(signals)), 'modelVersions': versions}
 
 

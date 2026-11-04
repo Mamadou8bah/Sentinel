@@ -298,6 +298,9 @@ public class KycService {
         RiskSettings settings = riskEngine.requireSettings(tenantId);
         KycStatus status =
                 riskEngine.decideKycStatus(scores.faceMatch(), scores.liveness(), settings);
+        // Hosted KYC has automatic outcomes: evidence must meet the tenant's
+        // verification policy, rather than leave the applicant awaiting review.
+        if (status == KycStatus.FLAGGED) status = KycStatus.REJECTED;
         if (!scores.evidenceTrusted() || scores.tampering() >= settings.getTamperingThreshold())
             status = KycStatus.REJECTED;
         customer.setKycStatus(status);

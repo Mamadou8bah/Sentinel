@@ -96,6 +96,27 @@ def test_request_limit_rejects_before_json_parse():
     assert client.post('/cv/kyc-verify-recording',content=b'x'*1025).status_code==413
 
 
+def test_unavailable_automation_does_not_consume_challenge(tmp_path, monkeypatch):
+    store = ChallengeStore(str(tmp_path / 'challenges.db'))
+    models = MeasuredFixtureModels()
+    original = models.recording_kyc
+    models.recording_kyc = lambda *args: {'verificationDecision': 'UNAVAILABLE',
+                                        'decisionReasons': ['TAMPERING_HOLDOUT_EVALUATION_REQUIRED']}
+    app = FastAPI(); app.include_router(create_router(store, models)); client = TestClient(app)
+    monkeypatch.setattr(faces, 'locate_face', lambda *_: {})
+    monkeypatch.setattr(recording, 'analyze_recording', lambda raw, *args: {
+        'recordingSha256': hashlib.sha256(raw).hexdigest(), 'sampledFrames': 36, 'durationSeconds': 9.})
+    challenge = store.create()['challengeId']
+    body = {'idImage': document(), 'challengeId': challenge,
+            'videoBase64': base64.b64encode(b'\x00\x00\x00\x18ftypisomfixture').decode()}
+    response = client.post('/cv/kyc-verify-recording', json=body)
+    assert response.status_code == 503
+    assert response.json()['detail']['code'] == 'KYC_AUTOMATION_UNAVAILABLE'
+    assert store.result(challenge) is None
+    models.recording_kyc = original
+    assert client.post('/cv/kyc-verify-recording', json=body).status_code == 200
+
+
 def test_old_preprocessing_artifacts_cannot_load(tmp_path):
     import json
     from app.services.identity import IdentityModels

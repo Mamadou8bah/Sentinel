@@ -2,6 +2,12 @@
 
 FastAPI service on port 8001. Run commands from this directory:
 
+Use [automatic pretrained KYC](docs/automatic-kyc.md) for the installed
+YuNet/SFace, MiniFASNet, PP-OCRv4 and PSCC-Net pipeline. It needs no training from
+scratch. Automatic approval remains gated by representative evaluation reports;
+unavailable checks return HTTP 503, with no manual approval fallback. The custom
+training workflow below is an optional alternative.
+
 ```powershell
 python -m pip install -r requirements.txt
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8001

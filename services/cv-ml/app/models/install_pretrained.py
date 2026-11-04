@@ -6,11 +6,13 @@ from pathlib import Path
 import urllib.request
 
 
-def install(directory):
-    from app.services.pretrained import MANIFEST
+def install(directory, manifest=None):
+    if manifest is None:
+        from app.services.pretrained import MANIFEST
+        manifest = MANIFEST
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
-    for name, spec in json.loads(MANIFEST.read_text())['models'].items():
+    for name, spec in json.loads(Path(manifest).read_text())['models'].items():
         target = directory / spec['file']
         if target.is_file() and hashlib.sha256(target.read_bytes()).hexdigest() == spec['sha256']:
             print(f'{name}: already installed', flush=True)
@@ -37,4 +39,7 @@ def install(directory):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', default='artifacts/pretrained')
-    install(parser.parse_args().output)
+    parser.add_argument('--component', choices=['face', 'tampering'], default='face')
+    args = parser.parse_args()
+    manifest = Path(__file__).parent / 'assets/pscc-manifest.json' if args.component == 'tampering' else None
+    install(args.output, manifest)

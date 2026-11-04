@@ -14,7 +14,8 @@ def create_app(database: str | None = None, model_directory: str | None = None) 
     store = ChallengeStore(database or os.getenv("CV_CHALLENGE_DB", "runtime/challenges.sqlite3"))
     models = IdentityModels(model_directory or os.getenv("CV_ML_ARTIFACT_DIR"),
                             pretrained_directory=os.getenv("CV_PRETRAINED_DIR"),
-                            document_ocr=os.getenv("CV_DOCUMENT_OCR", "false").lower() == "true")
+                            document_ocr=os.getenv("CV_DOCUMENT_OCR", "false").lower() == "true",
+                            tampering_directory=os.getenv('CV_TAMPERING_DIR'))
     api.state.models = models
     from app.api.security import InferenceAuth
     api.add_middleware(InferenceAuth)
