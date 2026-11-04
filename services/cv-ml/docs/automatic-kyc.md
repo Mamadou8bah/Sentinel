@@ -1,7 +1,7 @@
 # Automatic KYC
 
 The recording endpoint implements automatic approval or rejection. An unavailable
-model or missing acceptance report returns HTTP 503 with code
+model (or a missing report under the evaluated policy) returns HTTP 503 with code
 `KYC_AUTOMATION_UNAVAILABLE`; it does not consume the challenge, cache a rejection,
 or send the customer for manual approval. The original challenge expiry still
 applies. Start a new session after expiry or a Space restart.
@@ -21,6 +21,27 @@ Weights are pinned to upstream revision
 `app/models/assets/pscc-manifest.json`. Only the HRNet backbone and classification
 head are used; this integration makes no manipulation-localisation claim.
 
+## Approval policy
+
+`CV_KYC_REQUIRE_EVALUATION=true` is the default and requires accepted local
+holdout reports. Set `CV_KYC_REQUIRE_EVALUATION=false` to use the complete pinned
+pretrained pipeline without those reports. This is the selected hosted policy.
+Initial thresholds are SFace cosine 0.363, MiniFASNet real score 0.9 and PSCC
+tampering score 0.5; valid installed reports may supply calibrated thresholds
+instead. Tenant risk thresholds still apply separately.
+
+All models must load with valid checksums and no runtime/acceptance-file errors.
+Real face comparison, anti-spoof inference, the recording challenge, readable
+unexpired document fields and tampering checks still run. Custom trained
+artifacts retain their existing evaluation gates. No synthetic scores or
+automatic successes are substituted.
+
+Health and inference expose `approvalPolicy=pretrained-thresholds`,
+`evaluationRequired=false`, `localAccuracyValidated=false` and
+`evaluationWarnings` until independent reports establish local accuracy.
+Underlying `*Evaluated` flags remain false; reports are never invented. Missing
+evaluation reports become warnings under this policy, not rejection reasons.
+
 ## Installation
 
 From `services/cv-ml` in PowerShell:
@@ -32,6 +53,7 @@ python -m app.models.install_pretrained --component tampering --output artifacts
 $env:CV_PRETRAINED_DIR = (Resolve-Path artifacts/pretrained).Path
 $env:CV_TAMPERING_DIR = (Resolve-Path artifacts/pscc).Path
 $env:CV_DOCUMENT_OCR = 'true'
+$env:CV_KYC_REQUIRE_EVALUATION = 'false'
 # Set the existing ML_SERVICE_API_KEY locally; never commit it.
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8001
 ```
@@ -45,7 +67,8 @@ the acceptance identity and must be evaluated, rather than borrowing paper metri
 
 `GET /health` distinguishes loaded models from accepted models and provides
 `automaticApprovalReady` and `readinessBlockers`. It never enables verification
-merely because weights loaded.
+merely because weights loaded under the default evaluated policy. The explicitly
+selected pretrained-threshold policy allows loaded models without local reports.
 
 `POST /cv/kyc-verify-recording` uses the existing request schema. With accepted
 models it returns `verificationDecision` (`APPROVED` or `REJECTED`),
@@ -54,7 +77,7 @@ scores. Approval requires a server-verified recording challenge, at least 25
 compared faces, face and liveness thresholds, no suspected spoof, accepted
 document checks, a readable ID number and DOB, and a valid unexpired expiry date.
 Any adverse signal prevents approval. Requests cannot supply a successful
-challenge flag themselves. Failed models/evaluation produce 503 instead.
+challenge flag themselves. Unavailable or invalid models produce 503 instead.
 
 The Java gateway enforces the explicit decision and existing evidence binding.
 The tenant's risk settings remain an additional approval requirement; borderline
@@ -68,9 +91,10 @@ Its `verificationDecision` describes the document checks only; it never verifies
 a person's identity. `manualReviewRequired` is false. Unsupported specialist
 document/signature checks cannot be approved through the ID pipeline.
 
-## Evaluation still required
+## Optional local evaluation
 
-There is no bypass switch. Independent reports bind hashes, preprocessing and
+Local evaluation can be added later without retraining. Set
+`CV_KYC_REQUIRE_EVALUATION=true` to require it for approval. Independent reports bind hashes, preprocessing and
 thresholds. Face/liveness and OCR evaluation are described in
 [pretrained-kyc.md](pretrained-kyc.md). For PSCC, keep consented labelled documents
 private and create `data/private/tampering.jsonl`, with paths relative to it:
@@ -92,10 +116,11 @@ python -m app.models.evaluate_tampering --dataset data/private/tampering.jsonl -
 
 The evaluator runs actual inference and writes `evaluation-candidate.json`. Only
 reports meeting the existing gates (99% tampering sensitivity, 90% specificity on
-both splits) install `acceptance.json`. Failure leaves verification unavailable.
+both splits) install `acceptance.json`. The evaluated policy remains unavailable
+without passing reports. Invalid installed reports are errors under either policy.
 Public face benchmarks, generated text images and successful contract tests do
 not substitute for these measurements. The deployed service has real inference
-but currently lacks representative acceptance for automatic financial KYC.
+but currently lacks representative evidence of accuracy for Sutura customers.
 
 ## Hugging Face export
 

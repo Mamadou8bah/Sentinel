@@ -8,9 +8,10 @@ contract are described in [automatic-kyc.md](automatic-kyc.md). Configure
 Deployment acceptance on 4 November 2026 confirmed protected inference routes,
 authorised challenge creation, generated-document OCR, and actual CUDA execution
 of both MiniFASNet models. These are infrastructure smoke checks, not identity
-accuracy measurements. `/health` intentionally reports `verificationReady=false`
-until representative acceptance and evaluated document-authenticity checks are
-available. The hosting framework is not a public identity-upload demo.
+accuracy measurements. The selected hosted policy now sets
+`CV_KYC_REQUIRE_EVALUATION=false`: loaded pretrained models can make automatic
+decisions while `/health` truthfully reports `localAccuracyValidated=false`.
+The hosting framework is not a public identity-upload demo.
 
 Face models no longer require training from scratch. YuNet locates a single face,
 SFace aligns its landmarks and compares the document portrait against every
@@ -28,8 +29,11 @@ From `sentinel/services/cv-ml`:
 ```powershell
 python -m pip install -r requirements.txt
 python -m app.models.install_pretrained --output artifacts/pretrained
+python -m app.models.install_pretrained --component tampering --output artifacts/pscc
 $env:CV_PRETRAINED_DIR = (Resolve-Path artifacts/pretrained).Path
 $env:CV_DOCUMENT_OCR = 'true'
+$env:CV_TAMPERING_DIR = (Resolve-Path artifacts/pscc).Path
+$env:CV_KYC_REQUIRE_EVALUATION = 'false'
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8001
 ```
 
@@ -61,7 +65,7 @@ Loaded weights allow real inference, but do not automatically grant VERIFIED.
 The service reports loaded and evaluated status separately. Face matching,
 anti-spoof detection and head-turn checks do not authenticate an identity document.
 OCR and document tampering remain separate dependencies. Missing models or
-acceptance reports return HTTP 503 with `KYC_AUTOMATION_UNAVAILABLE`, leaving
+acceptance reports under the default evaluated policy return HTTP 503 with `KYC_AUTOMATION_UNAVAILABLE`, leaving
 the recording challenge unconsumed. They do not reject the customer's identity.
 
 Collect consented genuine/mismatched identity pairs and genuine/photo/screen
@@ -90,7 +94,7 @@ This runs the actual recording pipeline, counts rejected captures as rejections,
 rejects reused videos and cross-split subject overlap, and writes measured metrics.
 Only passing reports become `acceptance.json`; failed candidates remain
 `evaluation-candidate.json`. Reports bind model hashes and pipeline version.
-Full verification additionally requires accepted OCR evaluation and an evaluated
+Under the evaluated policy, full verification additionally requires accepted OCR evaluation and an evaluated
 PSCC report in `CV_TAMPERING_DIR` (or a custom evaluated tampering artifact in
 `CV_ML_ARTIFACT_DIR`). Face and OCR loading alone cannot
 establish document authenticity.
@@ -136,7 +140,7 @@ test is representative evaluation. Keep all identity data outside Git.
 PSCC-Net now supplies real pretrained image-manipulation inference; installation,
 document-specific evaluation and the automatic-decision contract are documented
 in [automatic-kyc.md](automatic-kyc.md). The original custom artifact loader also
-remains available. Without accepted document evaluation, the document endpoint
+remains available. Under the evaluated policy, without accepted document evaluation, the document endpoint
 returns real OCR/tampering diagnostics with `verificationDecision=UNAVAILABLE`,
 `manualReviewRequired=false` and `documentChecksAccepted=false`. Recording KYC
 returns HTTP 503. OCR success alone cannot establish authenticity.
@@ -184,7 +188,8 @@ export uses port 7860 and configures pretrained face models and document OCR.
 Set its actual `https://<account>-<space>.hf.space` URL as `CV_ML_BASE_URL` on
 Sentinel. Check public `/health`, unauthenticated inference rejection, authorised
 document extraction and actual recording scenarios. Do not put the key in the
-mobile apps. Deployment does not remove the evaluation/authenticity gates.
+mobile apps. Set the Space variable `CV_KYC_REQUIRE_EVALUATION=false` to use the
+pretrained-threshold policy, or keep the default evaluated policy.
 
 For deployment, install weights into the image or copy the verified directory and
 set `CV_PRETRAINED_DIR` to its absolute container path. Include the model licences

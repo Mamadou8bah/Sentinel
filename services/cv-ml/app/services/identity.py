@@ -1,4 +1,4 @@
-"""Load locally trained identity artifacts only after their independent evaluation gates pass."""
+"""Identity inference with explicit evaluated or pretrained-threshold approval policy."""
 import hashlib
 import json
 from pathlib import Path
@@ -10,10 +10,14 @@ from app.models.evaluation import passes_gate
 from app.services.faces import PREPROCESSING, DETECTOR_SHA256
 
 TASKS = ("face", "liveness", "tampering", "ocr")
+EVALUATION_SIGNALS = frozenset({'PRETRAINED_HOLDOUT_EVALUATION_REQUIRED',
+                               'OCR_HOLDOUT_EVALUATION_REQUIRED', 'TAMPERING_HOLDOUT_EVALUATION_REQUIRED'})
 
 
 class IdentityModels:
-    def __init__(self, directory=None, pretrained_directory=None, document_ocr=False, tampering_directory=None):
+    def __init__(self, directory=None, pretrained_directory=None, document_ocr=False, tampering_directory=None,
+                 require_evaluation=True):
+        self.require_evaluation = require_evaluation
         self.models, self.metadata, self.errors = {}, {}, {}
         self.pretrained = None
         self.document_ocr = None
@@ -55,14 +59,46 @@ class IdentityModels:
     @property
     def ready(self):
         if self.pretrained is not None:
+            if self.initial_thresholds:
+                return self.component_ready(self.pretrained) and self.documents_ready
             return self.pretrained.loaded and self.pretrained.evaluated and self.documents_ready
         return all(task in self.models for task in TASKS)
 
     @property
     def documents_ready(self):
+        if self.initial_thresholds:
+            return self.component_ready(self.document_ocr) and self.component_ready(self.tampering)
         ocr_ready = (self.document_ocr.loaded and self.document_ocr.evaluated) if self.document_ocr else 'ocr' in self.models
         tamper_ready = (self.tampering.loaded and self.tampering.evaluated) if self.tampering else 'tampering' in self.models
         return bool(ocr_ready and tamper_ready)
+
+    @property
+    def initial_thresholds(self):
+        # This opt-in applies only to the complete, pinned pretrained pipeline.
+        # Custom trained artifacts must still pass their existing loader gates.
+        return not self.require_evaluation and all(component is not None for component in
+                                                    (self.pretrained, self.document_ocr, self.tampering))
+
+    @staticmethod
+    def component_ready(component):
+        return bool(component.loaded and not component.error)
+
+    def policy_metadata(self):
+        components = (self.pretrained, self.document_ocr, self.tampering)
+        validated = all(component is not None and component.loaded and component.evaluated
+                        and not component.error for component in components)
+        if self.pretrained is None:
+            validated = all(task in self.models for task in TASKS)
+        return {'approvalPolicy': 'pretrained-thresholds' if self.initial_thresholds else 'evaluated',
+                'evaluationRequired': not self.initial_thresholds,
+                'localAccuracyValidated': validated,
+                'evaluationWarnings': sorted(signal for component, signal in zip(components,
+                    ('PRETRAINED_HOLDOUT_EVALUATION_REQUIRED', 'OCR_HOLDOUT_EVALUATION_REQUIRED',
+                     'TAMPERING_HOLDOUT_EVALUATION_REQUIRED'), strict=True)
+                    if component is not None and not component.evaluated)}
+
+    def blocking_signals(self, signals):
+        return [signal for signal in signals if not (self.initial_thresholds and signal in EVALUATION_SIGNALS)]
 
     def health(self):
         result = {'mode': 'trained-identity' if self.ready else 'evidence-validation',
@@ -87,6 +123,7 @@ class IdentityModels:
         result['documentChecksReady'] = self.documents_ready
         result['automaticApprovalReady'] = self.ready
         result['readinessBlockers'] = self.readiness_blockers()
+        result.update(self.policy_metadata())
         return result
 
     def readiness_blockers(self):
@@ -99,7 +136,10 @@ class IdentityModels:
             ('TAMPERING', self.tampering.loaded if self.tampering else 'tampering' in self.models,
              self.tampering.evaluated if self.tampering else 'tampering' in self.models)):
             if not loaded: blockers.append(component + '_MODEL_UNAVAILABLE')
-            elif not evaluated: blockers.append(component + '_HOLDOUT_EVALUATION_REQUIRED')
+            elif not evaluated and not self.initial_thresholds: blockers.append(component + '_HOLDOUT_EVALUATION_REQUIRED')
+        if self.initial_thresholds:
+            for component, name in ((self.pretrained, 'FACE'), (self.document_ocr, 'OCR'), (self.tampering, 'TAMPERING')):
+                if component.loaded and component.error: blockers.append(name + '_MODEL_INVALID')
         if self.pretrained is None and 'liveness' not in self.models:
             blockers.append('LIVENESS_MODEL_UNAVAILABLE')
         return blockers
@@ -220,7 +260,9 @@ class IdentityModels:
         from app.services.decision import automatic_decision
         face_threshold = self.pretrained.face_threshold if self.pretrained else self.metadata['face']['threshold']
         live_threshold = self.pretrained.live_threshold if self.pretrained else self.metadata['liveness']['threshold']
-        return {**result, **automatic_decision(result, self.ready, face_threshold, live_threshold)}
+        result = {**result, 'signals': self.blocking_signals(result.get('signals', []))}
+        return {**result, **automatic_decision(result, self.ready, face_threshold, live_threshold),
+                **self.policy_metadata()}
 
     def document_verify(self, document, doc_type='ID', reference=None):
         signals, fields, versions = [], {}, {}
@@ -266,6 +308,7 @@ class IdentityModels:
             signals.append('DOCUMENT_TYPE_REQUIRES_SPECIALIST_REVIEW')
         if reference is not None:
             signals.append('SIGNATURE_MODEL_UNAVAILABLE')
+        signals = self.blocking_signals(signals)
         accepted = self.documents_ready and not signals and doc_type == 'ID' and reference is None
         return {'extractedFields': fields, 'tamperingScore': score,
                 'signatureMatchScore': None, 'signatureModelRan': False,
@@ -273,7 +316,7 @@ class IdentityModels:
                 'modelRan': bool(ocr_ran and tamper_ran and self.documents_ready and reference is None),
                 'documentChecksAccepted': bool(accepted), 'manualReviewRequired': False,
                 'verificationDecision': 'APPROVED' if accepted else ('UNAVAILABLE' if not self.documents_ready else 'REJECTED'),
-                'signals': sorted(set(signals)), 'modelVersions': versions}
+                'signals': sorted(set(signals)), 'modelVersions': versions, **self.policy_metadata()}
 
 
 def extract_fields(text):

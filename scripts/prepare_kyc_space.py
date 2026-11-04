@@ -68,8 +68,9 @@ are needed. Inference runs on CPU. Model licences are included under app/models.
 
 Set ML_SERVICE_API_KEY as a Space secret (at least 32 characters), matching the
 Sentinel Java API. The health endpoint reports loading and evaluation separately.
-Automatic verification requires independent face/OCR holdout acceptance and an
-evaluated document-authenticity artifact. OCR and MRZ checks do not prove that an
+Default automatic verification requires local holdout acceptance. Explicitly set
+CV_KYC_REQUIRE_EVALUATION=false to use the complete pinned pretrained pipeline
+without reports; localAccuracyValidated remains false. OCR and MRZ do not prove that an
 ID is genuine. Missing checks return UNAVAILABLE and cannot grant VERIFIED.
 
 Routes: GET /health, POST /cv/liveness/challenge,
@@ -113,9 +114,11 @@ POST /cv/document-verify
 POST /cv/runtime-check (authenticated diagnostic; consumes a GPU allocation)
 
 Model loading and actual CUDA execution do not establish identity accuracy.
-Automatic verification remains unavailable until independent face/OCR holdout
-acceptance and evaluated document-authenticity checks are supplied. Missing
-checks return UNAVAILABLE (HTTP 503) without consuming the recording challenge.
+Default automatic verification requires independent holdout acceptance.
+Set Space variable CV_KYC_REQUIRE_EVALUATION=false to use pretrained thresholds
+without reports. Health and inference expose localAccuracyValidated=false and
+evaluationWarnings. Every actual identity/document check remains required.
+Missing or invalid models return UNAVAILABLE (HTTP 503) without consuming the challenge.
 Validated evidence produces APPROVED or REJECTED automatically, with reason codes.
 There is no manual approval fallback.
 

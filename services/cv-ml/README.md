@@ -4,7 +4,8 @@ FastAPI service on port 8001. Run commands from this directory:
 
 Use [automatic pretrained KYC](docs/automatic-kyc.md) for the installed
 YuNet/SFace, MiniFASNet, PP-OCRv4 and PSCC-Net pipeline. It needs no training from
-scratch. Automatic approval remains gated by representative evaluation reports;
+scratch. Set `CV_KYC_REQUIRE_EVALUATION=false` to use pretrained thresholds without
+local reports, with `localAccuracyValidated=false` explicitly reported;
 unavailable checks return HTTP 503, with no manual approval fallback. The custom
 training workflow below is an optional alternative.
 
@@ -137,4 +138,6 @@ people, cameras and attack recordings before enabling live verification.
 Use the [pretrained KYC setup](docs/pretrained-kyc.md) for YuNet, SFace and
 MiniFASNet inference without training face models. Set `CV_PRETRAINED_DIR` after
 installing pinned weights. Loading models is reported separately from holdout
-acceptance and document-check readiness; incomplete checks cannot grant VERIFIED.
+acceptance and document-check readiness. The default policy requires evaluation;
+the explicit pretrained-threshold policy allows unevaluated models while still
+requiring every actual identity/document check.

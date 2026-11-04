@@ -66,6 +66,7 @@ services:
       CV_PRETRAINED_DIR: ${CV_PRETRAINED_DIR:-}
       CV_DOCUMENT_OCR: ${CV_DOCUMENT_OCR:-false}
       CV_TAMPERING_DIR: ${CV_TAMPERING_DIR:-}
+      CV_KYC_REQUIRE_EVALUATION: ${CV_KYC_REQUIRE_EVALUATION:-true}
     ports:
       - "127.0.0.1:8001:8001"
     volumes:

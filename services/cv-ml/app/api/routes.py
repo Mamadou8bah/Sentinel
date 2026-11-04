@@ -132,7 +132,9 @@ def create_router(store: ChallengeStore, models: IdentityModels) -> APIRouter:
                         "challengeId": request.challengeId, "recordingFormat": extension[1:],
                         "recordingSha256": track['recordingSha256'], "sampledFrames": track['sampledFrames'],
                         "durationSeconds": track['durationSeconds'],
-                        "explanation": "Document portrait compared against tracked video faces; liveness evaluated" if result['modelRan'] else
+                        "explanation": ("Document portrait compared against tracked video faces; liveness and document checks ran"
+                                        + (" using pretrained thresholds; local accuracy is unvalidated"
+                                           if result.get('approvalPolicy') == 'pretrained-thresholds' and not result.get('localAccuracyValidated') else "")) if result['modelRan'] else
                             ("Pretrained face matching and anti-spoof inference ran; document checks or holdout acceptance remain incomplete"
                              if result.get('faceModelsRan') else "Evaluated identity models unavailable; recording cannot grant VERIFIED status")}
             store.consume(request.challengeId, {"inputHash": input_hash, "response": response})

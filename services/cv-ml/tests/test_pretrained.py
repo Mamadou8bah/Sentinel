@@ -121,6 +121,47 @@ def test_evaluator_rejects_subject_leakage_before_inference(tmp_path):
     with pytest.raises(ValueError, match='disjoint'): evaluate(path, None)
 
 
+@pytest.mark.parametrize('failure,expected', [
+    (None, 'APPROVED'), ('spoof', 'REJECTED'), ('mismatch', 'REJECTED'),
+    ('tampered', 'REJECTED'), ('challenge', 'REJECTED'), ('expired', 'REJECTED'),
+    ('ocr-fields', 'REJECTED'), ('missing-model', 'UNAVAILABLE'), ('invalid-model', 'UNAVAILABLE'),
+    ('strict-policy', 'UNAVAILABLE'),
+])
+def test_initial_thresholds_run_without_reports_but_preserve_all_evidence_checks(monkeypatch, failure, expected):
+    from types import SimpleNamespace
+    face_models, track = fixture_models(monkeypatch, spoof=failure == 'spoof', mismatch=failure == 'mismatch')
+    track['challengeVerified'] = failure != 'challenge'
+    fields = {'idNumber': 'TEST123', 'dob': '1990-01-01',
+              'expiryDate': '2000-01-01' if failure == 'expired' else '2099-01-01'}
+    if failure == 'ocr-fields': fields = {}
+    models = IdentityModels(require_evaluation=failure == 'strict-policy')
+    models.pretrained = face_models
+    models.document_ocr = SimpleNamespace(loaded=True, evaluated=False, error=None, inspect=lambda _: {
+        'extractedFields': fields, 'signals': ['OCR_HOLDOUT_EVALUATION_REQUIRED'],
+        'modelVersions': {'ocr': 'fixture'}})
+    models.tampering = SimpleNamespace(loaded=failure != 'missing-model', evaluated=False,
+        error='invalid weights' if failure == 'invalid-model' else None, score=lambda _: {
+        'tamperingScore': .99 if failure == 'tampered' else .01, 'tamperingModelRan': True,
+        'tamperingDetected': failure == 'tampered', 'modelVersions': {'tampering': 'fixture'},
+        'signals': ['TAMPERING_HOLDOUT_EVALUATION_REQUIRED']
+                   + (['DOCUMENT_TAMPERING_DETECTED'] if failure == 'tampered' else [])})
+    result = models.recording_kyc('fixture', track, [])
+    assert result['verificationDecision'] == expected
+    assert result['automaticApproval'] is (expected == 'APPROVED')
+    assert not result['localAccuracyValidated'] and len(result['evaluationWarnings']) == 3
+    assert not any(component.evaluated for component in (face_models, models.document_ocr, models.tampering))
+    assert models.health()['automaticApprovalReady'] is (expected != 'UNAVAILABLE')
+    if failure is None:
+        assert result['approvalPolicy'] == 'pretrained-thresholds' and not result['signals']
+        assert not models.health()['readinessBlockers']
+
+
+def test_initial_threshold_setting_does_not_enable_custom_or_incomplete_models():
+    models = IdentityModels(require_evaluation=False)
+    assert not models.initial_thresholds and not models.ready and not models.documents_ready
+    assert 'FACE_MODEL_UNAVAILABLE' in models.health()['readinessBlockers']
+
+
 def test_installer_rejects_changed_download_without_replacing_existing_file(tmp_path, monkeypatch):
     from app.models import install_pretrained
     manifest = tmp_path / 'manifest.json'
