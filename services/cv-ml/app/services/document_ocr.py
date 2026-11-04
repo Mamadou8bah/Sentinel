@@ -55,7 +55,7 @@ class DocumentOcr:
             raise ValueError('OCR independent holdout acceptance failed')
         self.evaluated = True
 
-    def inspect(self, encoded):
+    def read_lines(self, encoded):
         if not self.loaded:
             raise RuntimeError('Document OCR unavailable')
         image = rgb_image(encoded, encoded=True)
@@ -72,6 +72,10 @@ class DocumentOcr:
                 raise ValueError('Invalid OCR output')
             if score >= .8 and len(text) <= 200:
                 lines.append(text)
+        return lines
+
+    def inspect(self, encoded):
+        lines = self.read_lines(encoded)
         parsed = extract_document_fields(lines)
         return {**parsed, 'ocrModelRan': True, 'ocrEvaluated': self.evaluated,
                 'ocrLineCount': len(lines), 'modelVersions': {'ocr': dict(MODEL_HASHES)},

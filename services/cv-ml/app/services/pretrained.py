@@ -100,16 +100,34 @@ class PretrainedFaces:
     def score_recording(self, document, track):
         if not self.loaded:
             raise RuntimeError('Pretrained face models unavailable')
-        import torch
         rgb = rgb_image(document, encoded=True)
         reference = self.embedding(rgb, locate_face(rgb))
         observations = track.get('observations', [])
         if not 25 <= len(observations) <= 48:
             raise ValueError('Continuous recording observations required')
-        similarities, probabilities = [], []
+        similarities = []
         for item in observations:
             embedding = self.embedding(item['image'], item['face'])
             similarities.append(float(np.clip(np.dot(reference, embedding), -1., 1.)))
+        prediction = self.anti_spoof(observations)
+        # Upstream class 1 is real; both spoof classes must lose on every sampled frame.
+        live = float(prediction[:, 1].min())
+        spoof = bool(np.any(prediction.argmax(axis=1) != 1)) or live < self.live_threshold
+        cosine = min(similarities)
+        return {'faceCosineSimilarity': cosine, 'faceMatchScore': max(0., cosine) if cosine >= self.face_threshold else 0.,
+                'livenessScore': 0. if spoof else live, 'spoofLikely': spoof,
+                'antiSpoofRealScore': live if bool(np.all(prediction.argmax(axis=1) == 1)) else 0.,
+                'comparedFrames': len(observations), 'modelVersions': self.versions,
+                'signals': (['RECORDING_FACE_MISMATCH'] if cosine < self.face_threshold else [])
+                           + (['PRESENTATION_ATTACK_SUSPECTED'] if spoof else [])
+                           + ([] if self.evaluated else ['PRETRAINED_HOLDOUT_EVALUATION_REQUIRED'])}
+
+    def anti_spoof(self, observations):
+        """Shared passive PAD inference; caller separately enforces recording challenges."""
+        import torch
+        if not self.loaded or not 1 <= len(observations) <= 48:
+            raise ValueError('Anti-spoof models and 1–48 observations required')
+        probabilities = []
         # Evaluate all sampled frames, with both original pretrained context scales.
         batches = [np.stack([context_crop(item['image'], item['face']['detection'], scale)
                               for item in observations]) for _model, scale in self.spoof_models]
@@ -125,15 +143,4 @@ class PretrainedFaces:
                     if logits.shape != (len(observations), 3) or not torch.isfinite(logits).all():
                         raise ValueError('Invalid anti-spoof inference')
                     probabilities.append(logits.softmax(dim=1).numpy())
-        prediction = np.mean(probabilities, axis=0)
-        # Upstream class 1 is real; both spoof classes must lose on every sampled frame.
-        live = float(prediction[:, 1].min())
-        spoof = bool(np.any(prediction.argmax(axis=1) != 1)) or live < self.live_threshold
-        cosine = min(similarities)
-        return {'faceCosineSimilarity': cosine, 'faceMatchScore': max(0., cosine) if cosine >= self.face_threshold else 0.,
-                'livenessScore': 0. if spoof else live, 'spoofLikely': spoof,
-                'antiSpoofRealScore': live if bool(np.all(prediction.argmax(axis=1) == 1)) else 0.,
-                'comparedFrames': len(observations), 'modelVersions': self.versions,
-                'signals': (['RECORDING_FACE_MISMATCH'] if cosine < self.face_threshold else [])
-                           + (['PRESENTATION_ATTACK_SUSPECTED'] if spoof else [])
-                           + ([] if self.evaluated else ['PRETRAINED_HOLDOUT_EVALUATION_REQUIRED'])}
+        return np.mean(probabilities, axis=0)

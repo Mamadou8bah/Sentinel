@@ -10,7 +10,7 @@ from app.services.document_ocr import DocumentOcr, MODEL_HASHES, PIPELINE
 
 def evaluate(dataset, ocr):
     dataset = Path(dataset)
-    rows = [json.loads(line) for line in dataset.read_text().splitlines() if line.strip()]
+    rows = [json.loads(line) for line in dataset.read_text(encoding='utf-8-sig').splitlines() if line.strip()]
     subjects = {'validation': set(), 'test': set()}
     counts = {split: {'total': 0, 'exactMatches': 0} for split in subjects}
     for row in rows:
@@ -51,6 +51,10 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', required=True, type=Path)
     parser.add_argument('--output', default='artifacts/pretrained', type=Path)
     args = parser.parse_args()
+    if not args.dataset.is_file():
+        parser.error(f'Dataset manifest not found: {args.dataset.resolve()}. Collect labelled document photos and create the JSONL manifest first. See docs/pretrained-kyc.md.')
+    if not args.dataset.read_text(encoding='utf-8-sig').strip():
+        parser.error('The dataset manifest is empty. Add labelled document samples before evaluation.')
     ocr = DocumentOcr()
     if not ocr.loaded:
         raise SystemExit(ocr.error)

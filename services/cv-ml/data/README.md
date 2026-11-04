@@ -4,6 +4,11 @@ Place locally obtained, authorised images and JSONL manifests here. Datasets
 and weights are ignored by Git and excluded from Docker build contexts. PaySim
 belongs in `../../transaction-ml/data/paysim.csv`, not this folder.
 
+For evaluating downloaded pretrained models without training, follow
+[public component benchmarks](../docs/public-benchmarks.md). Its LFW downloader
+uses `data/public/lfw`; licensed PAD/OCR imports stay under `data/public/` too.
+Those component reports do not replace representative full-KYC holdouts.
+
 Each JSONL row represents one example. Image paths are relative to the manifest
 and must remain beneath its directory. Every row needs `split` (`train`,
 `validation`, `test`) and `subjects`: all person identities and attack-source

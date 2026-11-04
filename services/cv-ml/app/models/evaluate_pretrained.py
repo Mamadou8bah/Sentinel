@@ -12,7 +12,7 @@ from app.services.recording import recording_bytes, analyze_recording
 
 def evaluate(dataset, models, face_threshold=.363, live_threshold=.9):
     dataset = Path(dataset)
-    rows = [json.loads(line) for line in dataset.read_text().splitlines() if line.strip()]
+    rows = [json.loads(line) for line in dataset.read_text(encoding='utf-8-sig').splitlines() if line.strip()]
     subjects = {'validation': set(), 'test': set()}
     evidence, documents = set(), {}
     measurements = {task: {split: ([], []) for split in subjects} for task in ('face', 'liveness')}
@@ -68,6 +68,10 @@ if __name__ == '__main__':
     parser.add_argument('--face-threshold', type=float, default=.363)
     parser.add_argument('--live-threshold', type=float, default=.9)
     args = parser.parse_args()
+    if not args.dataset.is_file():
+        parser.error(f'Dataset manifest not found: {args.dataset.resolve()}. Evaluation data is not bundled with the models. Collect labelled ID photos and nine-second challenge recordings, then create the JSONL manifest. See docs/pretrained-kyc.md.')
+    if not args.dataset.read_text(encoding='utf-8-sig').strip():
+        parser.error('The dataset manifest is empty. Add labelled real samples before evaluation; an empty file cannot enable verification.')
     models = PretrainedFaces(args.models)
     if not models.loaded:
         raise SystemExit('Install pretrained models first')

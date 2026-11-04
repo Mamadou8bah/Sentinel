@@ -48,6 +48,11 @@ URLs and hashes are in `app/models/assets/pretrained-manifest.json`.
 
 ## Evaluate without training
 
+For online datasets which do not contain our recording challenges, use
+[public component benchmarks](public-benchmarks.md). The LFW downloader and
+separate passive-PAD/OCR evaluators produce diagnostic reports without turning
+them into full-KYC acceptance evidence.
+
 Loaded weights allow real inference, but do not automatically grant VERIFIED.
 The service reports loaded and evaluated status separately. Face matching,
 anti-spoof detection and head-turn checks do not authenticate an identity document.
