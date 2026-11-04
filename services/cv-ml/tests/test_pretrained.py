@@ -111,3 +111,20 @@ def test_installer_rejects_changed_download_without_replacing_existing_file(tmp_
     with pytest.raises(ValueError, match='checksum'): install_pretrained.install(target.parent)
     assert target.read_bytes() == b'previous weights'
     assert not list(target.parent.glob('*.download'))
+
+
+def test_recording_gpu_path_preserves_two_scales_and_shared_auth(monkeypatch):
+    models, track = fixture_models(monkeypatch)
+    key = 'test-gpu-service-key-' * 3
+    monkeypatch.setenv('ML_SERVICE_API_KEY', key)
+    calls = []
+    def predict(batches, credential):
+        assert credential == key
+        assert len(batches) == 2 and all(batch.shape == (30, 3, 80, 80) for batch in batches)
+        calls.append(1)
+        return {'device': 'cuda', 'probabilities': [[[0., 1., 0.]] * 30] * 2}
+    models.gpu_predict = predict
+    result = models.score_recording('fixture', track)
+    assert calls == [1] and not result['spoofLikely'] and result['livenessScore'] == 1.
+    models.gpu_predict = lambda *_: {'device': 'cpu', 'probabilities': [[[0., 1., 0.]] * 30] * 2}
+    with pytest.raises(RuntimeError, match='CUDA'): models.score_recording('fixture', track)

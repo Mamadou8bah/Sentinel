@@ -15,6 +15,7 @@ def create_app(database: str | None = None, model_directory: str | None = None) 
     models = IdentityModels(model_directory or os.getenv("CV_ML_ARTIFACT_DIR"),
                             pretrained_directory=os.getenv("CV_PRETRAINED_DIR"),
                             document_ocr=os.getenv("CV_DOCUMENT_OCR", "false").lower() == "true")
+    api.state.models = models
     from app.api.security import InferenceAuth
     api.add_middleware(InferenceAuth)
     @api.get("/")

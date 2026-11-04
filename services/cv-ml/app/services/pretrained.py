@@ -2,6 +2,7 @@
 import hashlib
 import json
 import math
+import os
 from pathlib import Path
 import threading
 
@@ -36,6 +37,7 @@ class PretrainedFaces:
     def __init__(self, directory):
         self.loaded, self.evaluated, self.error = False, False, None
         self._lock = threading.Lock()
+        self.gpu_predict = None
         self.face_threshold, self.live_threshold = .363, .9
         try:
             import cv2
@@ -58,6 +60,9 @@ class PretrainedFaces:
                 if any(not torch.isfinite(value).all() for value in model.state_dict().values()):
                     raise ValueError('Non-finite pretrained weights')
                 self.spoof_models.append((model.eval(), scale))
+            if os.getenv('CV_ZERO_GPU', 'false').lower() == 'true':
+                from app.services.zero_gpu import create_predictor
+                self.gpu_predict = create_predictor(self.spoof_models)
             self.loaded = True
             policy = directory / 'acceptance.json'
             if policy.exists():
@@ -106,14 +111,20 @@ class PretrainedFaces:
             embedding = self.embedding(item['image'], item['face'])
             similarities.append(float(np.clip(np.dot(reference, embedding), -1., 1.)))
         # Evaluate all sampled frames, with both original pretrained context scales.
-        with torch.inference_mode(), self._lock:
-            for model, scale in self.spoof_models:
-                batch = torch.from_numpy(np.stack([context_crop(item['image'], item['face']['detection'], scale)
-                                                    for item in observations]))
-                logits = model(batch)
-                if logits.shape != (len(observations), 3) or not torch.isfinite(logits).all():
-                    raise ValueError('Invalid anti-spoof inference')
-                probabilities.append(logits.softmax(dim=1).numpy())
+        batches = [np.stack([context_crop(item['image'], item['face']['detection'], scale)
+                              for item in observations]) for _model, scale in self.spoof_models]
+        if getattr(self, 'gpu_predict', None) is not None:
+            result = self.gpu_predict(batches, os.getenv('ML_SERVICE_API_KEY', ''))
+            probabilities = np.asarray(result['probabilities'], dtype=np.float32)
+            if result.get('device') != 'cuda' or probabilities.shape != (2, len(observations), 3) or not np.isfinite(probabilities).all():
+                raise RuntimeError('Invalid CUDA anti-spoof response')
+        else:
+            with torch.inference_mode(), self._lock:
+                for (model, _scale), batch in zip(self.spoof_models, batches, strict=True):
+                    logits = model(torch.from_numpy(batch))
+                    if logits.shape != (len(observations), 3) or not torch.isfinite(logits).all():
+                        raise ValueError('Invalid anti-spoof inference')
+                    probabilities.append(logits.softmax(dim=1).numpy())
         prediction = np.mean(probabilities, axis=0)
         # Upstream class 1 is real; both spoof classes must lose on every sampled frame.
         live = float(prediction[:, 1].min())

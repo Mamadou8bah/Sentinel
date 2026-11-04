@@ -68,6 +68,7 @@ class IdentityModels:
             result.update(mode='pretrained-face', faceModelLoaded=self.pretrained.loaded,
                           spoofModelLoaded=self.pretrained.loaded,
                           faceModelsEvaluated=self.pretrained.evaluated,
+                          antiSpoofBackend='zerogpu' if getattr(self.pretrained, 'gpu_predict', None) else 'cpu',
                           pretrainedError=self.pretrained.error)
             result['modelErrors'] = {task: error for task, error in self.errors.items() if task in ('ocr', 'tampering')}
         if self.document_ocr is not None:

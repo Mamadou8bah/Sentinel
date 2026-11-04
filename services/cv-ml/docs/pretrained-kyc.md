@@ -1,5 +1,13 @@
 # Pretrained KYC
 
+Live API: https://mamadoubah-sentinel-kyc.hf.space (free ZeroGPU).
+Deployment acceptance on 4 November 2026 confirmed protected inference routes,
+authorised challenge creation, generated-document OCR, and actual CUDA execution
+of both MiniFASNet models. These are infrastructure smoke checks, not identity
+accuracy measurements. `/health` intentionally reports `verificationReady=false`
+until representative acceptance and evaluated document-authenticity checks are
+available. The hosting framework is not a public identity-upload demo.
+
 Face models no longer require training from scratch. YuNet locates a single face,
 SFace aligns its landmarks and compares the document portrait against every
 sampled recording face. MiniVision MiniFASNetV2 and V1SE classify the original
@@ -27,7 +35,7 @@ issued challenge ID to `POST /cv/kyc-verify-recording`, as existing clients do.
 No new mobile build or API route is needed. The older three-frame endpoint cannot
 replace continuous recording verification.
 
-Inference runs on CPU, with no CUDA or torchvision dependency. The PyTorch runtime
+Local and Docker inference runs on CPU, with no CUDA or torchvision dependency. The PyTorch runtime
 still adds memory beyond the roughly 42 MB of weights. Measure the deployed
 service's memory and latency; model file size is not its total RAM requirement.
 
@@ -130,6 +138,27 @@ From the Sentinel repository root:
 python scripts/prepare_kyc_space.py --output ../.local-validation/hf-sentinel-kyc-release
 ```
 
+For free eligible personal accounts, select ZeroGPU instead:
+
+```powershell
+python scripts/prepare_kyc_space.py --sdk gradio --output ../.local-validation/hf-sentinel-kyc-zerogpu
+```
+
+Hugging Face currently requires a paid plan for new Docker/CPU Basic Spaces.
+Its free personal-account exception allows up to two eligible ZeroGPU Spaces.
+See [HF ZeroGPU hosting](https://huggingface.co/docs/hub/spaces-zerogpu).
+The Gradio SDK is used only for ZeroGPU lifecycle registration: the public root
+returns API information, with no identity-upload demo interface. All inference
+and Gradio routes require the shared service key; websocket connections are
+disabled. MiniFASNet executes on CUDA inside a real ZeroGPU allocation. YuNet,
+SFace and document OCR remain on CPU. GPU quota exhaustion returns an unavailable
+error rather than bypassing checks. Quotas, queues and cold starts apply.
+
+`POST /cv/runtime-check` is an authenticated diagnostic which runs both
+anti-spoof networks on generated tensors and reports the actual device. It uses
+a GPU allocation; ordinary `/health` checks do not. It is a deployment smoke
+check, not an identity or liveness-accuracy evaluation.
+
 The export copies only the CV application, verified face weights, licences and
 existing acceptance reports. PP-OCRv4 weights install with the pinned dependency.
 No datasets, environment files, logs, challenge database or credentials are
@@ -137,7 +166,8 @@ copied. Optional `--documents services/cv-ml/artifacts/identity` includes only
 `tampering/weights.pt` and `tampering/evaluation.json`; runtime still validates
 their independent acceptance gates.
 
-Create a Docker Space on CPU Basic, upload the exported directory, and set the
+Create a Gradio Space on free ZeroGPU (or a Docker Space with a suitable paid
+plan), upload the exported directory, and set the
 `ML_SERVICE_API_KEY` Space secret to the same key configured on Sentinel. The
 export uses port 7860 and configures pretrained face models and document OCR.
 Set its actual `https://<account>-<space>.hf.space` URL as `CV_ML_BASE_URL` on
