@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
@@ -21,3 +21,9 @@ class RecordingKycRequest(BaseModel):
     idImage: EncodedImage
     videoBase64: Annotated[str, Field(min_length=1, max_length=10_666_768)]
     challengeId: Annotated[str, Field(min_length=1, max_length=64)]
+
+
+class DocumentRequest(BaseModel):
+    documentImage: EncodedImage
+    docType: Literal['ID', 'CHEQUE', 'INVOICE'] = 'ID'
+    referenceSignature: EncodedImage | None = None

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
-from app.api.schemas import KycRequest, LivenessRequest, RecordingKycRequest
+from app.api.schemas import KycRequest, LivenessRequest, RecordingKycRequest, DocumentRequest
 from app.services.evidence import inspect_image
 from app.services.identity import IdentityModels
 from app.storage.challenges import ChallengeError, ChallengeStore
@@ -29,6 +29,22 @@ def create_router(store: ChallengeStore, models: IdentityModels) -> APIRouter:
     @api.post("/cv/liveness/challenge")
     def challenge():
         return {**store.create(), "recordingSeconds": 9, "promptSeconds": 3, "maxVideoBytes": 8_000_000}
+
+    @api.post('/cv/document-verify')
+    def document_verify(request: DocumentRequest):
+        evidence = inspect(request.documentImage)
+        if request.referenceSignature is not None:
+            inspect(request.referenceSignature)
+        try:
+            result = models.document_verify(request.documentImage, request.docType, request.referenceSignature)
+            if not evidence['qualityOk']:
+                result.update(modelRan=False, documentChecksAccepted=False, manualReviewRequired=True)
+                result['signals'].append('LOW_IMAGE_QUALITY')
+            return {**result, 'qualityOk': evidence['qualityOk'], 'pipeline': 'document-checks-v1'}
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from None
+        except Exception:
+            raise HTTPException(503, 'Document inference unavailable') from None
 
     @api.post("/cv/liveness/verify")
     def verify(request: LivenessRequest):
@@ -111,7 +127,9 @@ def create_router(store: ChallengeStore, models: IdentityModels) -> APIRouter:
                         "challengeId": request.challengeId, "recordingFormat": extension[1:],
                         "recordingSha256": track['recordingSha256'], "sampledFrames": track['sampledFrames'],
                         "durationSeconds": track['durationSeconds'],
-                        "explanation": "Document portrait compared against tracked video faces; liveness evaluated" if result['modelRan'] else "Evaluated identity models unavailable; recording cannot grant VERIFIED status"}
+                        "explanation": "Document portrait compared against tracked video faces; liveness evaluated" if result['modelRan'] else
+                            ("Pretrained face matching and anti-spoof inference ran; document checks or holdout acceptance remain incomplete"
+                             if result.get('faceModelsRan') else "Evaluated identity models unavailable; recording cannot grant VERIFIED status")}
             store.consume(request.challengeId, {"inputHash": input_hash, "response": response})
             return response
         except ChallengeError as error:

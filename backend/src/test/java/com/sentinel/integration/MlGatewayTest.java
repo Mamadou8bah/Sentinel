@@ -245,6 +245,35 @@ class MlGatewayTest {
     }
 
     @Test
+    void documentOcrCannotMasqueradeAsEvaluatedAuthenticity() {
+        status = 200;
+        body = """
+                {"extractedFields":{"idNumber":"TEST123"},"tamperingScore":0.01,
+                 "modelRan":false,"qualityOk":true,"documentChecksAccepted":false,
+                 "signals":["DOCUMENT_AUTHENTICITY_UNAVAILABLE"]}
+                """;
+        var result = gateway.scoreDocument("ID", false, "Customer", "7", "id", null);
+        assertThat(result.tampering()).isEqualTo(1.0);
+        assertThat(result.fraudRisk()).isEqualTo(1.0);
+        assertThat(result.consistencyFlags()).contains("DOCUMENT_AUTHENTICITY_UNAVAILABLE", "DOCUMENT_CHECKS_INCOMPLETE_OR_REJECTED");
+        assertThat(result.ocr()).containsEntry("idNumber", "TEST123");
+        assertThatThrownBy(() -> gateway.scoreDocument("ID", true, "Customer", "7", "id", "signature"))
+                .isInstanceOf(ResponseStatusException.class);
+    }
+
+    @Test
+    void acceptedDocumentRequiresExplicitReadinessQualityAndAcceptance() {
+        status = 200;
+        body = """
+                {"extractedFields":{"idNumber":"TEST123"},"tamperingScore":0.01,
+                 "modelRan":true,"qualityOk":true,"documentChecksAccepted":true,"signals":[]}
+                """;
+        assertThat(gateway.scoreDocument("ID", false, "Customer", "7", "id", null).tampering()).isEqualTo(0.01);
+        body = body.replace("\"qualityOk\":true", "\"qualityOk\":false");
+        assertThat(gateway.scoreDocument("ID", false, "Customer", "7", "id", null).tampering()).isEqualTo(1.0);
+    }
+
+    @Test
     void forwardsInferenceSecretToBothRemoteServices() {
         assertThatThrownBy(() -> gateway.scoreKyc("7", "Customer", "id", "selfie"))
                 .isInstanceOf(ResponseStatusException.class);

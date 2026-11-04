@@ -1,5 +1,11 @@
 # Add the trained KYC models after building
 
+For the pretrained YuNet/SFace/MiniFASNet backend, follow
+[pretrained KYC setup](../services/cv-ml/docs/pretrained-kyc.md). It replaces the
+custom face and liveness networks, with independent holdout acceptance. OCR and
+tampering checks remain required separately. The four-artifact importer described
+below applies to the original custom-trained backend.
+
 The applications build and run without identity weights. KYC remains pending or
 unavailable until all four evaluated artifacts load. No application rebuild is
 needed merely to change the configured artifact directory; restart the identity

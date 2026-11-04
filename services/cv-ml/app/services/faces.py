@@ -69,7 +69,10 @@ def locate_face(rgb, minimum=40):
     gray = cv2.cvtColor(crop, cv2.COLOR_RGB2GRAY)
     if float(gray.std()) < 8 or float(cv2.Laplacian(gray, cv2.CV_64F).var()) < 15:
         raise ValueError("Face is blurred or has insufficient detail")
-    return {"crop": crop, "box": (x / width, y / height, w / width, h / height), "yaw": yaw}
+    detection = face.copy()
+    detection[:14] /= scale
+    return {"crop": crop, "box": (x / width, y / height, w / width, h / height), "yaw": yaw,
+            "detection": detection}
 
 
 def face_image(source, encoded=False):

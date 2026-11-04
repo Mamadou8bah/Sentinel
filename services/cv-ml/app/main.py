@@ -12,7 +12,9 @@ def create_app(database: str | None = None, model_directory: str | None = None) 
     from app.api.limits import BodyLimit
     api.add_middleware(BodyLimit)
     store = ChallengeStore(database or os.getenv("CV_CHALLENGE_DB", "runtime/challenges.sqlite3"))
-    models = IdentityModels(model_directory or os.getenv("CV_ML_ARTIFACT_DIR"))
+    models = IdentityModels(model_directory or os.getenv("CV_ML_ARTIFACT_DIR"),
+                            pretrained_directory=os.getenv("CV_PRETRAINED_DIR"),
+                            document_ocr=os.getenv("CV_DOCUMENT_OCR", "false").lower() == "true")
     from app.api.security import InferenceAuth
     api.add_middleware(InferenceAuth)
     @api.get("/")

@@ -101,7 +101,7 @@ def analyze_recording(raw, extension, instructions):
     if instructions not in (["LOOK_FORWARD", "TURN_LEFT", "TURN_RIGHT"], ["LOOK_FORWARD", "TURN_RIGHT", "TURN_LEFT"]):
         raise ValueError("Unsupported recording challenge")
     samples, duration = decode_samples(raw, extension)
-    crops, phases, previous = [], [[], [], []], None
+    crops, phases, previous, observations = [], [[], [], []], None, []
     # Pixel/geometry checks reject ambiguous captures; they never establish liveness.
     for timestamp, frame in samples:
         try:
@@ -120,6 +120,9 @@ def analyze_recording(raw, extension, instructions):
         previous = box
         crop = encode_image(face["crop"])
         crops.append(crop)
+        # Preserve the original face landmarks and background for SFace alignment
+        # and MiniFASNet's trained 2.7x / 4x context crops. Tight crops are insufficient.
+        observations.append({"image": frame, "face": face})
         phase = min(2, int(timestamp / SEGMENT_SECONDS))
         # Only settled poses, after time to follow the prompt, are used for instruction checks.
         if 1.5 <= timestamp - phase * SEGMENT_SECONDS <= 2.9:
@@ -134,5 +137,6 @@ def analyze_recording(raw, extension, instructions):
         if (instruction == "TURN_LEFT" and shift < .12) or (instruction == "TURN_RIGHT" and shift > -.12):
             raise ValueError("Head turns do not match the issued prompt order")
     selected = [min(phase, key=lambda item: abs(item[0] - poses[index]))[1] for index, phase in enumerate(phases)]
-    return {"faceCrops": crops, "challengeCrops": selected, "durationSeconds": round(duration, 3),
+    return {"faceCrops": crops, "challengeCrops": selected, "observations": observations,
+            "durationSeconds": round(duration, 3),
             "sampledFrames": len(crops), "recordingSha256": hashlib.sha256(raw).hexdigest()}

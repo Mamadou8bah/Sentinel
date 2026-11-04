@@ -62,8 +62,10 @@ issuing authority. The recording pipeline extracts three settled face crops in t
 instruction order for the liveness model. Every sampled face is separately
 compared against the document portrait; the minimum match score is used.
 Challenge evidence binds both document and recording hashes, expires and permits
-only identical-evidence retries. Cached retries return the original result. The planned independent
-`/cv/document-verify` contract remains unimplemented.
+only identical-evidence retries. Cached retries return the original result.
+`/cv/document-verify` now provides document OCR, consistency checks and explicit
+review/readiness flags. Unsupported authenticity and signature checks are never
+reported as successful. See the pretrained setup below.
 
 ## Directory layout
 
@@ -123,3 +125,10 @@ and liveness manifests should reference original images containing one clear
 face; preprocessing extracts crops automatically. OCR and tampering retain the
 complete document image. Validate the full recording flow on representative
 people, cameras and attack recordings before enabling live verification.
+
+## Pretrained face matching and liveness
+
+Use the [pretrained KYC setup](docs/pretrained-kyc.md) for YuNet, SFace and
+MiniFASNet inference without training face models. Set `CV_PRETRAINED_DIR` after
+installing pinned weights. Loading models is reported separately from holdout
+acceptance and document-check readiness; incomplete checks cannot grant VERIFIED.

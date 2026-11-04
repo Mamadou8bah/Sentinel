@@ -302,10 +302,25 @@ public class MlGateway {
                     resp.get("extractedFields") instanceof Map<?, ?> m
                             ? (Map<String, Object>) m
                             : Map.of();
+            if (hasSpecimen && !Boolean.TRUE.equals(resp.get("signatureModelRan")))
+                throw new IllegalStateException("Signature comparison model unavailable");
             Double sig = hasSpecimen ? requireScore(resp.get("signatureMatchScore")) : null;
             double tamper = requireScore(resp.get("tamperingScore"));
+            java.util.List<String> flags = new java.util.ArrayList<>();
+            if (resp.get("signals") instanceof java.util.List<?> signals) {
+                for (Object signal : signals) {
+                    if (signal instanceof String value && value.matches("[A-Z0-9_]{1,100}"))
+                        flags.add(value);
+                }
+            }
+            if (!Boolean.TRUE.equals(resp.get("modelRan"))
+                    || !Boolean.TRUE.equals(resp.get("documentChecksAccepted"))
+                    || !Boolean.TRUE.equals(resp.get("qualityOk"))) {
+                tamper = 1.0;
+                flags.add("DOCUMENT_CHECKS_INCOMPLETE_OR_REJECTED");
+            }
             double fraud = Math.max(tamper, sig == null ? 0.3 : 1.0 - sig);
-            return new DocumentScores(ocr, tamper, sig, List.of(), fraud);
+            return new DocumentScores(ocr, tamper, sig, flags, fraud);
         } catch (Exception e) {
             throw unavailable("Document", e);
         }

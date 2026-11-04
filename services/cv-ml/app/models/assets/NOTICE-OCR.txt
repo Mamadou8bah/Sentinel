@@ -1,0 +1,13 @@
+Pretrained PP-OCRv4 models are distributed by RapidAI/RapidOCR 3.4.2,
+derived from PaddlePaddle/PaddleOCR mobile OCR models (Apache-2.0).
+
+RapidOCR source and model table:
+https://github.com/RapidAI/RapidOCR/tree/v3.4.2
+https://github.com/RapidAI/RapidOCR/blob/v3.4.2/python/rapidocr/default_models.yaml
+
+PaddleOCR upstream:
+https://github.com/PaddlePaddle/PaddleOCR
+
+Runtime model files and recognition dictionary are checksum-pinned in
+app/services/document_ocr.py. The original Apache-2.0 licence is included as
+LICENSE-RapidOCR.txt. No identity documents or evaluation samples are bundled.

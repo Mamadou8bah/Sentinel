@@ -13,8 +13,17 @@ TASKS = ("face", "liveness", "tampering", "ocr")
 
 
 class IdentityModels:
-    def __init__(self, directory=None):
+    def __init__(self, directory=None, pretrained_directory=None, document_ocr=False):
         self.models, self.metadata, self.errors = {}, {}, {}
+        self.pretrained = None
+        self.document_ocr = None
+        if document_ocr:
+            from app.services.document_ocr import DocumentOcr
+            acceptance = Path(pretrained_directory or directory or 'artifacts/pretrained') / 'ocr-acceptance.json'
+            self.document_ocr = DocumentOcr(acceptance)
+        if pretrained_directory:
+            from app.services.pretrained import PretrainedFaces
+            self.pretrained = PretrainedFaces(pretrained_directory)
         if directory is None:
             return
         from app.models.network import IdentityModel
@@ -41,13 +50,31 @@ class IdentityModels:
 
     @property
     def ready(self):
+        if self.pretrained is not None:
+            return self.pretrained.loaded and self.pretrained.evaluated and self.documents_ready
         return all(task in self.models for task in TASKS)
 
+    @property
+    def documents_ready(self):
+        ocr_ready = (self.document_ocr.loaded and self.document_ocr.evaluated) if self.document_ocr else 'ocr' in self.models
+        return bool(ocr_ready and 'tampering' in self.models)
+
     def health(self):
-        return {'mode': 'trained-identity' if self.ready else 'evidence-validation',
+        result = {'mode': 'trained-identity' if self.ready else 'evidence-validation',
                 'faceModelLoaded': 'face' in self.models, 'spoofModelLoaded': 'liveness' in self.models,
                 'ocrModelLoaded': 'ocr' in self.models, 'tamperingModelLoaded': 'tampering' in self.models,
                 'verificationReady': self.ready, 'modelErrors': self.errors}
+        if self.pretrained is not None:
+            result.update(mode='pretrained-face', faceModelLoaded=self.pretrained.loaded,
+                          spoofModelLoaded=self.pretrained.loaded,
+                          faceModelsEvaluated=self.pretrained.evaluated,
+                          pretrainedError=self.pretrained.error)
+            result['modelErrors'] = {task: error for task, error in self.errors.items() if task in ('ocr', 'tampering')}
+        if self.document_ocr is not None:
+            result.update(ocrModelLoaded=self.document_ocr.loaded, ocrModelEvaluated=self.document_ocr.evaluated,
+                          ocrError=self.document_ocr.error)
+        result['documentChecksReady'] = self.documents_ready
+        return result
 
     def liveness(self, frames, instructions, cropped=False):
         if 'liveness' not in self.models:
@@ -64,7 +91,7 @@ class IdentityModels:
                 'signals': [] if accepted else ['LIVENESS_OR_INSTRUCTIONS_REJECTED']}
 
     def kyc(self, document, selfie):
-        if not self.ready:
+        if self.pretrained is not None or not self.ready:
             return {'extractedFields': {}, 'faceMatchScore': 0., 'tamperingScore': 1., 'modelRan': False,
                     'signals': [task.upper() + '_MODEL_UNAVAILABLE' for task in TASKS if task not in self.models]}
         import torch
@@ -89,6 +116,8 @@ class IdentityModels:
                 'modelVersions': {task: meta['weightsSha256'][:16] for task, meta in self.metadata.items()}}
 
     def recording_kyc(self, document, track, instructions):
+        if self.pretrained is not None:
+            return self.pretrained_recording(document, track)
         if not self.ready:
             return {"extractedFields": {}, "faceMatchScore": 0., "livenessScore": 0., "tamperingScore": 1.,
                     "spoofLikely": False, "modelRan": False,
@@ -122,6 +151,85 @@ class IdentityModels:
                 "tamperingScore": tamper, "spoofLikely": live['spoofLikely'], "modelRan": True, "signals": signals,
                 "comparedFrames": len(comparisons),
                 "modelVersions": {task: meta['weightsSha256'][:16] for task, meta in self.metadata.items()}}
+
+    def pretrained_recording(self, document, track):
+        if not self.pretrained.loaded:
+            return {'extractedFields': {}, 'faceMatchScore': 0., 'livenessScore': 0., 'tamperingScore': 1.,
+                    'spoofLikely': False, 'modelRan': False, 'signals': ['PRETRAINED_FACE_MODELS_UNAVAILABLE']}
+        result = self.pretrained.score_recording(document, track)
+        if self.document_ocr is not None:
+            document_result = self.document_verify(document, 'ID')
+            return {**result, 'extractedFields': document_result['extractedFields'],
+                    'tamperingScore': document_result['tamperingScore'],
+                    'documentChecksAccepted': document_result['documentChecksAccepted'],
+                    'signals': result['signals'] + document_result['signals'],
+                    'modelVersions': {**result['modelVersions'], **document_result['modelVersions']},
+                    'faceModelsRan': True, 'ocrModelRan': document_result['ocrModelRan'],
+                    'modelRan': self.ready and document_result['documentChecksAccepted']}
+        fields, tamper = {}, 1.
+        if all(task in self.models for task in ('ocr', 'tampering')):
+            import torch
+            from app.models.preprocessing import image_tensor
+            from app.models.network import decode_text
+            with torch.inference_mode():
+                tamper = float(self.models['tampering'](image_tensor(document, 'tampering', encoded=True).unsqueeze(0)).sigmoid().item())
+                text = decode_text(self.models['ocr'](image_tensor(document, 'ocr', encoded=True).unsqueeze(0)).argmax(-1)[:, 0].tolist())
+            fields = extract_fields(text)
+            if tamper >= self.metadata['tampering']['threshold']:
+                tamper = 1.; result['signals'].append('DOCUMENT_TAMPERING_DETECTED')
+            result['modelVersions'].update({task: self.metadata[task]['weightsSha256'] for task in ('ocr', 'tampering')})
+        else:
+            result['signals'].append('DOCUMENT_CHECKS_UNAVAILABLE')
+        if len(fields) != 2:
+            result['signals'].append('REQUIRED_ID_FIELDS_UNREADABLE')
+        return {**result, 'extractedFields': fields, 'tamperingScore': tamper,
+                'faceModelsRan': True, 'modelRan': self.ready}
+
+    def document_verify(self, document, doc_type='ID', reference=None):
+        signals, fields, versions = [], {}, {}
+        ocr_ran, tamper_ran, score = False, False, 1.
+        if self.document_ocr is not None and self.document_ocr.loaded:
+            result = self.document_ocr.inspect(document)
+            fields, signals, versions = result['extractedFields'], list(result['signals']), result['modelVersions']
+            ocr_ran = True
+        elif self.document_ocr is None and 'ocr' in self.models:
+            import torch
+            from app.models.preprocessing import image_tensor
+            from app.models.network import decode_text
+            with torch.inference_mode():
+                text = decode_text(self.models['ocr'](image_tensor(document, 'ocr', encoded=True).unsqueeze(0)).argmax(-1)[:, 0].tolist())
+            fields = extract_fields(text)
+            ocr_ran = True
+            versions['ocr'] = self.metadata['ocr']['weightsSha256']
+        else:
+            signals.append('OCR_MODEL_UNAVAILABLE')
+        if doc_type == 'ID' and not all(key in fields for key in ('idNumber', 'dob')):
+            signals.append('REQUIRED_ID_FIELDS_UNREADABLE')
+        if 'tampering' in self.models:
+            import torch
+            import math
+            from app.models.preprocessing import image_tensor
+            with torch.inference_mode():
+                score = float(self.models['tampering'](image_tensor(document, 'tampering', encoded=True).unsqueeze(0)).sigmoid().item())
+            if not math.isfinite(score):
+                raise ValueError('Invalid document model output')
+            tamper_ran = True
+            versions['tampering'] = self.metadata['tampering']['weightsSha256']
+            if score >= self.metadata['tampering']['threshold']:
+                score = 1.; signals.append('DOCUMENT_TAMPERING_DETECTED')
+        else:
+            signals.append('DOCUMENT_AUTHENTICITY_UNAVAILABLE')
+        if doc_type != 'ID':
+            signals.append('DOCUMENT_TYPE_REQUIRES_SPECIALIST_REVIEW')
+        if reference is not None:
+            signals.append('SIGNATURE_MODEL_UNAVAILABLE')
+        accepted = self.documents_ready and not signals and doc_type == 'ID' and reference is None
+        return {'extractedFields': fields, 'tamperingScore': score,
+                'signatureMatchScore': None, 'signatureModelRan': False,
+                'ocrModelRan': ocr_ran, 'tamperingModelRan': tamper_ran,
+                'modelRan': bool(ocr_ran and tamper_ran and self.documents_ready and reference is None),
+                'documentChecksAccepted': bool(accepted), 'manualReviewRequired': not accepted,
+                'signals': sorted(set(signals)), 'modelVersions': versions}
 
 
 def extract_fields(text):
