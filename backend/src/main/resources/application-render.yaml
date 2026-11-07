@@ -26,6 +26,9 @@ spring:
     baseline-on-migrate: false
     clean-disabled: true
   jpa:
+    properties:
+      hibernate:
+        default_schema: sentinel
     hibernate:
       ddl-auto: validate
 sentinel:

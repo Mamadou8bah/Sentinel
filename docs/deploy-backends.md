@@ -51,3 +51,19 @@ Free Render filesystem uploads are ephemeral and its free PostgreSQL expires
 after 30 days. Durable evidence storage and database backups are required before
 relying on the hosted system for real customer records. See
 [Render limits](https://render.com/docs/free).
+
+
+## Neon schema isolation
+
+Use Neon's direct database endpoint (disable Connection pooling in its connection
+settings) for this Java service. Hikari already limits the service to three
+connections. Flyway relies on session state when executing the original schema
+migration; transaction pooling can discard that state between statements.
+Hibernate also explicitly qualifies tables with its `sentinel` default schema.
+
+V2 repairs an initial V1 deployment whose tables landed in `public`. It moves only
+missing Sentinel tables whose column names exactly match the original migration,
+preserving their rows, owned sequences, indexes and foreign keys. It leaves
+existing `sentinel` tables untouched and aborts on incompatible public tables.
+Do not change V1, delete Flyway history, or enable Hibernate schema updates.
+Update Render's datasource URL to the direct endpoint before redeploying.
