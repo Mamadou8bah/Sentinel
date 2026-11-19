@@ -113,6 +113,13 @@ public class TenantService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found"));
     }
 
+    /** Serializes the short session-create section, never the ML cold-start call. */
+    @Transactional
+    public Tenant lockForKycStart(Long tenantId) {
+        return tenantRepository.findForKycStart(tenantId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found"));
+    }
+
     @Transactional
     public Tenant updateWebhookUrl(Long tenantId, String webhookUrl, String signingSecret) {
         Tenant tenant = requireTenant(tenantId);

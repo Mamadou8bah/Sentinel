@@ -84,11 +84,23 @@ public class KycService {
     @Transactional
     public KycSession startSession(Long tenantId, String externalCustomerId, String returnUrl) {
         Tenant tenant = tenantService.requireTenant(tenantId);
+        String identity = externalCustomerId.trim();
+        var existing = kycSessionRepository
+                .findFirstByTenant_IdAndExternalCustomerIdAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
+                        tenantId, identity, KycSessionStatus.PENDING, Instant.now());
+        if (existing.isPresent()) return existing.get();
+        // Warm the model without holding the tenant row lock. Re-check under
+        // that lock before persisting, including overlapping timeout retries.
+        var challenge = mlGateway.startLivenessChallenge();
+        tenant = tenantService.lockForKycStart(tenantId);
+        existing = kycSessionRepository
+                .findFirstByTenant_IdAndExternalCustomerIdAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
+                        tenantId, identity, KycSessionStatus.PENDING, Instant.now());
+        if (existing.isPresent()) return existing.get();
         KycSession session = new KycSession();
         session.setTenant(tenant);
-        session.setExternalCustomerId(externalCustomerId.trim());
+        session.setExternalCustomerId(identity);
         session.setStatus(KycSessionStatus.PENDING);
-        var challenge = mlGateway.startLivenessChallenge();
         session.setChallengeId(challenge.id());
         session.setLivenessHint(challenge.hint());
         session.setPublicToken(Hashing.randomHex(24));
