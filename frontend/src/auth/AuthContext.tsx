@@ -28,6 +28,9 @@ type AuthState = {
   isDemo: boolean
 }
 
+/** Set when a session expires so the login screen can say why the user is there. */
+export const SESSION_EXPIRED_FLAG = 'sentinel.sessionExpired'
+
 const AuthContext = createContext<AuthState | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -35,7 +38,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isDemo, setIsDemo] = useState(() => isDemoActive())
 
   useEffect(() => {
-    const onExpired = () => setSession(null)
+    const onExpired = () => {
+      try {
+        sessionStorage.setItem(SESSION_EXPIRED_FLAG, '1')
+      } catch {
+        /* ignore */
+      }
+      setSession(null)
+    }
     const onDemo = () => setIsDemo(isDemoActive())
     window.addEventListener(AUTH_EXPIRED_EVENT, onExpired)
     window.addEventListener('sentinel:demo', onDemo)

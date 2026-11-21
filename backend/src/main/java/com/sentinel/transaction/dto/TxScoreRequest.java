@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 public record TxScoreRequest(
-        @NotBlank String externalCustomerId,
+        @NotBlank @jakarta.validation.constraints.Size(max = 128) String externalCustomerId,
         @NotBlank String externalTransactionId,
         @NotNull @DecimalMin("0.01") BigDecimal amount,
         String currency,

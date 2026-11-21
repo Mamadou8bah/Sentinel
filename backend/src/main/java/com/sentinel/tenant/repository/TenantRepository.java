@@ -11,6 +11,10 @@ import jakarta.persistence.LockModeType;
 public interface TenantRepository extends JpaRepository<Tenant, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from Tenant t where t.id = :id")
+    Optional<Tenant> findForCustomerEnrollment(Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select t from Tenant t where t.id = :id")
     Optional<Tenant> findForKycStart(Long id);
     Optional<Tenant> findByCode(String code);
 

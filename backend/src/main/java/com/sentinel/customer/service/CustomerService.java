@@ -7,6 +7,7 @@ import com.sentinel.common.util.TenantAccess;
 import com.sentinel.customer.dto.CustomerDetailResponse;
 import com.sentinel.customer.model.Customer;
 import com.sentinel.customer.repository.CustomerRepository;
+import com.sentinel.tenant.repository.TenantRepository;
 import com.sentinel.document.model.Document;
 import com.sentinel.document.repository.DocumentRepository;
 import com.sentinel.risk.service.RiskEngine;
@@ -24,6 +25,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class CustomerService {
 
     private final CustomerRepository customerRepository;
+    private final TenantRepository tenantRepository;
     private final DocumentRepository documentRepository;
     private final TransactionRepository transactionRepository;
     private final RiskEngine riskEngine;
@@ -33,6 +35,7 @@ public class CustomerService {
 
     public CustomerService(
             CustomerRepository customerRepository,
+            TenantRepository tenantRepository,
             DocumentRepository documentRepository,
             TransactionRepository transactionRepository,
             RiskEngine riskEngine,
@@ -40,6 +43,7 @@ public class CustomerService {
             AuditService auditService,
             FieldEncryption fieldEncryption) {
         this.customerRepository = customerRepository;
+        this.tenantRepository = tenantRepository;
         this.documentRepository = documentRepository;
         this.transactionRepository = transactionRepository;
         this.riskEngine = riskEngine;
@@ -95,6 +99,30 @@ public class CustomerService {
                 .findByTenant_IdAndExternalCustomerId(tenantId, externalCustomerId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Customer not found for externalCustomerId"));
+    }
+
+    /** Transaction risk monitoring can begin before Sentinel receives KYC evidence. */
+    @Transactional
+    public Customer requireRiskProfile(Long tenantId, String externalCustomerId) {
+        var existing = customerRepository.findByTenant_IdAndExternalCustomerId(tenantId, externalCustomerId);
+        if (existing.isPresent()) return existing.get();
+
+        // Serialize first enrollment within this tenant; recheck after acquiring
+        // the lock so concurrent first scores cannot create duplicate profiles.
+        var tenant = tenantRepository.findForCustomerEnrollment(tenantId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found"));
+        existing = customerRepository.findByTenant_IdAndExternalCustomerId(tenantId, externalCustomerId);
+        if (existing.isPresent()) return existing.get();
+        Customer customer = new Customer();
+        customer.setTenant(tenant);
+        customer.setExternalCustomerId(externalCustomerId);
+        customer.setName("Customer " + externalCustomerId);
+        // Defaults remain PENDING, with no identity evidence or verification scores.
+        customer = customerRepository.save(customer);
+        auditService.record(tenantId, TenantAccess.currentUserIdOrNull(), "RISK_PROFILE_CREATE",
+                "Customer", customer.getId().toString(), null,
+                Map.of("source", "transaction_scoring"));
+        return customer;
     }
 
     @Transactional(readOnly = true)

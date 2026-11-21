@@ -1,23 +1,42 @@
 import type { FormEvent } from 'react'
-import { useState } from 'react'
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { ApiError } from '../../api/client'
-import { useAuth } from '../../auth/AuthContext'
-import ShapeWaves from '../../components/ShapeWaves'
-import { Field, inputClass } from '../../components/desk/ui'
-import { SentinelLogo } from '../../components/landing/ui'
+import { useEffect, useState } from 'react'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { ApiError, demoSetting } from '../../api/client'
+import { SESSION_EXPIRED_FLAG, useAuth } from '../../auth/AuthContext'
+import { BrandMark } from '../../components/desk/BrandMark'
+import { Field, Notice, buttonClass, inputClass } from '../../components/desk/ui'
+import { readStoredTheme } from '../../theme/ThemeContext'
+
+const DEMO_TENANT = 'demo-bank'
+const DEMO_USER = 'compliance'
+const DEMO_PASSWORD = 'ChangeMe123!'
 
 export default function LoginPage() {
   const { login, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const from = (location.state as { from?: string } | null)?.from || '/desk'
+  // Demo credentials are only offered when this build can fall back to demo data.
+  const demoAvailable = demoSetting() !== 'false'
 
-  const [tenantCode, setTenantCode] = useState('demo-bank')
-  const [username, setUsername] = useState('compliance')
-  const [password, setPassword] = useState('ChangeMe123!')
+  const [tenantCode, setTenantCode] = useState(demoAvailable ? DEMO_TENANT : '')
+  const [username, setUsername] = useState(demoAvailable ? DEMO_USER : '')
+  const [password, setPassword] = useState(demoAvailable ? DEMO_PASSWORD : '')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [expired] = useState(() => {
+    try {
+      const flag = sessionStorage.getItem(SESSION_EXPIRED_FLAG) === '1'
+      sessionStorage.removeItem(SESSION_EXPIRED_FLAG)
+      return flag
+    } catch {
+      return false
+    }
+  })
+
+  useEffect(() => {
+    document.title = 'Sign in · Sentinel desk'
+  }, [])
 
   if (isAuthenticated) return <Navigate to={from} replace />
 
@@ -29,74 +48,54 @@ export default function LoginPage() {
       await login(tenantCode.trim(), username.trim(), password)
       navigate(from, { replace: true })
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Sign-in failed')
+      if (err instanceof ApiError && (err.status === 401 || err.status === 400)) {
+        setError('Those details didn’t match. Check the tenant code, username and password.')
+      } else {
+        setError(err instanceof ApiError ? err.message : 'Sign-in failed. Try again.')
+      }
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <div className="relative min-h-[100svh] overflow-hidden bg-black text-white" data-theme="dark">
-      <div className="absolute inset-0 z-0" aria-hidden>
-        <ShapeWaves
-          text="SENTINEL"
-          fontFamily='Roboto Condensed, Roboto, system-ui, sans-serif'
-          fontWeight={700}
-          textSize={0.55}
-          shapes="mixed"
-          cellSize={10}
-          dotSize={0.75}
-          color="#6e6e6e"
-          hoverColor="#FF6A2A"
-          backgroundColor="#000000"
-          speed={1}
-          scale={1}
-          contrast={1}
-          brightness={0.4}
-          flow={0}
-          direction={0}
-          fade={0.25}
-          interactive={true}
-          splashRadius={40}
-          splashStrength={0.4}
-          glow={0.35}
-          intro={true}
-          introDuration={1.6}
-          paused={false}
-        />
-      </div>
-      <div className="absolute inset-0 z-[1] bg-gradient-to-r from-black/75 via-black/45 to-black/20" />
-      <div className="absolute inset-0 z-[1] bg-gradient-to-t from-black via-transparent to-black/35" />
-
-      <div className="relative z-10 mx-auto grid min-h-[100svh] max-w-7xl items-center gap-10 px-5 py-16 md:grid-cols-2 md:px-8">
-        <div className="animate-fade-up max-w-lg">
-          <Link to="/" className="inline-flex">
-            <SentinelLogo size={44} />
-          </Link>
-          <p className="mt-10 text-sm uppercase tracking-[0.18em] text-white/70">Staff desk</p>
-          <h1 className="mt-2 font-display text-5xl font-black leading-[0.92] tracking-tight md:text-6xl">
-            Review what
-            <span className="block text-ember-glow">automation flags.</span>
-          </h1>
-          <p className="mt-5 max-w-md text-base text-white/75">
-            Case queue, customer 360°, and live risk — same Sentinel look your bank already trusts.
-          </p>
+    <div
+      data-surface="desk"
+      data-theme={readStoredTheme()}
+      className="flex min-h-[100svh] flex-col items-center justify-center bg-surface-page px-4 py-10 text-content"
+    >
+      <main className="w-full max-w-sm">
+        <div className="mb-6 flex items-center gap-2">
+          <BrandMark size={28} />
+          <span className="text-sm text-content-subtle">Staff desk</span>
         </div>
 
         <form
           onSubmit={onSubmit}
-          className="liquid-glass animate-fade-up w-full max-w-md rounded-[28px] p-7 md:justify-self-end md:p-8"
+          noValidate={false}
+          className="rounded-xl border border-line bg-surface p-6 shadow-surface"
+          aria-labelledby="login-title"
         >
-          <h2 className="font-display text-2xl font-bold">Sign in</h2>
-          <p className="mt-1 text-sm text-white/60">Tenant-scoped staff access</p>
+          <h1 id="login-title" className="text-xl font-semibold leading-7">
+            Sign in
+          </h1>
+          <p className="mt-1 text-sm text-content-muted">Use the tenant code your bank gave you.</p>
 
-          <div className="mt-7 space-y-4">
-            <Field label="Tenant">
+          {expired && (
+            <Notice tone="info" className="mt-4">
+              Your session expired. Sign in again to continue.
+            </Notice>
+          )}
+
+          <div className="mt-5 space-y-4">
+            <Field label="Tenant code">
               <input
                 className={inputClass}
                 value={tenantCode}
                 onChange={(e) => setTenantCode(e.target.value)}
                 autoComplete="organization"
+                autoCapitalize="none"
+                spellCheck={false}
                 required
               />
             </Field>
@@ -106,6 +105,8 @@ export default function LoginPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
                 required
               />
             </Field>
@@ -122,37 +123,24 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <p className="mt-4 rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-200">
+            <Notice tone="error" className="mt-4">
               {error}
-            </p>
+            </Notice>
           )}
 
-          <button
-            type="submit"
-            disabled={busy}
-            className="mt-6 inline-flex w-full items-center justify-between rounded-full bg-ember-grad px-6 py-3.5 text-sm font-semibold text-white transition hover:scale-[1.01] disabled:opacity-60"
-          >
-            {busy ? 'Signing in…' : 'Enter desk'}
-            <span className="grid h-8 w-8 place-items-center rounded-full bg-white">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
-                <path
-                  d="M3 7h8M7 3l4 4-4 4"
-                  stroke="#FF4515"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </span>
+          <button type="submit" disabled={busy} className={`${buttonClass('primary')} mt-5 w-full`}>
+            {busy ? 'Signing in…' : 'Sign in'}
           </button>
-
-          <p className="mt-5 text-center text-xs text-white/45">
-            Demo · demo-bank / compliance / ChangeMe123!
-            <br />
-            Works offline when the API is down (auto demo mode).
-          </p>
         </form>
-      </div>
+
+        {demoAvailable && (
+          <p className="mt-4 text-center text-xs text-content-subtle">
+            Demo credentials: <span className="font-mono">{DEMO_TENANT}</span> /{' '}
+            <span className="font-mono">{DEMO_USER}</span> / <span className="font-mono">{DEMO_PASSWORD}</span>.
+            If the API is offline the desk shows labelled demo data.
+          </p>
+        )}
+      </main>
     </div>
   )
 }

@@ -1,72 +1,133 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../../api/client'
 import type { AuditLog } from '../../api/types'
+import { DataTable, type Column } from '../../components/desk/DataTable'
 import {
   EmptyState,
-  LoadingBlock,
+  ErrorState,
   PageHeader,
   Pagination,
   Panel,
+  Stamp,
   formatWhen,
+  riskLabel,
 } from '../../components/desk/ui'
 import { usePagination } from '../../hooks/usePagination'
 
-const PAGE_SIZE = 8
+const PAGE_SIZE = 25
+
+const actionLabels: Record<string, string> = {
+  CASE_DECIDE: 'Case decided',
+  CASE_OPEN: 'Case opened',
+  KYC_CREATE: 'KYC check created',
+  DOCUMENT_VERIFY: 'Document checked',
+}
+
+function entityLink(row: AuditLog) {
+  if (row.entityType === 'Case') return `/desk/cases/${row.entityId}`
+  if (row.entityType === 'Customer') return `/desk/customers/${row.entityId}`
+  return null
+}
 
 export default function AuditPage() {
   const [rows, setRows] = useState<AuditLog[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<unknown>(null)
   const pager = usePagination(rows, PAGE_SIZE)
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true)
+    setError(null)
     api
       .get<AuditLog[]>('/api/audit')
       .then(setRows)
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load audit'))
+      .catch((err) => setError(err))
       .finally(() => setLoading(false))
   }, [])
 
-  return (
-    <div className="space-y-8">
-      <PageHeader
-        eyebrow="Compliance"
-        title="Audit trail"
-        subtitle="Immutable who / what / when for decisions and configuration changes."
-      />
+  useEffect(() => {
+    load()
+  }, [load])
 
-      <Panel>
-        {loading && <LoadingBlock />}
-        {!loading && error && (
-          <div className="px-6 py-10 text-center text-sm text-red-500 dark:text-[color:var(--status-danger)]">{error}</div>
-        )}
-        {!loading && !error && rows.length === 0 && (
-          <EmptyState title="No audit events" body="Actions will appear here as staff work the desk." />
-        )}
-        {!loading && !error && rows.length > 0 && (
+  const columns: Column<AuditLog>[] = [
+    {
+      key: 'when',
+      header: 'When',
+      rowHeader: true,
+      sortValue: (r) => r.createdAt,
+      render: (r) => <span className="whitespace-nowrap font-mono text-xs tabular-nums text-content-muted">{formatWhen(r.createdAt)}</span>,
+    },
+    {
+      key: 'action',
+      header: 'Action',
+      sortValue: (r) => r.action,
+      render: (r) => {
+        const decision = r.afterState && typeof r.afterState.decision === 'string' ? r.afterState.decision : null
+        return (
+          <span className="inline-flex flex-wrap items-center gap-1.5">
+            <span className="text-content">{actionLabels[r.action] ?? riskLabel(r.action)}</span>
+            {decision && <Stamp value={decision} />}
+          </span>
+        )
+      },
+    },
+    {
+      key: 'entity',
+      header: 'Record',
+      render: (r) => {
+        const to = entityLink(r)
+        const text = (
           <>
-            <ul className="divide-y divide-fg/10">
-              {pager.slice.map((row) => (
-                <li key={row.id} className="px-5 py-5 sm:px-6">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="font-display text-lg font-bold text-fg">{row.action}</p>
-                    <p className="text-xs text-fg/40">{formatWhen(row.createdAt)}</p>
-                  </div>
-                  <p className="mt-1 text-sm text-mute">
-                    {row.entityType} · {row.entityId}
-                    {row.userId != null ? ` · user #${row.userId}` : ''}
-                  </p>
-                </li>
-              ))}
-            </ul>
-            <Pagination
-              page={pager.page}
-              totalPages={pager.totalPages}
-              total={pager.total}
-              from={pager.from}
-              to={pager.to}
-              onChange={pager.setPage}
+            {r.entityType} <span className="font-mono text-xs">#{r.entityId}</span>
+          </>
+        )
+        return to ? (
+          <Link to={to} className="text-content hover:underline">
+            {text}
+          </Link>
+        ) : (
+          <span className="text-content-muted">{text}</span>
+        )
+      },
+    },
+    {
+      key: 'user',
+      header: 'By',
+      align: 'right',
+      hideOnMobile: true,
+      render: (r) =>
+        r.userId != null ? <span className="font-mono text-xs">user #{r.userId}</span> : <span className="text-content-subtle">System</span>,
+    },
+  ]
+
+  return (
+    <div className="space-y-5">
+      <PageHeader title="Audit log" subtitle="Who did what, and when, for decisions and configuration changes." />
+      <Panel>
+        {error ? (
+          <ErrorState error={error} onRetry={load} what="the audit log" />
+        ) : (
+          <>
+            <DataTable
+              caption="Audit log"
+              rows={pager.slice}
+              columns={columns}
+              rowKey={(r) => r.id}
+              loading={loading}
+              empty={<EmptyState title="No audit events yet" body="Decisions and settings changes are recorded here." />}
             />
+            {!loading && (
+              <Pagination
+                label="Audit pages"
+                page={pager.page}
+                totalPages={pager.totalPages}
+                total={pager.total}
+                from={pager.from}
+                to={pager.to}
+                onChange={pager.setPage}
+              />
+            )}
           </>
         )}
       </Panel>

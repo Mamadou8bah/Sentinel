@@ -22,7 +22,7 @@ def create_router(scorer: Scorer | None, configured_mode: str) -> APIRouter:
         if scorer is None:
             raise HTTPException(503, "Configured model is unavailable; no rule fallback")
         try:
-            return {"scores": [scorer.score(tx) for tx in request.transactions]}
+            return {"scores": scorer.score_many(request.transactions)}
         except Exception:
             log.exception("Transaction inference failed")
             raise HTTPException(503, "Inference unavailable; no fallback") from None

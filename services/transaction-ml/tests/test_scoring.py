@@ -72,6 +72,23 @@ def test_training_roundtrip_and_real_shap_additivity(tmp_path):
     explained = float(np.asarray(scorer.explainer.expected_value).item()) + sum(item["contribution"] for item in result["shapTopFeatures"])
     assert explained == pytest.approx(margin, abs=1e-6)
 
+    # Remote GPU allocation must happen once per batch, while preserving SHAP.
+    calls = []
+    def gpu_prediction(rows):
+        calls.append(len(rows))
+        return scorer.bundle["model"].predict_proba(rows).tolist()
+    scorer.gpu_predict = gpu_prediction
+    batch = scorer.score_many([tx, tx])
+    assert calls == [2]
+    assert all(item["modelScore"] == pytest.approx(result["modelScore"]) for item in batch)
+    assert all(item["shapTopFeatures"] == result["shapTopFeatures"] for item in batch)
+
+    def unavailable(rows):
+        raise RuntimeError("GPU allocation unavailable")
+    scorer.gpu_predict = unavailable
+    with pytest.raises(RuntimeError, match="allocation unavailable"):
+        scorer.score_many([tx])
+
 
 def test_one_class_dataset_cannot_train(tmp_path):
     frame = synthetic_frame(1000, 42)

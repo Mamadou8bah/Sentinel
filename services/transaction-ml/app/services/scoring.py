@@ -2,6 +2,7 @@
 from datetime import timezone
 from pathlib import Path
 import math
+import os
 
 import joblib
 import numpy as np
@@ -65,6 +66,7 @@ class Scorer:
         self.mode = mode
         self.bundle = None
         self.explainer = None
+        self.gpu_predict = None
         if mode == "trained":
             if not model_path or not Path(model_path).is_file():
                 raise ValueError("Trained mode requires a local model artifact")
@@ -80,8 +82,23 @@ class Scorer:
                 raise ValueError("Invalid model threshold")
             import shap
             self.explainer = shap.TreeExplainer(self.bundle["model"])
+            if os.getenv("TRANSACTION_ML_ZERO_GPU") == "1":
+                from app.services.zero_gpu import create_predictor
+                self.gpu_predict = create_predictor(self.bundle["model"])
 
-    def score(self, tx: TransactionInput) -> dict:
+    def score_many(self, transactions):
+        if self.gpu_predict is None:
+            return [self.score(tx) for tx in transactions]
+        rows = np.asarray([self.model_row(tx) for tx in transactions], dtype=float)
+        probabilities = np.asarray(self.gpu_predict(rows))[:, 1]
+        return [self.score(tx, float(probability)) for tx, probability in zip(transactions, probabilities, strict=True)]
+
+    def model_row(self, tx):
+        moment = tx.timestamp.astimezone(timezone.utc)
+        return feature_row(float(tx.amount), moment.hour + moment.minute / 60,
+                           tx.transactionType, self.bundle["featureVersion"], tx.availableBalance)
+
+    def score(self, tx: TransactionInput, predicted_probability=None) -> dict:
         amount = float(tx.amount)
         flags = []
         rule_score = 0.10
@@ -108,9 +125,9 @@ class Scorer:
         provenance = "none"
         explanation = "RULES ONLY (no trained model): " + (", ".join(flags) or "No configured rule triggered")
         if self.bundle is not None:
-            moment = tx.timestamp.astimezone(timezone.utc)
-            row = np.asarray([feature_row(amount, moment.hour + moment.minute / 60, tx.transactionType, self.bundle["featureVersion"], tx.availableBalance)], dtype=float)
-            model_score = float(self.bundle["model"].predict_proba(row)[0, 1])
+            row = np.asarray([self.model_row(tx)], dtype=float)
+            predictor = self.gpu_predict or self.bundle["model"].predict_proba
+            model_score = float(np.asarray(predictor(row))[0, 1]) if predicted_probability is None else predicted_probability
             if not math.isfinite(model_score) or not 0 <= model_score <= 1:
                 raise ValueError("Invalid raw model score")
             values = np.asarray(self.explainer.shap_values(row))[0]

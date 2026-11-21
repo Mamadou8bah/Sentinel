@@ -28,6 +28,54 @@ class IntegrationApiKeyTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private com.sentinel.customer.repository.CustomerRepository customers;
+
+    @Test
+    void firstScoreCreatesPendingRiskProfileWithoutFabricatingKycAndRetryReusesIt() throws Exception {
+        org.mockito.Mockito.doReturn(new com.sentinel.integration.service.StubMlService.TxScores(
+                .1, java.util.List.of(), "Low transaction risk", java.util.List.of(), false))
+                .when(gateway).scoreTransaction(org.mockito.ArgumentMatchers.anyDouble(),
+                        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+        String external = "first-score-" + java.util.UUID.randomUUID();
+        String request = objectMapper.writeValueAsString(java.util.Map.of(
+                "externalCustomerId", external, "externalTransactionId", external + "-tx",
+                "amount", 100, "currency", "GMD", "transactionType", "TRANSFER"));
+        mockMvc.perform(post("/api/integration/transactions/score")
+                        .contentType(MediaType.APPLICATION_JSON).content(request))
+                .andExpect(status().isUnauthorized());
+        org.junit.jupiter.api.Assertions.assertTrue(customers.findAll().stream()
+                .noneMatch(c -> external.equals(c.getExternalCustomerId())));
+
+        String transactionId = null;
+        for (int attempt = 0; attempt < 2; attempt++) {
+            var response = mockMvc.perform(post("/api/integration/transactions/score")
+                            .header("X-Api-Key", DataSeeder.DEMO_API_KEY)
+                            .contentType(MediaType.APPLICATION_JSON).content(request))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.recommendation").value("ALLOW"))
+                    .andReturn();
+            String id = objectMapper.readTree(response.getResponse().getContentAsString()).get("transactionId").asText();
+            if (transactionId != null) org.junit.jupiter.api.Assertions.assertEquals(transactionId, id);
+            transactionId = id;
+        }
+        var profiles = customers.findAll().stream().filter(c -> external.equals(c.getExternalCustomerId())).toList();
+        org.junit.jupiter.api.Assertions.assertEquals(1, profiles.size());
+        var profile = profiles.get(0);
+        org.junit.jupiter.api.Assertions.assertEquals(com.sentinel.customer.model.KycStatus.PENDING, profile.getKycStatus());
+        org.junit.jupiter.api.Assertions.assertNull(profile.getFaceMatchScore());
+        org.junit.jupiter.api.Assertions.assertNull(profile.getLivenessScore());
+        // Scoring an existing rejected profile must never reset its KYC status.
+        profile.setKycStatus(com.sentinel.customer.model.KycStatus.REJECTED);
+        customers.save(profile);
+        mockMvc.perform(post("/api/integration/transactions/score")
+                        .header("X-Api-Key", DataSeeder.DEMO_API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON).content(request.replace(external + "-tx", external + "-next")))
+                .andExpect(status().isOk());
+        org.junit.jupiter.api.Assertions.assertEquals(com.sentinel.customer.model.KycStatus.REJECTED,
+                customers.findById(profile.getId()).orElseThrow().getKycStatus());
+    }
+
     @org.springframework.boot.test.mock.mockito.SpyBean
     private com.sentinel.integration.service.MlGateway gateway;
 

@@ -20,6 +20,7 @@ def create_app(mode: str | None = None, model_path: str | None = None) -> FastAP
 
     from app.api.security import InferenceAuth
     api.add_middleware(InferenceAuth)
+    api.state.scorer = scorer
     @api.get("/")
     def service_info():
         return {"service": api.title, "health": "/health"}

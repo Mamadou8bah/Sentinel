@@ -1,23 +1,38 @@
 import type { FormEvent } from 'react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ApiError, api } from '../../api/client'
-import type { CaseDecision, CaseResponse, DocumentResponse } from '../../api/types'
+import type { CaseDecision, CaseResponse, CustomerDetail, DocumentResponse } from '../../api/types'
 import { useAuth } from '../../auth/AuthContext'
+import { Icon } from '../../components/desk/icons'
 import {
+  DataRow,
+  ErrorState,
   Field,
-  LoadingBlock,
+  Notice,
   PageHeader,
   Panel,
-  RiskBar,
-  StatusPill,
-  caseTone,
+  PanelHeader,
+  ScoreScale,
+  SkeletonRows,
+  Stamp,
+  Status,
+  ToneMarker,
+  buttonClass,
+  formatPct,
   formatWhen,
   inputClass,
+  riskLabel,
+  riskTone,
 } from '../../components/desk/ui'
-import { pct } from '../../lib/files'
 
-const decisions: CaseDecision[] = ['APPROVE', 'REJECT', 'ESCALATE']
+const decisions: Array<{ value: CaseDecision; label: string; help: string }> = [
+  { value: 'APPROVE', label: 'Approve', help: 'Clear the case and allow the customer or payment.' },
+  { value: 'ESCALATE', label: 'Escalate', help: 'Keep the case under review for a senior officer.' },
+  { value: 'REJECT', label: 'Reject', help: 'Close the case as rejected. This is recorded in the audit log.' },
+]
+
+type Load<T> = { state: 'idle' | 'loading' | 'ready' | 'missing' | 'error'; data: T | null }
 
 export default function CaseDetailPage() {
   const { id } = useParams()
@@ -25,175 +40,358 @@ export default function CaseDetailPage() {
   const canDecide = hasRole('ADMIN', 'COMPLIANCE')
 
   const [item, setItem] = useState<CaseResponse | null>(null)
-  const [document, setDocument] = useState<DocumentResponse | null>(null)
+  const [doc, setDoc] = useState<Load<DocumentResponse>>({ state: 'idle', data: null })
+  const [customer, setCustomer] = useState<Load<CustomerDetail>>({ state: 'idle', data: null })
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [decision, setDecision] = useState<CaseDecision>('APPROVE')
-  const [note, setNote] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<unknown>(null)
 
-  useEffect(() => {
+  const [decision, setDecision] = useState<CaseDecision | null>(null)
+  const [note, setNote] = useState('')
+  const [formError, setFormError] = useState<string | null>(null)
+  const [confirmReject, setConfirmReject] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState<{ tone: 'success' | 'error'; text: string } | null>(null)
+  const confirmRef = useRef<HTMLButtonElement>(null)
+  const noteRef = useRef<HTMLTextAreaElement>(null)
+
+  const load = useCallback(async () => {
     if (!id) return
     setLoading(true)
-    api
-      .get<CaseResponse>(`/api/cases/${id}`)
-      .then(async (caseItem) => {
-        setItem(caseItem)
-        if (caseItem.relatedDocumentId) {
-          try {
-            const doc = await api.get<DocumentResponse>(
-              `/api/documents/${caseItem.relatedDocumentId}`,
-            )
-            setDocument(doc)
-          } catch {
-            setDocument(null)
-          }
-        } else {
-          setDocument(null)
-        }
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load case'))
-      .finally(() => setLoading(false))
+    setError(null)
+    try {
+      const caseItem = await api.get<CaseResponse>(`/api/cases/${id}`)
+      setItem(caseItem)
+      setLoading(false)
+
+      // Evidence from existing endpoints; each part fails independently.
+      if (caseItem.relatedDocumentId) {
+        setDoc({ state: 'loading', data: null })
+        api
+          .get<DocumentResponse>(`/api/documents/${caseItem.relatedDocumentId}`)
+          .then((d) => setDoc({ state: 'ready', data: d }))
+          .catch(() => setDoc({ state: 'error', data: null }))
+      } else {
+        setDoc({ state: 'missing', data: null })
+      }
+      setCustomer({ state: 'loading', data: null })
+      api
+        .get<CustomerDetail>(`/api/customers/${caseItem.customerId}`)
+        .then((c) => setCustomer({ state: 'ready', data: c }))
+        .catch(() => setCustomer({ state: 'error', data: null }))
+    } catch (err) {
+      setError(err)
+      setLoading(false)
+    }
   }, [id])
 
-  async function onDecide(e: FormEvent) {
-    e.preventDefault()
-    if (!id) return
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  useEffect(() => {
+    if (confirmReject) confirmRef.current?.focus()
+  }, [confirmReject])
+
+  async function record() {
+    if (!id || !decision) return
     setBusy(true)
-    setMessage(null)
+    setResult(null)
     try {
-      const updated = await api.patch<CaseResponse>(`/api/cases/${id}/decision`, {
-        decision,
-        note,
-      })
+      const updated = await api.patch<CaseResponse>(`/api/cases/${id}/decision`, { decision, note: note.trim() })
       setItem(updated)
-      setMessage('Decision recorded')
+      setResult({ tone: 'success', text: `Decision recorded: ${riskLabel(decision)}. It is in the audit log.` })
       setNote('')
+      setDecision(null)
+      setConfirmReject(false)
     } catch (err) {
-      setMessage(err instanceof ApiError ? err.message : 'Decision failed')
+      setResult({ tone: 'error', text: err instanceof ApiError ? err.message : 'The decision was not saved. Try again.' })
     } finally {
       setBusy(false)
     }
   }
 
-  if (loading) return <LoadingBlock label="Opening case…" />
-  if (error || !item) {
-    return <div className="text-sm text-[color:var(--status-danger)]">{error || 'Case not found'}</div>
+  function onSubmit(e: FormEvent) {
+    e.preventDefault()
+    if (!decision) {
+      setFormError('Choose a decision.')
+      return
+    }
+    if (note.trim().length === 0) {
+      setFormError('Add a note explaining the decision. It is kept in the audit log.')
+      noteRef.current?.focus()
+      return
+    }
+    setFormError(null)
+    if (decision === 'REJECT' && !confirmReject) {
+      setConfirmReject(true)
+      return
+    }
+    void record()
   }
 
+  if (loading) {
+    return (
+      <div className="space-y-5">
+        <PageHeader meta={`Case #${id}`} title="Loading case…" />
+        <Panel>
+          <SkeletonRows rows={6} label="Loading case" />
+        </Panel>
+      </div>
+    )
+  }
+
+  if (error || !item) {
+    return (
+      <div className="space-y-5">
+        <PageHeader meta={<Link to="/desk/cases" className="hover:underline">Cases</Link>} title={`Case #${id}`} />
+        <Panel>
+          <ErrorState error={error ?? new ApiError(404, 'Case not found')} onRetry={() => void load()} what="this case" />
+        </Panel>
+      </div>
+    )
+  }
+
+  const d = doc.data
+  const c = customer.data
+  const notAvailable = <span className="text-content-subtle">Not available</span>
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <PageHeader
-        eyebrow={`Case #${item.id}`}
+        meta={
+          <span className="inline-flex items-center gap-1.5">
+            <Link to="/desk/cases" className="inline-flex items-center gap-1 hover:underline">
+              <Icon name="arrow-left" size={14} />
+              Cases
+            </Link>
+            <span aria-hidden>/</span>
+            <span className="font-mono">#{item.id}</span>
+          </span>
+        }
         title={item.customerName}
-        subtitle={item.explanation}
         actions={
           <>
-            <StatusPill tone={caseTone(item.status)}>
-              {item.status.replace(/_/g, ' ')}
-            </StatusPill>
-            <Link
-              to={`/desk/customers/${item.customerId}`}
-              className="liquid-glass rounded-full px-4 py-2 text-sm text-fg/85 hover:text-fg"
-            >
-              Customer 360°
+            <Status value={item.status} />
+            {item.decision && <Stamp value={item.decision} />}
+            <Link to={`/desk/customers/${item.customerId}`} className={buttonClass('secondary', 'sm')}>
+              Customer record
             </Link>
           </>
         }
       />
 
-      <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-        <div className="space-y-5">
-          <Panel className="p-6 md:p-8">
-            <div className="flex items-start justify-between gap-6">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        {/* Evidence */}
+        <div className="space-y-4">
+          <Panel labelledBy="verdict">
+            <PanelHeader id="verdict" title="Risk at case creation" description="0–39 allow · 40–69 review · 70–100 block" />
+            <div className="grid gap-5 p-4 md:grid-cols-[16rem_minmax(0,1fr)]">
+              <ScoreScale score={item.riskScoreAtCreation} />
               <div>
-                <p className="text-xs uppercase tracking-[0.14em] text-fg/45">Opened</p>
-                <p className="mt-1 text-sm text-fg/80">{formatWhen(item.createdAt)}</p>
-                <p className="mt-5 text-xs uppercase tracking-[0.14em] text-fg/45">Updated</p>
-                <p className="mt-1 text-sm text-fg/80">{formatWhen(item.updatedAt)}</p>
+                <h3 className="text-xs font-medium text-content-muted">Why this case was opened</h3>
+                <p className="mt-1 text-sm leading-6 text-content">{item.explanation || 'Not available'}</p>
               </div>
-              <RiskBar score={item.riskScoreAtCreation} />
             </div>
+          </Panel>
 
-            <div className="mt-8 border-t border-fg/10 pt-6">
-              <p className="text-xs uppercase tracking-[0.14em] text-fg/45">Explanation</p>
-              <p className="mt-3 text-base leading-relaxed text-fg/85">{item.explanation}</p>
-            </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Panel labelledBy="identity-evidence">
+              <PanelHeader id="identity-evidence" title="Identity evidence" description="From the customer's KYC check" />
+              <div className="px-4 py-2">
+                {customer.state === 'loading' ? (
+                  <SkeletonRows rows={3} label="Loading identity evidence" />
+                ) : customer.state === 'error' ? (
+                  <p className="py-3 text-sm text-content-muted">Identity evidence couldn’t be loaded.</p>
+                ) : (
+                  <dl>
+                    <DataRow label="KYC status">{c ? <Status value={c.kycStatus} /> : notAvailable}</DataRow>
+                    <DataRow label="Face match">{c?.faceMatchScore != null ? formatPct(c.faceMatchScore) : notAvailable}</DataRow>
+                    <DataRow label="Liveness">{c?.livenessScore != null ? formatPct(c.livenessScore) : notAvailable}</DataRow>
+                    <DataRow label="ID number">
+                      {c?.idNumberMasked ? <span className="font-mono">{c.idNumberMasked}</span> : notAvailable}
+                    </DataRow>
+                    <DataRow label="Signature specimen">{c ? (c.hasSignatureSpecimen ? 'On file' : 'Not on file') : notAvailable}</DataRow>
+                  </dl>
+                )}
+              </div>
+            </Panel>
 
-            {item.decision && (
-              <div className="mt-8 rounded-2xl border border-fg/10 bg-fg/[0.04] p-5">
-                <StatusPill tone="ok">{item.decision}</StatusPill>
-                <p className="mt-3 text-sm text-fg/80">{item.decisionNote}</p>
+            <Panel labelledBy="document-evidence">
+              <PanelHeader
+                id="document-evidence"
+                title="Document evidence"
+                description={d ? `${riskLabel(d.type)} #${d.id}` : 'Related document'}
+              />
+              <div className="px-4 py-2">
+                {doc.state === 'loading' ? (
+                  <SkeletonRows rows={3} label="Loading document evidence" />
+                ) : doc.state === 'missing' ? (
+                  <p className="py-3 text-sm text-content-muted">No document is linked to this case.</p>
+                ) : doc.state === 'error' || !d ? (
+                  <p className="py-3 text-sm text-content-muted">Document evidence couldn’t be loaded.</p>
+                ) : (
+                  <dl>
+                    <DataRow label="Tampering">{formatPct(d.tamperingScore)}</DataRow>
+                    <DataRow label="Fraud risk">{formatPct(d.fraudRiskScore)}</DataRow>
+                    <DataRow label="Signature match">
+                      {d.signatureMatchStatus === 'SCORED' ? formatPct(d.signatureMatchScore) : riskLabel(d.signatureMatchStatus)}
+                    </DataRow>
+                    <DataRow label="Field checks">
+                      {d.fieldConsistencyFlags && d.fieldConsistencyFlags.length > 0 ? (
+                        <span className="inline-flex flex-col items-end gap-1">
+                          {d.fieldConsistencyFlags.map((f) => (
+                            <span key={f} className="inline-flex items-center gap-1.5 text-risk-review">
+                              <ToneMarker tone="review" />
+                              {riskLabel(f)}
+                            </span>
+                          ))}
+                        </span>
+                      ) : (
+                        'No inconsistencies'
+                      )}
+                    </DataRow>
+                  </dl>
+                )}
+              </div>
+            </Panel>
+          </div>
+
+          <Panel labelledBy="timeline">
+            <PanelHeader id="timeline" title="Timeline" />
+            <dl className="px-4 py-2">
+              <DataRow label="Opened">{formatWhen(item.createdAt)}</DataRow>
+              <DataRow label="Last updated">{formatWhen(item.updatedAt)}</DataRow>
+              {item.decision && (
+                <DataRow label="Decision">
+                  <Stamp value={item.decision} />
+                </DataRow>
+              )}
+            </dl>
+            {item.decisionNote && (
+              <div className="border-t border-line px-4 py-3">
+                <h3 className="text-xs font-medium text-content-muted">Decision note</h3>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-content">{item.decisionNote}</p>
               </div>
             )}
           </Panel>
-
-          {document && (
-            <Panel className="p-6 md:p-8">
-              <h2 className="font-display text-2xl font-bold">Related document</h2>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <StatusPill tone="ember">#{document.id}</StatusPill>
-                <StatusPill tone="neutral">{document.type}</StatusPill>
-                <StatusPill tone="neutral">{document.signatureMatchStatus}</StatusPill>
-              </div>
-              <p className="mt-4 text-sm text-fg/80">
-                Tampering {pct(document.tamperingScore)} · Fraud {pct(document.fraudRiskScore)}
-                {document.signatureMatchScore != null
-                  ? ` · Signature ${pct(document.signatureMatchScore)}`
-                  : ''}
-              </p>
-              {document.fieldConsistencyFlags && document.fieldConsistencyFlags.length > 0 && (
-                <p className="mt-2 text-xs text-mute">
-                  {document.fieldConsistencyFlags.join(' · ')}
-                </p>
-              )}
-            </Panel>
-          )}
         </div>
 
-        {canDecide && item.status !== 'RESOLVED' && (
-          <Panel className="h-fit p-6 md:p-8">
-            <h2 className="font-display text-2xl font-bold">Decide</h2>
-            <p className="mt-1 text-sm text-mute">A note is required for the audit trail.</p>
-            <form onSubmit={onDecide} className="mt-6 space-y-4">
-              <div className="flex flex-wrap gap-2">
-                {decisions.map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setDecision(value)}
-                    className={[
-                      'rounded-full px-4 py-2 text-sm transition',
-                      decision === value
-                        ? 'bg-ember/25 font-semibold text-fg shadow-[inset_0_0_0_1px_rgba(255,69,21,0.4)]'
-                        : 'liquid-glass text-fg/70 hover:text-fg',
-                    ].join(' ')}
+        {/* Decision */}
+        <aside className="lg:sticky lg:top-6" aria-labelledby="decide">
+          <Panel as="div">
+            <PanelHeader id="decide" title="Decision" />
+            <div className="p-4">
+              {result && (
+                <Notice tone={result.tone} className="mb-4">
+                  {result.text}
+                </Notice>
+              )}
+
+              {!canDecide ? (
+                <p className="text-sm text-content-muted">
+                  Recording a decision needs the Compliance or Admin role. You can still review the evidence.
+                </p>
+              ) : item.status === 'RESOLVED' ? (
+                <div className="space-y-2 text-sm text-content-muted">
+                  <p className="flex flex-wrap items-center gap-2">
+                    Resolved as {item.decision ? <Stamp value={item.decision} /> : 'Not available'}
+                  </p>
+                  <p>Resolved cases can’t be changed here.</p>
+                </div>
+              ) : (
+                <form onSubmit={onSubmit} noValidate className="space-y-4">
+                  <fieldset>
+                    <legend className="mb-2 text-xs font-medium text-content-muted">Outcome</legend>
+                    <div className="space-y-1.5">
+                      {decisions.map((opt) => {
+                        const tone = riskTone(opt.value)
+                        const checked = decision === opt.value
+                        return (
+                          <label
+                            key={opt.value}
+                            className={[
+                              'flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors',
+                              checked ? 'border-content-muted bg-surface-raised' : 'border-line hover:border-line-strong',
+                            ].join(' ')}
+                          >
+                            <input
+                              type="radio"
+                              name="decision"
+                              value={opt.value}
+                              checked={checked}
+                              onChange={() => {
+                                setDecision(opt.value)
+                                setConfirmReject(false)
+                                setFormError(null)
+                              }}
+                              className="mt-1 h-4 w-4 accent-accent-ink"
+                            />
+                            <span>
+                              <span className="flex items-center gap-1.5 text-sm font-medium text-content">
+                                <ToneMarker tone={tone} />
+                                {opt.label}
+                              </span>
+                              <span className="mt-0.5 block text-xs text-content-muted">{opt.help}</span>
+                            </span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </fieldset>
+
+                  <Field
+                    label="Note for the audit log"
+                    htmlFor="decision-note"
+                    error={formError && formError.startsWith('Add') ? formError : null}
                   >
-                    {value}
-                  </button>
-                ))}
-              </div>
-              <Field label="Note">
-                <textarea
-                  className={`${inputClass} min-h-[120px] resize-y`}
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  required
-                  placeholder="Why this decision?"
-                />
-              </Field>
-              {message && <p className="text-sm text-ember-glow">{message}</p>}
-              <button
-                type="submit"
-                disabled={busy || note.trim().length === 0}
-                className="w-full rounded-full bg-ember-grad py-3.5 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                {busy ? 'Saving…' : 'Record decision'}
-              </button>
-            </form>
+                    <textarea
+                      id="decision-note"
+                      ref={noteRef}
+                      className={`${inputClass} min-h-[110px] resize-y`}
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      aria-invalid={Boolean(formError && formError.startsWith('Add')) || undefined}
+                      placeholder="What did you check, and why this outcome?"
+                    />
+                  </Field>
+
+                  {formError && formError.startsWith('Choose') && (
+                    <p role="alert" className="flex items-center gap-1.5 text-xs text-risk-block">
+                      <ToneMarker tone="block" />
+                      {formError}
+                    </p>
+                  )}
+
+                  {confirmReject ? (
+                    <div role="alertdialog" aria-labelledby="confirm-reject" className="space-y-3 rounded-lg border border-risk-block p-3">
+                      <p id="confirm-reject" className="text-sm text-content">
+                        Reject this case? It will be closed as rejected for {item.customerName}.
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          ref={confirmRef}
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void record()}
+                          className={buttonClass('danger')}
+                        >
+                          {busy ? 'Saving…' : 'Confirm reject'}
+                        </button>
+                        <button type="button" onClick={() => setConfirmReject(false)} className={buttonClass('ghost')}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button type="submit" disabled={busy} className={`${buttonClass('primary')} w-full`}>
+                      {busy ? 'Saving…' : 'Record decision'}
+                    </button>
+                  )}
+                </form>
+              )}
+            </div>
           </Panel>
-        )}
+        </aside>
       </div>
     </div>
   )

@@ -86,7 +86,7 @@ public class TransactionScoringService {
             String location,
             String counterparty, String transactionType, BigDecimal availableBalance) {
         transactionType = transactionType == null ? null : transactionType.trim().toUpperCase(java.util.Locale.ROOT);
-        Customer customer = customerService.requireByExternalId(tenantId, externalCustomerId);
+        Customer customer = customerService.requireRiskProfile(tenantId, externalCustomerId);
         Tenant tenant = customer.getTenant();
 
         if (externalTransactionId != null && !externalTransactionId.isBlank()) {

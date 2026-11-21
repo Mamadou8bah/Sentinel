@@ -5,7 +5,9 @@ import shutil
 from importlib.metadata import version
 
 
-def prepare(service, output, artifacts=None):
+def prepare(service, output, artifacts=None, sdk="docker"):
+    if sdk == "gradio" and (service != "transaction-ml" or not artifacts):
+        raise ValueError("Gradio export requires transaction-ml with trained artifacts")
     source=Path(__file__).resolve().parents[1]/"services"/service
     output=Path(output).resolve()
     if output.exists() and any(output.iterdir()):
@@ -51,7 +53,7 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860", "--limit-
     (output/"README.md").write_text(f"""---
 title: Sentinel {service}
 emoji: 🛡️
-colorFrom: orange
+colorFrom: yellow
 colorTo: gray
 sdk: docker
 app_port: 7860
@@ -68,6 +70,36 @@ Space restarts erase local SQLite challenge state; interrupted KYC needs a new
 session. Do not present this ephemeral deployment as durable production KYC.
 """,encoding="utf-8")
     (output/".gitignore").write_text(".env\n__pycache__/\nruntime/\n",encoding="utf-8")
+    if sdk == "gradio":
+        shutil.copy2(source/"space_app.py", output/"space_app.py")
+        (output/"Dockerfile").unlink()
+        with (output/"requirements.txt").open("a", encoding="utf-8") as requirements:
+            requirements.write("\ngradio==5.49.1\nspaces>=0.51,<1\ntorch==2.8.0\n")
+        (output/"README.md").write_text("""---
+title: Sentinel Fraud Detection
+emoji: 🛡️
+colorFrom: yellow
+colorTo: gray
+sdk: gradio
+sdk_version: 5.49.1
+python_version: '3.12'
+app_file: space_app.py
+base_path: /
+---
+
+Select Gradio and the free ZeroGPU hardware option if your account is eligible.
+The existing trained gradient boosting trees execute on CUDA via PyTorch inside
+a real ZeroGPU allocation. SHAP explanations remain on CPU. No retraining occurs.
+GPU quotas, queues and cold starts apply, including for API integrations.
+Account/hardware eligibility and hosted acceptance must be checked on HF.
+Set ML_SERVICE_API_KEY as a Space secret (at least 32 characters), matching
+Sentinel. Never put the key in this repository or the browser interface.
+
+Public UI: / . Public model health: /health .
+Authenticated API: POST /ml/transaction-score with X-ML-API-Key.
+Existing Sentinel request/response contracts are unchanged.
+Model is trained on simulated PaySim; see artifacts/evaluation.json for limits.
+""", encoding="utf-8")
     print(f"Prepared {service} at {output}; no upload performed.")
 
 if __name__=="__main__":
@@ -75,5 +107,6 @@ if __name__=="__main__":
     parser.add_argument("--service",choices=["cv-ml","transaction-ml"],required=True)
     parser.add_argument("--output",type=Path,required=True)
     parser.add_argument("--artifacts",type=Path)
+    parser.add_argument("--sdk", choices=["docker", "gradio"], default="docker")
     args=parser.parse_args()
-    prepare(args.service,args.output,args.artifacts)
+    prepare(args.service,args.output,args.artifacts,args.sdk)

@@ -1,10 +1,24 @@
 import type { FormEvent } from 'react'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ApiError, api } from '../../api/client'
 import type { DocumentResponse, DocumentType, TxImportResponse, TxScoreResponse } from '../../api/types'
 import { useAuth } from '../../auth/AuthContext'
-import { Field, PageHeader, Panel, StatusPill, inputClass } from '../../components/desk/ui'
-import { fileToBase64, pct } from '../../lib/files'
+import {
+  DataRow,
+  Field,
+  Notice,
+  PageHeader,
+  Panel,
+  PanelHeader,
+  Stamp,
+  buttonClass,
+  fileInputClass,
+  formatPct,
+  inputClass,
+  riskLabel,
+} from '../../components/desk/ui'
+import { fileToBase64 } from '../../lib/files'
 
 export default function ToolsPage() {
   const { hasRole } = useAuth()
@@ -12,19 +26,68 @@ export default function ToolsPage() {
   const canDocs = hasRole('ADMIN', 'COMPLIANCE', 'ANALYST')
 
   return (
-    <div className="space-y-8">
-      <PageHeader
-        eyebrow="Analyst"
-        title="Desk tools"
-        subtitle="Score a payment, backfill CSV, or verify a cheque/invoice from the ops desk."
-      />
+    <div className="space-y-5">
+      <PageHeader title="Tools" subtitle="Score a payment, check a cheque or invoice, or import past transactions." />
 
-      <div className="grid gap-5 xl:grid-cols-2">
+      {!canScore && (
+        <Notice tone="info">Scoring payments and importing transactions need the Analyst or Admin role.</Notice>
+      )}
+
+      <div className="grid items-start gap-4 xl:grid-cols-2">
         {canScore && <ScoreTxPanel />}
         {canDocs && <VerifyDocumentPanel />}
         {canScore && <ImportCsvPanel />}
       </div>
     </div>
+  )
+}
+
+type Shap = { feature: string; contribution: number; value?: number }
+
+function readShap(list: TxScoreResponse['shapTopFeatures'] | undefined): Shap[] {
+  if (!Array.isArray(list)) return []
+  return list
+    .map((r) => ({
+      feature: typeof r.feature === 'string' ? r.feature : '',
+      contribution: typeof r.contribution === 'number' ? r.contribution : NaN,
+      value: typeof r.value === 'number' ? r.value : undefined,
+    }))
+    .filter((r) => r.feature && Number.isFinite(r.contribution))
+    .slice(0, 6)
+}
+
+/** Ranked contribution bars; positive pushes towards a flag, negative away from it. */
+function Contributions({ items }: { items: Shap[] }) {
+  if (items.length === 0) {
+    return <p className="text-sm text-content-subtle">Model contributions: not available for this score.</p>
+  }
+  const max = Math.max(...items.map((i) => Math.abs(i.contribution))) || 1
+  return (
+    <table className="w-full text-sm">
+      <caption className="mb-2 text-left text-xs font-medium text-content-muted">Top model contributions</caption>
+      <tbody>
+        {items.map((i) => {
+          const width = `${(Math.abs(i.contribution) / max) * 100}%`
+          const up = i.contribution >= 0
+          return (
+            <tr key={i.feature} className="border-b border-line last:border-b-0">
+              <th scope="row" className="py-1.5 pr-3 text-left font-mono text-xs font-normal text-content">
+                {i.feature}
+              </th>
+              <td className="w-1/3 py-1.5" aria-hidden>
+                <span className="block h-1.5 rounded-sm bg-surface-raised">
+                  <span className={`block h-full rounded-sm ${up ? 'bg-risk-review' : 'bg-content-subtle'}`} style={{ width }} />
+                </span>
+              </td>
+              <td className="py-1.5 pl-3 text-right font-mono text-xs tabular-nums text-content-muted">
+                {up ? '+' : '−'}
+                {Math.abs(i.contribution).toFixed(2)}
+              </td>
+            </tr>
+          )
+        })}
+      </tbody>
+    </table>
   )
 }
 
@@ -54,72 +117,83 @@ function ScoreTxPanel() {
       setResult(scored)
       setExternalTransactionId(`desk-${Date.now()}`)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Score failed')
+      setError(err instanceof ApiError ? err.message : 'The payment was not scored. Try again.')
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <Panel className="p-6 md:p-8">
-      <h2 className="font-display text-2xl font-bold">Score payment</h2>
-      <p className="mt-1 text-sm text-mute">Real-time TX scoring for an existing bank customer.</p>
-      <form onSubmit={onSubmit} className="mt-6 space-y-4">
-        <Field label="External customer ID">
-          <input
-            className={inputClass}
-            value={externalCustomerId}
-            onChange={(e) => setExternalCustomerId(e.target.value)}
-            required
-          />
-        </Field>
-        <Field label="External transaction ID">
-          <input
-            className={inputClass}
-            value={externalTransactionId}
-            onChange={(e) => setExternalTransactionId(e.target.value)}
-            required
-          />
-        </Field>
+    <Panel labelledBy="score-payment">
+      <PanelHeader id="score-payment" title="Score a payment" description="Real-time risk score for an existing bank customer" />
+      <form onSubmit={onSubmit} className="space-y-4 p-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Bank customer ID">
+            <input
+              className={`${inputClass} font-mono`}
+              value={externalCustomerId}
+              onChange={(e) => setExternalCustomerId(e.target.value)}
+              autoComplete="off"
+              spellCheck={false}
+              required
+            />
+          </Field>
+          <Field label="Transaction reference">
+            <input
+              className={`${inputClass} font-mono`}
+              value={externalTransactionId}
+              onChange={(e) => setExternalTransactionId(e.target.value)}
+              autoComplete="off"
+              spellCheck={false}
+              required
+            />
+          </Field>
+        </div>
         <div className="grid gap-4 sm:grid-cols-3">
           <Field label="Amount">
             <input
               type="number"
+              inputMode="decimal"
               step="0.01"
               min="0.01"
-              className={inputClass}
+              className={`${inputClass} text-right font-mono tabular-nums`}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               required
             />
           </Field>
           <Field label="Currency">
-            <input className={inputClass} value={currency} onChange={(e) => setCurrency(e.target.value)} />
+            <input className={`${inputClass} font-mono`} value={currency} onChange={(e) => setCurrency(e.target.value)} />
           </Field>
           <Field label="Channel">
-            <input className={inputClass} value={channel} onChange={(e) => setChannel(e.target.value)} />
+            <input className={`${inputClass} font-mono`} value={channel} onChange={(e) => setChannel(e.target.value)} />
           </Field>
         </div>
-        {error && <p className="text-sm text-[color:var(--status-danger)]">{error}</p>}
-        <button
-          type="submit"
-          disabled={busy}
-          className="rounded-full bg-ember-grad px-6 py-3 text-sm font-semibold text-white disabled:opacity-50"
-        >
-          {busy ? 'Scoring…' : 'Score now'}
+        {error && <Notice tone="error">{error}</Notice>}
+        <button type="submit" disabled={busy} className={buttonClass('primary')}>
+          {busy ? 'Scoring…' : 'Score payment'}
         </button>
       </form>
       {result && (
-        <div className="mt-6 rounded-2xl border border-fg/10 bg-fg/[0.04] p-5">
+        <div role="status" className="space-y-3 border-t border-line p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <StatusPill tone={result.flagged ? 'danger' : 'ok'}>{result.recommendation}</StatusPill>
-            <StatusPill tone="neutral">anomaly {pct(result.anomalyScore)}</StatusPill>
-            {result.caseId && <StatusPill tone="ember">case #{result.caseId}</StatusPill>}
+            <Stamp value={result.recommendation || (result.flagged ? 'REVIEW' : 'ALLOW')} />
+            <span className="text-sm text-content-muted">
+              Anomaly <span className="font-mono tabular-nums text-content">{formatPct(result.anomalyScore)}</span>
+            </span>
+            {result.caseId && (
+              <Link to={`/desk/cases/${result.caseId}`} className="text-sm font-medium text-accent-ink hover:underline">
+                Case #{result.caseId} opened
+              </Link>
+            )}
           </div>
-          <p className="mt-3 text-sm text-fg/80">{result.explanation}</p>
+          {result.explanation && <p className="text-sm text-content">{result.explanation}</p>}
           {result.ruleFlags?.length > 0 && (
-            <p className="mt-2 text-xs text-mute">{result.ruleFlags.join(' · ')}</p>
+            <p className="text-xs text-content-muted">
+              Rules triggered: {result.ruleFlags.map((f) => riskLabel(f)).join(', ')}
+            </p>
           )}
+          <Contributions items={readShap(result.shapTopFeatures)} />
         </div>
       )}
     </Panel>
@@ -137,7 +211,7 @@ function VerifyDocumentPanel() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     if (!file) {
-      setError('Choose a document image')
+      setError('Choose an image or PDF of the document.')
       return
     }
     setBusy(true)
@@ -152,66 +226,55 @@ function VerifyDocumentPanel() {
       setResult(doc)
       setFile(null)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Verify failed')
+      setError(err instanceof ApiError ? err.message : 'The document was not checked. Try again.')
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <Panel className="p-6 md:p-8">
-      <h2 className="font-display text-2xl font-bold">Verify document</h2>
-      <p className="mt-1 text-sm text-mute">Cheque or invoice check with optional signature match.</p>
-      <form onSubmit={onSubmit} className="mt-6 space-y-4">
-        <Field label="External customer ID">
-          <input
-            className={inputClass}
-            value={externalCustomerId}
-            onChange={(e) => setExternalCustomerId(e.target.value)}
-            required
-          />
+    <Panel labelledBy="verify-document">
+      <PanelHeader id="verify-document" title="Check a document" description="Tampering, fraud and signature checks on a cheque or invoice" />
+      <form onSubmit={onSubmit} className="space-y-4 p-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Bank customer ID">
+            <input
+              className={`${inputClass} font-mono`}
+              value={externalCustomerId}
+              onChange={(e) => setExternalCustomerId(e.target.value)}
+              autoComplete="off"
+              spellCheck={false}
+              required
+            />
+          </Field>
+          <Field label="Document type">
+            <select className={inputClass} value={docType} onChange={(e) => setDocType(e.target.value as DocumentType)}>
+              <option value="CHEQUE">Cheque</option>
+              <option value="INVOICE">Invoice</option>
+              <option value="ID">ID document</option>
+            </select>
+          </Field>
+        </div>
+        <Field label="Image or PDF">
+          <input type="file" accept="image/*,.pdf" className={fileInputClass} onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
         </Field>
-        <Field label="Document type">
-          <select
-            className={inputClass}
-            value={docType}
-            onChange={(e) => setDocType(e.target.value as DocumentType)}
-          >
-            <option value="CHEQUE">CHEQUE</option>
-            <option value="INVOICE">INVOICE</option>
-            <option value="ID">ID</option>
-          </select>
-        </Field>
-        <Field label="Image">
-          <input
-            type="file"
-            accept="image/*,.pdf"
-            className="block w-full text-sm text-fg/70 file:mr-4 file:rounded-full file:border-0 file:bg-ember/20 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-ember-glow"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          />
-        </Field>
-        {error && <p className="text-sm text-[color:var(--status-danger)]">{error}</p>}
-        <button
-          type="submit"
-          disabled={busy}
-          className="rounded-full bg-ember-grad px-6 py-3 text-sm font-semibold text-white disabled:opacity-50"
-        >
-          {busy ? 'Verifying…' : 'Verify document'}
+        {error && <Notice tone="error">{error}</Notice>}
+        <button type="submit" disabled={busy} className={buttonClass('primary')}>
+          {busy ? 'Checking…' : 'Check document'}
         </button>
       </form>
       {result && (
-        <div className="mt-6 rounded-2xl border border-fg/10 bg-fg/[0.04] p-5 text-sm">
-          <div className="flex flex-wrap gap-2">
-            <StatusPill tone="neutral">#{result.id}</StatusPill>
-            <StatusPill tone="ember">{result.type}</StatusPill>
-            <StatusPill tone="neutral">{result.signatureMatchStatus}</StatusPill>
-          </div>
-          <p className="mt-3 text-fg/80">
-            Tampering {pct(result.tamperingScore)} · Fraud {pct(result.fraudRiskScore)}
-            {result.signatureMatchScore != null
-              ? ` · Signature ${pct(result.signatureMatchScore)}`
-              : ''}
+        <div role="status" className="border-t border-line p-4">
+          <p className="text-sm font-medium text-content">
+            {riskLabel(result.type)} <span className="font-mono text-xs text-content-subtle">#{result.id}</span>
           </p>
+          <dl className="mt-2">
+            <DataRow label="Tampering">{formatPct(result.tamperingScore)}</DataRow>
+            <DataRow label="Fraud risk">{formatPct(result.fraudRiskScore)}</DataRow>
+            <DataRow label="Signature match">
+              {result.signatureMatchStatus === 'SCORED' ? formatPct(result.signatureMatchScore) : riskLabel(result.signatureMatchStatus)}
+            </DataRow>
+          </dl>
         </div>
       )}
     </Panel>
@@ -227,7 +290,7 @@ function ImportCsvPanel() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     if (!file) {
-      setError('Choose a CSV file')
+      setError('Choose a CSV file.')
       return
     }
     setBusy(true)
@@ -239,41 +302,34 @@ function ImportCsvPanel() {
       setResult(imported)
       setFile(null)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Import failed')
+      setError(err instanceof ApiError ? err.message : 'The import failed. Check the file and try again.')
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <Panel className="p-6 md:p-8 xl:col-span-2">
-      <h2 className="font-display text-2xl font-bold">Import transactions</h2>
-      <p className="mt-1 text-sm text-mute">CSV backfill — live scoring remains the primary path.</p>
-      <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-end">
+    <Panel labelledBy="import-csv" className="xl:col-span-2">
+      <PanelHeader id="import-csv" title="Import past transactions" description="CSV backfill. Live scoring through the API is the main path." />
+      <form onSubmit={onSubmit} className="flex flex-col gap-4 p-4 sm:flex-row sm:items-end">
         <div className="flex-1">
           <Field label="CSV file">
-            <input
-              type="file"
-              accept=".csv,text/csv"
-              className="block w-full text-sm text-fg/70 file:mr-4 file:rounded-full file:border-0 file:bg-fg/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-fg"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            />
+            <input type="file" accept=".csv,text/csv" className={fileInputClass} onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
           </Field>
         </div>
-        <button
-          type="submit"
-          disabled={busy}
-          className="rounded-full bg-ember-grad px-6 py-3 text-sm font-semibold text-white disabled:opacity-50"
-        >
+        <button type="submit" disabled={busy} className={buttonClass('secondary')}>
           {busy ? 'Importing…' : 'Import CSV'}
         </button>
       </form>
-      {error && <p className="mt-3 text-sm text-[color:var(--status-danger)]">{error}</p>}
-      {result && (
-        <p className="mt-4 text-sm text-ember-glow">
-          Processed {result.processed} · failed {result.failed}
-        </p>
-      )}
+      <div className="space-y-2 px-4 pb-4 empty:hidden">
+        {error && <Notice tone="error">{error}</Notice>}
+        {result && (
+          <Notice tone={result.failed > 0 ? 'error' : 'success'}>
+            Imported <span className="font-mono tabular-nums">{result.processed}</span> rows;{' '}
+            <span className="font-mono tabular-nums">{result.failed}</span> failed.
+          </Notice>
+        )}
+      </div>
     </Panel>
   )
 }

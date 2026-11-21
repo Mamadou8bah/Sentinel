@@ -1,22 +1,33 @@
 import type { FormEvent } from 'react'
-import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useCallback, useEffect, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
 import { ApiError, api } from '../../api/client'
 import type { CustomerDetail, DocumentResponse, TxHistoryItem } from '../../api/types'
 import { useAuth } from '../../auth/AuthContext'
+import { DataTable, type Column } from '../../components/desk/DataTable'
+import { Icon } from '../../components/desk/icons'
 import {
+  DataRow,
+  EmptyState,
+  ErrorState,
   Field,
-  LoadingBlock,
+  Notice,
   PageHeader,
   Pagination,
   Panel,
-  RiskBar,
-  StatusPill,
+  PanelHeader,
+  Score,
+  SkeletonRows,
+  Status,
+  buttonClass,
+  fileInputClass,
+  formatMoney,
+  formatPct,
   formatWhen,
-  kycTone,
+  riskLabel,
 } from '../../components/desk/ui'
 import { usePagination } from '../../hooks/usePagination'
-import { fileToBase64, pct } from '../../lib/files'
+import { fileToBase64 } from '../../lib/files'
 
 export default function CustomerDetailPage() {
   const { id } = useParams()
@@ -27,14 +38,14 @@ export default function CustomerDetailPage() {
   const [txs, setTxs] = useState<TxHistoryItem[]>([])
   const [docs, setDocs] = useState<DocumentResponse[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<unknown>(null)
   const [specimenFile, setSpecimenFile] = useState<File | null>(null)
-  const [specimenMsg, setSpecimenMsg] = useState<string | null>(null)
+  const [specimenMsg, setSpecimenMsg] = useState<{ tone: 'success' | 'error'; text: string } | null>(null)
   const [specimenBusy, setSpecimenBusy] = useState(false)
-  const docPager = usePagination(docs, 6)
-  const txPager = usePagination(txs, 8)
+  const docPager = usePagination(docs, 10)
+  const txPager = usePagination(txs, 15)
 
-  async function reload() {
+  const reload = useCallback(async () => {
     if (!id) return
     const [detail, history, documents] = await Promise.all([
       api.get<CustomerDetail>(`/api/customers/${id}`),
@@ -44,197 +55,221 @@ export default function CustomerDetailPage() {
     setCustomer(detail)
     setTxs(history)
     setDocs(documents)
-  }
+  }, [id])
+
+  const load = useCallback(() => {
+    setLoading(true)
+    setError(null)
+    reload()
+      .catch((err) => setError(err))
+      .finally(() => setLoading(false))
+  }, [reload])
 
   useEffect(() => {
-    if (!id) return
-    setLoading(true)
-    reload()
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load customer'))
-      .finally(() => setLoading(false))
-  }, [id])
+    load()
+  }, [load])
 
   async function enrollSpecimen(e: FormEvent) {
     e.preventDefault()
-    if (!id || !specimenFile) return
+    if (!id) return
+    if (!specimenFile) {
+      setSpecimenMsg({ tone: 'error', text: 'Choose an image of the customer’s signature first.' })
+      return
+    }
     setSpecimenBusy(true)
     setSpecimenMsg(null)
     try {
       const signatureImage = await fileToBase64(specimenFile)
       await api.post(`/api/customers/${id}/signature-specimen`, { signatureImage })
-      setSpecimenMsg('Specimen enrolled')
+      setSpecimenMsg({ tone: 'success', text: 'Signature specimen saved.' })
       setSpecimenFile(null)
       await reload()
     } catch (err) {
-      setSpecimenMsg(err instanceof ApiError ? err.message : 'Enroll failed')
+      setSpecimenMsg({ tone: 'error', text: err instanceof ApiError ? err.message : 'The specimen was not saved. Try again.' })
     } finally {
       setSpecimenBusy(false)
     }
   }
 
-  if (loading) return <LoadingBlock label="Loading 360°…" />
+  const crumbs = (
+    <Link to="/desk/customers" className="inline-flex items-center gap-1 hover:underline">
+      <Icon name="arrow-left" size={14} />
+      Customers
+    </Link>
+  )
+
+  if (loading) {
+    return (
+      <div className="space-y-5">
+        <PageHeader meta={crumbs} title="Loading customer…" />
+        <Panel>
+          <SkeletonRows rows={6} label="Loading customer" />
+        </Panel>
+      </div>
+    )
+  }
   if (error || !customer) {
-    return <div className="text-sm text-[color:var(--status-danger)]">{error || 'Customer not found'}</div>
+    return (
+      <div className="space-y-5">
+        <PageHeader meta={crumbs} title="Customer" />
+        <Panel>
+          <ErrorState error={error ?? new ApiError(404, 'Customer not found')} onRetry={load} what="this customer" />
+        </Panel>
+      </div>
+    )
   }
 
-  const scores = [
-    { label: 'Face match', value: customer.faceMatchScore },
-    { label: 'Liveness', value: customer.livenessScore },
+  const docColumns: Column<DocumentResponse>[] = [
+    {
+      key: 'doc',
+      header: 'Document',
+      rowHeader: true,
+      render: (d) => (
+        <span className="whitespace-nowrap">
+          {riskLabel(d.type)} <span className="font-mono text-xs text-content-subtle">#{d.id}</span>
+        </span>
+      ),
+    },
+    { key: 'status', header: 'Status', render: (d) => <Status value={d.status} /> },
+    { key: 'tamper', header: 'Tampering', align: 'right', render: (d) => <span className="font-mono">{formatPct(d.tamperingScore)}</span> },
+    { key: 'fraud', header: 'Fraud risk', align: 'right', render: (d) => <span className="font-mono">{formatPct(d.fraudRiskScore)}</span> },
+    {
+      key: 'sig',
+      header: 'Signature',
+      align: 'right',
+      hideOnMobile: true,
+      render: (d) =>
+        d.signatureMatchStatus === 'SCORED' ? (
+          <span className="font-mono">{formatPct(d.signatureMatchScore)}</span>
+        ) : (
+          <span className="text-content-subtle">{riskLabel(d.signatureMatchStatus)}</span>
+        ),
+    },
+    {
+      key: 'when',
+      header: 'Checked',
+      hideOnMobile: true,
+      render: (d) => <span className="whitespace-nowrap text-xs text-content-subtle">{formatWhen(d.createdAt)}</span>,
+    },
+  ]
+
+  const txColumns: Column<TxHistoryItem>[] = [
+    {
+      key: 'when',
+      header: 'Date',
+      rowHeader: true,
+      sortValue: (t) => t.occurredAt,
+      render: (t) => <span className="whitespace-nowrap text-xs tabular-nums text-content-muted">{formatWhen(t.occurredAt)}</span>,
+    },
+    {
+      key: 'channel',
+      header: 'Channel',
+      hideOnMobile: true,
+      render: (t) => <span className="text-content-muted">{t.channel ? riskLabel(t.channel) : 'Not available'}</span>,
+    },
+    {
+      key: 'ref',
+      header: 'Reference',
+      hideOnMobile: true,
+      render: (t) => <span className="font-mono text-xs text-content-subtle">{t.externalTransactionId}</span>,
+    },
+    {
+      key: 'rec',
+      header: 'Recommendation',
+      render: (t) => (t.recommendation ? <Status value={t.recommendation} /> : <span className="text-content-subtle">Not available</span>),
+    },
+    {
+      key: 'anomaly',
+      header: 'Anomaly',
+      align: 'right',
+      sortValue: (t) => t.anomalyScore,
+      render: (t) => <span className="font-mono">{formatPct(t.anomalyScore)}</span>,
+    },
+    {
+      key: 'amount',
+      header: 'Amount',
+      align: 'right',
+      sortValue: (t) => t.amount,
+      render: (t) => <span className="whitespace-nowrap font-mono">{formatMoney(t.amount, t.currency)}</span>,
+    },
   ]
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <PageHeader
-        eyebrow="Customer 360°"
+        meta={crumbs}
         title={customer.name}
-        subtitle={`External ID ${customer.externalCustomerId || '—'} · ID ${customer.idNumberMasked || 'masked'}`}
+        subtitle={
+          <>
+            Bank ID <span className="font-mono">{customer.externalCustomerId || 'not available'}</span>
+          </>
+        }
         actions={
           <>
-            <StatusPill tone={kycTone(customer.kycStatus)}>{customer.kycStatus}</StatusPill>
-            <RiskBar score={customer.riskScore} />
+            <Status value={customer.kycStatus} />
+            <Score score={customer.riskScore} />
           </>
         }
       />
 
-      <div className="grid gap-5 md:grid-cols-3">
-        {[
-          { label: 'Documents', value: customer.documentCount },
-          { label: 'Transactions', value: customer.transactionCount },
-          {
-            label: 'Specimen',
-            value: customer.hasSignatureSpecimen ? 'Enrolled' : 'Missing',
-          },
-        ].map((stat) => (
-          <Panel key={stat.label} className="p-6">
-            <p className="text-xs uppercase tracking-[0.14em] text-fg/45">{stat.label}</p>
-            <p className="mt-3 font-display text-3xl font-bold">{stat.value}</p>
+      <div className="grid items-start gap-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
+        <div className="space-y-4">
+          <Panel labelledBy="identity">
+            <PanelHeader id="identity" title="Identity" />
+            <dl className="px-4 py-2">
+              <DataRow label="KYC status"><Status value={customer.kycStatus} /></DataRow>
+              <DataRow label="Face match">{formatPct(customer.faceMatchScore)}</DataRow>
+              <DataRow label="Liveness">{formatPct(customer.livenessScore)}</DataRow>
+              <DataRow label="Date of birth">{customer.dob || 'Not available'}</DataRow>
+              <DataRow label="ID number">
+                {customer.idNumberMasked ? <span className="font-mono">{customer.idNumberMasked}</span> : 'Not available'}
+              </DataRow>
+              <DataRow label="Documents">{customer.documentCount}</DataRow>
+              <DataRow label="Payments">{customer.transactionCount}</DataRow>
+              <DataRow label="Customer since">{formatWhen(customer.createdAt)}</DataRow>
+            </dl>
           </Panel>
-        ))}
-      </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Panel className="p-6 md:p-8">
-          <h2 className="font-display text-2xl font-bold">Identity</h2>
-          <dl className="mt-6 space-y-4 text-sm">
-            <div className="flex justify-between gap-4 border-b border-fg/10 pb-3">
-              <dt className="text-mute">Date of birth</dt>
-              <dd>{customer.dob || '—'}</dd>
+          <Panel labelledBy="specimen">
+            <PanelHeader
+              id="specimen"
+              title="Signature specimen"
+              description={customer.hasSignatureSpecimen ? 'On file' : 'Not on file'}
+            />
+            <div className="p-4">
+              <p className="text-sm text-content-muted">Cheque signatures are only matched when a specimen is on file.</p>
+              {canEnroll && (
+                <form onSubmit={enrollSpecimen} className="mt-3 space-y-3">
+                  <Field label={customer.hasSignatureSpecimen ? 'Replace specimen image' : 'Specimen image'}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className={fileInputClass}
+                      onChange={(e) => setSpecimenFile(e.target.files?.[0] ?? null)}
+                    />
+                  </Field>
+                  {specimenMsg && <Notice tone={specimenMsg.tone}>{specimenMsg.text}</Notice>}
+                  <button type="submit" disabled={specimenBusy} className={buttonClass('secondary')}>
+                    {specimenBusy ? 'Uploading…' : 'Save specimen'}
+                  </button>
+                </form>
+              )}
             </div>
-            <div className="flex justify-between gap-4 border-b border-fg/10 pb-3">
-              <dt className="text-mute">Created</dt>
-              <dd>{formatWhen(customer.createdAt)}</dd>
-            </div>
-            {scores.map((score) => (
-              <div
-                key={score.label}
-                className="flex justify-between gap-4 border-b border-fg/10 pb-3"
-              >
-                <dt className="text-mute">{score.label}</dt>
-                <dd>{pct(score.value)}</dd>
-              </div>
-            ))}
-          </dl>
-
-          {canEnroll && (
-            <form onSubmit={enrollSpecimen} className="mt-8 border-t border-fg/10 pt-6">
-              <h3 className="font-display text-lg font-bold">Signature specimen</h3>
-              <p className="mt-1 text-sm text-mute">
-                Required before signature matching can score on documents.
-              </p>
-              <div className="mt-4 space-y-3">
-                <Field label="Specimen image">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="block w-full text-sm text-fg/70 file:mr-4 file:rounded-full file:border-0 file:bg-ember/20 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-ember-glow"
-                    onChange={(e) => setSpecimenFile(e.target.files?.[0] ?? null)}
-                  />
-                </Field>
-                {specimenMsg && <p className="text-sm text-ember-glow">{specimenMsg}</p>}
-                <button
-                  type="submit"
-                  disabled={specimenBusy || !specimenFile}
-                  className="rounded-full bg-ember-grad px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                >
-                  {specimenBusy ? 'Uploading…' : 'Enroll specimen'}
-                </button>
-              </div>
-            </form>
-          )}
-        </Panel>
-
-        <Panel className="overflow-hidden">
-          <div className="border-b border-fg/10 px-6 py-5">
-            <h2 className="font-display text-2xl font-bold">Documents</h2>
-          </div>
-          {docs.length === 0 ? (
-            <p className="px-6 py-10 text-sm text-mute">No documents verified yet.</p>
-          ) : (
-            <>
-              <ul className="divide-y divide-fg/10">
-                {docPager.slice.map((doc) => (
-                  <li key={doc.id} className="px-6 py-4 text-sm">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium text-fg">
-                        #{doc.id} · {doc.type}
-                      </p>
-                      <StatusPill tone="neutral">{doc.status}</StatusPill>
-                      <StatusPill tone={doc.signatureMatchStatus === 'SCORED' ? 'ok' : 'warn'}>
-                        {doc.signatureMatchStatus}
-                      </StatusPill>
-                    </div>
-                    <p className="mt-2 text-mute">
-                      Tampering {pct(doc.tamperingScore)} · Fraud {pct(doc.fraudRiskScore)}
-                      {doc.signatureMatchScore != null
-                        ? ` · Signature ${pct(doc.signatureMatchScore)}`
-                        : ''}
-                    </p>
-                    <p className="mt-1 text-xs text-fg/40">{formatWhen(doc.createdAt)}</p>
-                  </li>
-                ))}
-              </ul>
-              <Pagination
-                page={docPager.page}
-                totalPages={docPager.totalPages}
-                total={docPager.total}
-                from={docPager.from}
-                to={docPager.to}
-                onChange={docPager.setPage}
-              />
-            </>
-          )}
-        </Panel>
-      </div>
-
-      <Panel className="overflow-hidden">
-        <div className="border-b border-fg/10 px-6 py-5">
-          <h2 className="font-display text-2xl font-bold">Recent payments</h2>
+          </Panel>
         </div>
-        {txs.length === 0 ? (
-          <p className="px-6 py-10 text-sm text-mute">No scored transactions yet.</p>
-        ) : (
-          <>
-            <ul className="divide-y divide-fg/10">
-              {txPager.slice.map((tx) => (
-                <li key={tx.id} className="flex items-center justify-between gap-4 px-6 py-4 text-sm">
-                  <div>
-                    <p className="font-medium text-fg">
-                      {tx.amount} {tx.currency}
-                    </p>
-                    <p className="mt-1 text-xs text-mute">
-                      {tx.channel || 'channel'} · {formatWhen(tx.occurredAt)}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <StatusPill tone={tx.flagged ? 'danger' : 'ok'}>
-                      {tx.recommendation || (tx.flagged ? 'FLAG' : 'OK')}
-                    </StatusPill>
-                    <p className="mt-2 text-xs text-mute">anomaly {pct(tx.anomalyScore)}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
+
+        <div className="space-y-4">
+          <Panel labelledBy="payments">
+            <PanelHeader id="payments" title="Payments" description="Transactions scored for this customer" />
+            <DataTable
+              caption="Payments"
+              rows={txPager.slice}
+              columns={txColumns}
+              rowKey={(t) => t.id}
+              empty={<EmptyState title="No scored payments yet" />}
+            />
             <Pagination
+              label="Payment pages"
               page={txPager.page}
               totalPages={txPager.totalPages}
               total={txPager.total}
@@ -242,9 +277,29 @@ export default function CustomerDetailPage() {
               to={txPager.to}
               onChange={txPager.setPage}
             />
-          </>
-        )}
-      </Panel>
+          </Panel>
+
+          <Panel labelledBy="documents">
+            <PanelHeader id="documents" title="Documents" />
+            <DataTable
+              caption="Documents"
+              rows={docPager.slice}
+              columns={docColumns}
+              rowKey={(d) => d.id}
+              empty={<EmptyState title="No documents checked yet" />}
+            />
+            <Pagination
+              label="Document pages"
+              page={docPager.page}
+              totalPages={docPager.totalPages}
+              total={docPager.total}
+              from={docPager.from}
+              to={docPager.to}
+              onChange={docPager.setPage}
+            />
+          </Panel>
+        </div>
+      </div>
     </div>
   )
 }

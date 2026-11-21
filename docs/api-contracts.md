@@ -54,6 +54,14 @@ Demo tenant `demo-bank`: staff password `ChangeMe123!`; demo key `sen_demo_bank_
 | POST | `/api/integration/kyc/sessions/{id}/submit-multipart` | KYC submit via multipart |
 | POST | `/api/integration/documents/multipart` | Document verify via multipart |
 
+Transaction scoring creates a customer risk profile on first use of an
+`externalCustomerId` within the authenticated tenant. This supports customers
+whose KYC was performed outside Sentinel, including Sutura presentation accounts.
+The profile starts with `PENDING` KYC and no face/liveness evidence; scoring does
+not verify identity or overwrite an existing KYC decision. Subsequent scores and
+KYC submissions use the same tenant-scoped customer. Fraud scoring and transaction
+reference deduplication still apply. A scoring outage must never authorize a payment.
+
 ### Staff login
 
 ```json

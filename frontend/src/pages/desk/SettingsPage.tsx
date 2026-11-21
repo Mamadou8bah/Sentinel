@@ -1,23 +1,34 @@
 import type { FormEvent } from 'react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ApiError, api } from '../../api/client'
 import type { RiskSettings, WebhookSettings } from '../../api/types'
 import {
+  ErrorState,
   Field,
-  LoadingBlock,
+  Notice,
   PageHeader,
   Panel,
+  PanelHeader,
+  SkeletonRows,
+  buttonClass,
+  formatWhen,
   inputClass,
 } from '../../components/desk/ui'
+
+type Msg = { tone: 'success' | 'error'; text: string } | null
 
 export default function SettingsPage() {
   const [risk, setRisk] = useState<RiskSettings | null>(null)
   const [webhook, setWebhook] = useState('')
   const [loading, setLoading] = useState(true)
-  const [message, setMessage] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<unknown>(null)
+  const [riskMsg, setRiskMsg] = useState<Msg>(null)
+  const [hookMsg, setHookMsg] = useState<Msg>(null)
   const [busy, setBusy] = useState(false)
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true)
+    setLoadError(null)
     Promise.all([
       api.get<RiskSettings>('/api/admin/settings/risk-weights'),
       api.get<WebhookSettings>('/api/admin/settings/webhook'),
@@ -26,21 +37,25 @@ export default function SettingsPage() {
         setRisk(weights)
         setWebhook(hook.webhookUrl || '')
       })
-      .catch((err) => setMessage(err instanceof Error ? err.message : 'Failed to load settings'))
+      .catch((err) => setLoadError(err))
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
 
   async function saveRisk(e: FormEvent) {
     e.preventDefault()
     if (!risk) return
     setBusy(true)
-    setMessage(null)
+    setRiskMsg(null)
     try {
       const updated = await api.put<RiskSettings>('/api/admin/settings/risk-weights', risk)
       setRisk(updated)
-      setMessage('Risk settings saved')
+      setRiskMsg({ tone: 'success', text: 'Risk settings saved.' })
     } catch (err) {
-      setMessage(err instanceof ApiError ? err.message : 'Save failed')
+      setRiskMsg({ tone: 'error', text: err instanceof ApiError ? err.message : 'Risk settings were not saved. Try again.' })
     } finally {
       setBusy(false)
     }
@@ -49,12 +64,12 @@ export default function SettingsPage() {
   async function saveWebhook(e: FormEvent) {
     e.preventDefault()
     setBusy(true)
-    setMessage(null)
+    setHookMsg(null)
     try {
       await api.put('/api/admin/settings/webhook', { webhookUrl: webhook })
-      setMessage('Webhook URL saved')
+      setHookMsg({ tone: 'success', text: 'Webhook URL saved.' })
     } catch (err) {
-      setMessage(err instanceof ApiError ? err.message : 'Webhook save failed')
+      setHookMsg({ tone: 'error', text: err instanceof ApiError ? err.message : 'Webhook URL was not saved. Try again.' })
     } finally {
       setBusy(false)
     }
@@ -62,110 +77,115 @@ export default function SettingsPage() {
 
   async function testWebhook() {
     setBusy(true)
-    setMessage(null)
+    setHookMsg(null)
     try {
       await api.post('/api/admin/webhooks/test')
-      setMessage('Test webhook fired')
+      setHookMsg({ tone: 'success', text: 'Test event sent to the webhook URL.' })
     } catch (err) {
-      setMessage(err instanceof ApiError ? err.message : 'Test failed')
+      setHookMsg({ tone: 'error', text: err instanceof ApiError ? err.message : 'Test event failed. Check the URL and try again.' })
     } finally {
       setBusy(false)
     }
   }
 
-  if (loading) return <LoadingBlock label="Loading settings…" />
-  if (!risk) {
-    return <div className="text-sm text-[color:var(--status-danger)]">{message || 'Settings unavailable'}</div>
+  const header = <PageHeader title="Settings" subtitle="Risk weights, thresholds and the bank’s outbound webhook for this tenant." />
+
+  if (loading || loadError || !risk) {
+    return (
+      <div className="space-y-5">
+        {header}
+        <Panel>
+          {loadError ? <ErrorState error={loadError} onRetry={load} what="settings" /> : <SkeletonRows rows={5} label="Loading settings" />}
+        </Panel>
+      </div>
+    )
   }
 
-  const numberFields: Array<{ key: keyof RiskSettings; label: string; max?: number }> = [
+  const weightFields: Array<{ key: keyof RiskSettings; label: string }> = [
     { key: 'kycWeight', label: 'KYC weight' },
     { key: 'documentWeight', label: 'Document weight' },
     { key: 'transactionWeight', label: 'Transaction weight' },
-    { key: 'faceMatchThreshold', label: 'Face match threshold' },
-    { key: 'signatureMatchThreshold', label: 'Signature threshold' },
-    { key: 'tamperingThreshold', label: 'Tampering threshold' },
-    { key: 'anomalyThreshold', label: 'Anomaly threshold' },
-    { key: 'autoFlagRiskScore', label: 'Auto-flag risk score', max: 100 },
   ]
+  const thresholdFields: Array<{ key: keyof RiskSettings; label: string; max?: number; step?: string }> = [
+    { key: 'faceMatchThreshold', label: 'Face match threshold' },
+    { key: 'signatureMatchThreshold', label: 'Signature match threshold' },
+    { key: 'tamperingThreshold', label: 'Tampering threshold' },
+    { key: 'anomalyThreshold', label: 'Payment anomaly threshold' },
+    { key: 'autoFlagRiskScore', label: 'Auto-flag at risk score', max: 100 },
+  ]
+  const weightSum = Number(risk.kycWeight) + Number(risk.documentWeight) + Number(risk.transactionWeight)
+  const sumOk = Math.abs(weightSum - 1) < 0.001
+
+  const numberInput = (field: { key: keyof RiskSettings; label: string; max?: number; step?: string }) => (
+    <Field key={field.key} label={field.label}>
+      <input
+        type="number"
+        inputMode="decimal"
+        step={field.step ?? '0.01'}
+        min={0}
+        max={field.max ?? 1}
+        className={`${inputClass} font-mono tabular-nums`}
+        value={Number(risk[field.key])}
+        onChange={(e) => setRisk({ ...risk, [field.key]: Number(e.target.value) })}
+      />
+    </Field>
+  )
 
   return (
-    <div className="space-y-8">
-      <PageHeader
-        eyebrow="Admin"
-        title="Settings"
-        subtitle="Tenant risk weights, thresholds, and outbound bank webhooks."
-      />
-
-      {message && (
-        <p className="rounded-2xl border border-ember/30 bg-ember/10 px-4 py-3 text-sm text-ember-glow">
-          {message}
-        </p>
-      )}
+    <div className="space-y-5">
+      {header}
 
       <form onSubmit={saveRisk}>
-        <Panel className="p-6 md:p-8">
-          <h2 className="font-display text-2xl font-bold">Risk weights</h2>
-          <p className="mt-1 text-sm text-mute">Weights must sum to 1.0.</p>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            {numberFields.map((field) => (
-              <Field key={field.key} label={field.label}>
-                <input
-                  type="number"
-                  step="0.01"
-                  min={0}
-                  max={field.max ?? 1}
-                  className={inputClass}
-                  value={Number(risk[field.key])}
-                  onChange={(e) =>
-                    setRisk({
-                      ...risk,
-                      [field.key]: Number(e.target.value),
-                    })
-                  }
-                />
-              </Field>
-            ))}
+        <Panel labelledBy="risk-settings">
+          <PanelHeader
+            id="risk-settings"
+            title="Risk scoring"
+            description={risk.updatedAt ? `Last changed ${formatWhen(risk.updatedAt)}` : undefined}
+          />
+          <div className="space-y-5 p-4">
+            <fieldset>
+              <legend className="text-sm font-semibold text-content">Weights</legend>
+              <p className={`mt-0.5 text-xs ${sumOk ? 'text-content-subtle' : 'text-risk-review'}`} aria-live="polite">
+                The three weights must add up to 1.00. Current total:{' '}
+                <span className="font-mono tabular-nums">{weightSum.toFixed(2)}</span>
+              </p>
+              <div className="mt-3 grid gap-4 sm:grid-cols-3">{weightFields.map(numberInput)}</div>
+            </fieldset>
+            <fieldset>
+              <legend className="text-sm font-semibold text-content">Thresholds</legend>
+              <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{thresholdFields.map(numberInput)}</div>
+            </fieldset>
+            {riskMsg && <Notice tone={riskMsg.tone}>{riskMsg.text}</Notice>}
+            <button type="submit" disabled={busy} className={buttonClass('primary')}>
+              Save risk settings
+            </button>
           </div>
-          <button
-            type="submit"
-            disabled={busy}
-            className="mt-6 rounded-full bg-ember-grad px-6 py-3 text-sm font-semibold text-white disabled:opacity-50"
-          >
-            Save risk settings
-          </button>
         </Panel>
       </form>
 
       <form onSubmit={saveWebhook}>
-        <Panel className="p-6 md:p-8">
-          <h2 className="font-display text-2xl font-bold">Webhook</h2>
-          <div className="mt-6">
-            <Field label="Outbound URL" hint="Bank endpoint for KYC_COMPLETE / CASE_* events">
+        <Panel labelledBy="webhook">
+          <PanelHeader id="webhook" title="Webhook" />
+          <div className="space-y-4 p-4">
+            <Field label="Outbound URL" hint="Sentinel posts KYC completion and case events to this address.">
               <input
+                type="url"
                 className={inputClass}
                 value={webhook}
                 onChange={(e) => setWebhook(e.target.value)}
                 placeholder="https://bank.example/hooks/sentinel"
+                autoComplete="url"
               />
             </Field>
-          </div>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <button
-              type="submit"
-              disabled={busy}
-              className="rounded-full bg-ember-grad px-6 py-3 text-sm font-semibold text-white disabled:opacity-50"
-            >
-              Save webhook
-            </button>
-            <button
-              type="button"
-              onClick={() => void testWebhook()}
-              disabled={busy}
-              className="liquid-glass rounded-full px-6 py-3 text-sm font-medium disabled:opacity-50"
-            >
-              Send test
-            </button>
+            {hookMsg && <Notice tone={hookMsg.tone}>{hookMsg.text}</Notice>}
+            <div className="flex flex-wrap gap-2">
+              <button type="submit" disabled={busy} className={buttonClass('secondary')}>
+                Save webhook
+              </button>
+              <button type="button" onClick={() => void testWebhook()} disabled={busy} className={buttonClass('ghost')}>
+                Send test event
+              </button>
+            </div>
           </div>
         </Panel>
       </form>

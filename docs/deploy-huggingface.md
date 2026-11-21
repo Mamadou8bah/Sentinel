@@ -6,6 +6,37 @@ Prepared 24 October 2026. Hosting does not train a model.
 
 ## Hugging Face Spaces
 
+### Gradio option for transaction fraud scoring
+
+Eligible free personal accounts (verified email and older than 30 days) can
+currently create up to two Gradio ZeroGPU Spaces. Check the actual Create Space
+options in your account: https://huggingface.co/docs/hub/spaces-zerogpu .
+The Gradio export executes the existing binary gradient boosting trees on CUDA
+using PyTorch inside a real `spaces.GPU` allocation. SHAP stays on CPU. No model
+retraining occurs. Each batch requests one GPU allocation. Quotas/queues apply;
+GPU errors fail scoring closed. This does not unlock paid CPU Basic or Docker.
+
+```powershell
+python scripts/prepare_hf_space.py --service transaction-ml --sdk gradio --artifacts services/transaction-ml/artifacts/paysim-v3 --output ../hf-fraud-gradio
+```
+
+Upload the exported contents to a Gradio Space with the eligible free hardware.
+Set the `ML_SERVICE_API_KEY` Space secret to match Sentinel. The public interface
+at `/` offers a fixed synthetic GPU check. `/health` and the authenticated
+`POST /ml/transaction-score` contract remain unchanged. Set Sentinel's
+`TRANSACTION_ML_BASE_URL` to the Space's HTTPS origin after checking model health
+and authenticated scoring. This does not enable or deploy the identity service.
+
+The Space entry point uses Gradio's launch lifecycle with SSR disabled so REST
+health reaches FastAPI. On 31 October 2026, the deployed
+`mamadoubah/sentinel-fraud` Space passed health (200), missing-key rejection (401),
+and authenticated three-transaction CUDA batch scoring (200). All 12 SHAP
+contributions were present; probabilities matched local sklearn within 3.2e-17.
+Local tensor checks also matched 5,000 inputs with unchanged review decisions.
+These checks verify implementation equivalence, not new model accuracy evidence.
+
+### Docker option
+
 Check the account's Create Space options first. Current HF documentation says
 Docker/Gradio compute Spaces require an eligible paid account, even though CPU
 Basic has no hourly compute charge. Do not assume an ordinary free account can

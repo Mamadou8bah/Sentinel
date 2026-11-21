@@ -20,7 +20,7 @@ const STORAGE_KEY = 'sentinel-desk-theme'
 
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
-function readStoredTheme(): ThemeMode {
+export function readStoredTheme(): ThemeMode {
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored === 'light' || stored === 'dark') return stored
@@ -30,25 +30,23 @@ function readStoredTheme(): ThemeMode {
   return 'dark'
 }
 
+/**
+ * Desk theme. It is applied as data-theme on the desk wrapper element
+ * (DeskShell / LoginPage), never on <html>, so the landing page and the
+ * hosted KYC page are not affected by the desk's light/dark choice.
+ */
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeMode>(() =>
     typeof window === 'undefined' ? 'dark' : readStoredTheme(),
   )
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme)
     try {
       localStorage.setItem(STORAGE_KEY, theme)
     } catch {
       /* ignore */
     }
   }, [theme])
-
-  useEffect(() => {
-    return () => {
-      document.documentElement.setAttribute('data-theme', 'dark')
-    }
-  }, [])
 
   const value = useMemo<ThemeContextValue>(
     () => ({
