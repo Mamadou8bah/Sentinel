@@ -26,6 +26,8 @@ public class SentinelUserDetailsService {
                 .findByTenant_IdAndUsername(tenantId, username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
         user.getTenant().getCode();
+        if (!user.isEnabled() || !user.getTenant().isEnabled())
+            throw new UsernameNotFoundException("Account unavailable");
         return new SentinelUserDetails(user);
     }
 }

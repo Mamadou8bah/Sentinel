@@ -16,4 +16,9 @@ Do not load every design skill on every change. Pick the specialist for the task
 
 ## Boundaries
 
+Platform operators use separate accounts and `/platform/login` (no tenant code).
+Their `/api/platform/*` JWT scope does not grant tenant customer/case access.
+Keep operator credentials, staff JWTs and integration keys separate; see
+`docs/platform-administration.md`.
+
 Keep scoring, risk rules, authorization and provider secrets in the backend. Frontend role checks shape navigation only. Demo data must be labelled as demo. Verify rendered results at mobile and desktop widths in both themes, and distinguish demo-mode screenshots from checks against a running backend when reporting.

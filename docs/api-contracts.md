@@ -4,6 +4,8 @@ Public **product** API (staff ops desk + bank integration). springdoc-openapi at
 
 Channels:
 
+- **Platform operator** — separate scoped JWT on `/api/platform/*`, with no tenant identity. See [platform administration](platform-administration.md).
+
 - **Staff** — JWT (`ADMIN` / `COMPLIANCE` / `ANALYST`).
 - **Bank system** — `X-Api-Key` on `/api/integration/**`; retail clients never hold Sentinel passwords.
 - **Hosted KYC** — public `/api/kyc/hosted/{token}` for bank-redirected customers (no account).

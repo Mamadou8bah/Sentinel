@@ -21,4 +21,5 @@ public interface TenantApiKeyRepository extends JpaRepository<TenantApiKey, Long
     Optional<TenantApiKey> findByKeyHash(String keyHash);
 
     boolean existsByTenant_Id(Long tenantId);
+    List<TenantApiKey> findByTenant_IdOrderByCreatedAtDesc(Long tenantId);
 }

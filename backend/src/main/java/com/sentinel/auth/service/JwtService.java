@@ -43,6 +43,7 @@ public class JwtService {
                 .subject(user.getUsername())
                 .claim(CLAIM_UID, user.getId())
                 .claim(CLAIM_ROLE, user.getRole().name())
+                .claim("av", user.getAuthVersion())
                 .claim(CLAIM_TENANT_ID, user.getTenant().getId())
                 .claim(CLAIM_TENANT_CODE, user.getTenant().getCode())
                 .issuedAt(Date.from(now))
@@ -53,6 +54,16 @@ public class JwtService {
 
     public String createRefreshTokenValue() {
         return UUID.randomUUID() + "." + UUID.randomUUID();
+    }
+
+    public String createPlatformToken(com.sentinel.platform.PlatformAccount account) {
+        Instant now = Instant.now();
+        return Jwts.builder().id(UUID.randomUUID().toString()).subject(account.getUsername())
+                .claim("scope", "platform").claim(CLAIM_UID, account.getId())
+                .claim("sv", account.getSessionVersion()).claim(CLAIM_ROLE, "PLATFORM_ADMIN")
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(now.plusSeconds(properties.getAccessTokenExpiryMinutes() * 60)))
+                .signWith(key).compact();
     }
 
     public Instant refreshExpiry() {

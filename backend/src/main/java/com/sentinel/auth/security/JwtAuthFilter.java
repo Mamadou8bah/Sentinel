@@ -21,10 +21,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final SentinelUserDetailsService userDetailsService;
+    private final com.sentinel.platform.PlatformAccountRepository platformAccounts;
 
-    public JwtAuthFilter(JwtService jwtService, SentinelUserDetailsService userDetailsService) {
+    public JwtAuthFilter(JwtService jwtService, SentinelUserDetailsService userDetailsService,
+            com.sentinel.platform.PlatformAccountRepository platformAccounts) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
+        this.platformAccounts = platformAccounts;
     }
 
     @Override
@@ -52,14 +55,29 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String token = header.substring(7);
         try {
             Claims claims = jwtService.parseAccessToken(token);
-            Long tenantId = JwtService.tenantIdFrom(claims);
-            String username = claims.getSubject();
-            if (tenantId != null && username != null) {
-                UserDetails userDetails = userDetailsService.loadUserByTenantIdAndUsername(tenantId, username);
-                var auth = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
-                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(auth);
+            if ("platform".equals(claims.get("scope"))) {
+                if (request.getRequestURI().startsWith("/api/platform/")) {
+                    var account = platformAccounts.findById(claims.get("uid", Number.class).longValue()).orElseThrow();
+                    if (account.isEnabled() && account.getUsername().equals(claims.getSubject())
+                            && account.getSessionVersion() == claims.get("sv", Number.class).longValue()) {
+                        var principal = new com.sentinel.platform.PlatformPrincipal(account.getId(), account.getUsername());
+                        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
+                                principal, null, java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_PLATFORM_ADMIN"))));
+                    }
+                }
+            } else if (claims.get("scope") == null) {
+                Long tenantId = JwtService.tenantIdFrom(claims);
+                String username = claims.getSubject();
+                if (tenantId != null && username != null) {
+                    UserDetails userDetails = userDetailsService.loadUserByTenantIdAndUsername(tenantId, username);
+                    long version = claims.get("av", Number.class) == null ? 0 : claims.get("av", Number.class).longValue();
+                    if (userDetails instanceof SentinelUserDetails staff && staff.getUser().getAuthVersion() != version)
+                        throw new IllegalArgumentException("Revoked session");
+                    var auth = new UsernamePasswordAuthenticationToken(
+                            userDetails, null, userDetails.getAuthorities());
+                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+                }
             }
         } catch (Exception ignored) {
             // Invalid token → leave context empty; SecurityFilterChain rejects protected routes

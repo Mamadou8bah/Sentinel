@@ -35,6 +35,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/auth/**",
+                                "/api/platform/auth/login",
                                 "/api/tenants/register",
                                 "/api/kyc/hosted/**",
                                 "/actuator/health",
@@ -51,8 +52,9 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers("/api/integration/**")
                         .hasRole("INTEGRATION")
-                        .anyRequest()
-                        .authenticated())
+                        .requestMatchers("/api/platform/**").hasRole("PLATFORM_ADMIN")
+                        .requestMatchers("/api/**").hasAnyRole("ADMIN", "COMPLIANCE", "ANALYST")
+                        .anyRequest().denyAll())
                 .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
                 .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

@@ -41,6 +41,11 @@ public class User {
 
     @Column(nullable = false)
     private boolean enabled = true;
+    @Column(nullable = false)
+    private long authVersion;
+
+    public long getAuthVersion() { return authVersion; }
+    public void revokeSessions() { authVersion++; }
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();

@@ -31,6 +31,8 @@ class RenderDatabaseTest {
 
     @Test
     void freshMigrationValidatesWithoutDemoAccounts() {
+        assertNotNull(jdbc.queryForObject("select to_regclass('sentinel.platform_accounts')::text",String.class));
+        assertNotNull(jdbc.queryForObject("select to_regclass('sentinel.platform_audit_events')::text",String.class));
         assertEquals(
                 1,
                 jdbc.queryForObject(
