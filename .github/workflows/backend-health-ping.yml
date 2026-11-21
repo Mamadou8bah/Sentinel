@@ -25,7 +25,7 @@ jobs:
             --retry 2 --retry-delay 5 --retry-max-time 200 \
             --output "$RUNNER_TEMP/sentinel-health.json" \
             --write-out 'Sentinel health: HTTP %{http_code} in %{time_total}s\n' \
-            https://sentinel-sutr.onrender.com/actuator/health/liveness
+            https://sentinel-sutr.onrender.com/actuator/health
           python - "$RUNNER_TEMP/sentinel-health.json" <<'PY'
           import json
           import sys

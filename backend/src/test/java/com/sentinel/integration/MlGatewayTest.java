@@ -24,6 +24,7 @@ class MlGatewayTest {
     private int status = 503;
     private String body = "{}";
     private volatile String receivedKey;
+    private long responseDelayMs;
 
     @BeforeEach
     void start() throws Exception {
@@ -33,6 +34,11 @@ class MlGatewayTest {
                 exchange -> {
                     receivedKey = exchange.getRequestHeaders().getFirst("X-ML-API-Key");
                     exchange.getRequestBody().readAllBytes();
+                    try {
+                        Thread.sleep(responseDelayMs);
+                    } catch (InterruptedException ex) {
+                        Thread.currentThread().interrupt();
+                    }
                     byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
                     exchange.getResponseHeaders().set("Content-Type", "application/json");
                     exchange.sendResponseHeaders(status, bytes.length);
@@ -53,6 +59,15 @@ class MlGatewayTest {
     @AfterEach
     void stop() {
         server.stop(0);
+    }
+
+    @Test
+    void transactionInferenceCanTakeLongerThanOldTwoAndHalfSecondDeadline() {
+        status = 200;
+        responseDelayMs = 2800;
+        body = "{\"scores\":[{\"anomalyScore\":0.1,\"modelRan\":true,\"ruleFlags\":[],\"shapTopFeatures\":[]}]}";
+        assertThat(gateway.scoreTransaction(100, "api", "7", Map.of()).anomalyScore()).isEqualTo(.1);
+        verifyNoInteractions(stub);
     }
 
     @Test

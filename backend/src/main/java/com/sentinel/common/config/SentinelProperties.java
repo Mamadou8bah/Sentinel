@@ -44,6 +44,13 @@ public class SentinelProperties {
 
         private String cvBaseUrl = "http://localhost:8001";
         private String transactionBaseUrl = "http://localhost:8002";
+        private int transactionConnectTimeoutMs = 5000;
+        private int transactionReadTimeoutMs = 20000;
+
+        public int getTransactionConnectTimeoutMs() { return transactionConnectTimeoutMs; }
+        public void setTransactionConnectTimeoutMs(int value) { transactionConnectTimeoutMs = value; }
+        public int getTransactionReadTimeoutMs() { return transactionReadTimeoutMs; }
+        public void setTransactionReadTimeoutMs(int value) { transactionReadTimeoutMs = value; }
 
         /** When true, use local stub scores instead of calling Python services. */
         private boolean stub = true;

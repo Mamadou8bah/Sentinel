@@ -37,6 +37,8 @@ sentinel:
     api-key: ${ML_SERVICE_API_KEY:}
     cv-base-url: ${CV_ML_BASE_URL:http://localhost:8001}
     transaction-base-url: ${TRANSACTION_ML_BASE_URL:http://localhost:8002}
+    transaction-connect-timeout-ms: ${TRANSACTION_ML_CONNECT_TIMEOUT_MS:5000}
+    transaction-read-timeout-ms: ${TRANSACTION_ML_READ_TIMEOUT_MS:20000}
     stub: ${SENTINEL_ML_STUB:true}
   storage:
     upload-dir: ${UPLOAD_DIR:uploads}

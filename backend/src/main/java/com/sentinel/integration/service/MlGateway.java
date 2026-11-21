@@ -40,8 +40,8 @@ public class MlGateway {
         cvTimeouts.setConnectTimeout(3000);
         cvTimeouts.setReadTimeout(30000);
         var txTimeouts = new SimpleClientHttpRequestFactory();
-        txTimeouts.setConnectTimeout(1000);
-        txTimeouts.setReadTimeout(2500);
+        txTimeouts.setConnectTimeout(properties.getMl().getTransactionConnectTimeoutMs());
+        txTimeouts.setReadTimeout(properties.getMl().getTransactionReadTimeoutMs());
         this.cvClient =
                 RestClient.builder()
                         .defaultHeader("X-ML-API-Key", properties.getMl().getApiKey())
