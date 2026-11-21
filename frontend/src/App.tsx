@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { lazy, Suspense } from 'react'
 import { AuthProvider } from './auth/AuthContext'
 import { RequireAuth } from './auth/RequireAuth'
 import DeskShell from './components/desk/DeskShell'
@@ -14,6 +15,7 @@ import LoginPage from './pages/desk/LoginPage'
 import OverviewPage from './pages/desk/OverviewPage'
 import SettingsPage from './pages/desk/SettingsPage'
 import ToolsPage from './pages/desk/ToolsPage'
+const PlatformApp = lazy(() => import('./platform/PlatformApp'))
 
 export default function App() {
   return (
@@ -22,6 +24,7 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/kyc/:token" element={<HostedKycPage />} />
         <Route path="/desk/login" element={<LoginPage />} />
+        <Route path="/platform/*" element={<Suspense fallback={<div role="status" className="p-6">Loading Sentinel administration…</div>}><PlatformApp /></Suspense>} />
 
         <Route element={<RequireAuth />}>
           <Route path="/desk" element={<DeskShell />}>

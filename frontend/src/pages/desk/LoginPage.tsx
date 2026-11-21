@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react'
 import { useEffect, useState } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { ApiError, demoSetting } from '../../api/client'
 import { SESSION_EXPIRED_FLAG, useAuth } from '../../auth/AuthContext'
 import { BrandMark } from '../../components/desk/BrandMark'
@@ -132,6 +132,7 @@ export default function LoginPage() {
             {busy ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
+        <p className="mt-5 text-center text-sm text-content-muted"><Link to="/platform/login" className="inline-flex min-h-11 items-center text-accent underline-offset-4 hover:underline">Sentinel platform administration</Link></p>
 
         {demoAvailable && (
           <p className="mt-4 text-center text-xs text-content-subtle">
