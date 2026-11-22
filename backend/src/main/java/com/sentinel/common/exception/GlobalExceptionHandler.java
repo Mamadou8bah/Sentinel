@@ -36,7 +36,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleStatus(ResponseStatusException ex) {
         HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
         String message = ex.getReason() != null ? ex.getReason() : status.getReasonPhrase();
-        return ResponseEntity.status(status).body(error(status, message));
+        var body = error(status, message);
+        if (ex instanceof com.sentinel.customer.exception.KycCaptureException capture) {
+            body.put("code", capture.getCode());
+            body.put("retryFrom", capture.getRetryFrom());
+        }
+        return ResponseEntity.status(status).body(body);
+    }
+
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleMissingResource(org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error(HttpStatus.NOT_FOUND, "Resource not found"));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

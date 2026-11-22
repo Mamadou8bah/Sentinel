@@ -82,6 +82,7 @@ export default function HostedKycPage() {
   const [busy, setBusy] = useState(false)
   const [slow, setSlow] = useState(false)
   const [submissionStatus, setSubmissionStatus] = useState(0)
+  const [retryFrom, setRetryFrom] = useState<'document' | 'recording' | 'review'>('review')
   const [expiredLocally, setExpiredLocally] = useState(false)
   const headingRef = useRef<HTMLHeadingElement>(null)
   const firstStep = useRef(true)
@@ -142,6 +143,7 @@ export default function HostedKycPage() {
       const b64 = await fileToBase64(photo)
       setIdBase64(b64)
       setIdPreview(URL.createObjectURL(photo))
+      setSubmissionStatus(0)
     } catch {
       setError('This photo could not be opened. Choose another JPEG, PNG or WebP photo.')
     }
@@ -173,6 +175,7 @@ export default function HostedKycPage() {
       // Captures are kept so the customer can retry without starting again.
       setError(failure instanceof KycSubmissionError ? failure.message : 'Your submission could not be confirmed. Your photo and video are kept; try again shortly.')
       setSubmissionStatus(failure instanceof KycSubmissionError ? failure.status : 0)
+      setRetryFrom(failure instanceof KycSubmissionError ? failure.retryFrom : 'review')
     } finally {
       window.clearTimeout(slowTimer)
       setBusy(false)
@@ -371,12 +374,17 @@ export default function HostedKycPage() {
               ) : (
                 <PrimaryButton onClick={() => {
                   if (submissionStatus === 422) {
-                    setVideoBase64(null)
-                    setSelfiePreview(null)
-                    setStep('selfie')
+                    if (retryFrom === 'recording') {
+                      setVideoBase64(null)
+                      setSelfiePreview(null)
+                      setStep('selfie')
+                    } else {
+                      if (retryFrom === 'document') { setIdBase64(null); setIdPreview(null) }
+                      setStep('id')
+                    }
                   } else void submit()
                 }} disabled={busy || [404, 409, 410].includes(submissionStatus)}>
-                  {busy ? 'Sending…' : submissionStatus === 422 ? 'Record again' : [404, 409, 410].includes(submissionStatus) ? 'Request a new link in your app' : error ? 'Try sending again' : 'Send to ' + bank}
+                  {busy ? 'Sending…' : submissionStatus === 422 ? (retryFrom === 'recording' ? 'Record again' : retryFrom === 'document' ? 'Retake document photo' : 'Review captures') : [404, 409, 410].includes(submissionStatus) ? 'Request a new link in your app' : error ? 'Try sending again' : 'Send to ' + bank}
                 </PrimaryButton>
               )}
             </div>

@@ -48,3 +48,23 @@ near them. The face-video screen previews the three prompts before recording,
 highlights the current prompt and preserves a still preview after capture.
 Primary actions use 52-pixel minimum heights and rounded ends. All styling is
 scoped to the hosted surface; the marketing landing remains unchanged.
+
+## Capture diagnostics and portrait compatibility
+
+Portrait recordings share the same 2,073,600-pixel and 1920-pixel maximum-edge
+budget as landscape recordings. A vertical 720×1280 capture must not be rejected
+by a landscape-only height limit. Decode time-budget exhaustion is a temporary
+service failure, not evidence that the customer moved incorrectly.
+
+One blurred sample may be omitted during each head-turn transition, before its
+held-pose window. Repeated blur, blur during a held pose, missing faces and
+multiple faces still reject the capture. At least 25 clear face observations and
+all three confirmed poses remain required; face matching and anti-spoof model
+thresholds are unchanged.
+
+The inference API returns allowlisted `DOCUMENT_*` or `VIDEO_*` rejection codes.
+Java maps these to customer-facing text and `retryFrom` (`document`, `recording`
+or `review`). The page sends customers to the affected capture step and preserves
+the unaffected evidence. Unknown upstream errors use neutral review guidance.
+Logs contain only stage/code, never document images, videos, names or raw model
+responses. Missing static routes return HTTP 404 instead of an unexpected 500.

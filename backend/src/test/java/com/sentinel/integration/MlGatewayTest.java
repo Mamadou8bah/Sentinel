@@ -289,6 +289,26 @@ class MlGatewayTest {
     }
 
     @Test
+    void recordingRejectionsPreserveSafeCaptureReasonInsteadOfBlamingAllFailuresOnVideo() {
+        status = 422;
+        body = "{\"detail\":{\"code\":\"DOCUMENT_BLURRED\",\"message\":\"internal diagnostic\"}}";
+        String video = java.util.Base64.getEncoder().encodeToString(new byte[] {0,0,0,24,'f','t','y','p','i','s','o','m'});
+        assertThatThrownBy(() -> gateway.scoreRecordingKyc("7", "Customer", "id", video, "challenge"))
+            .isInstanceOfSatisfying(com.sentinel.customer.exception.KycCaptureException.class, error -> {
+                assertThat(error.getCode()).isEqualTo("DOCUMENT_BLURRED");
+                assertThat(error.getRetryFrom()).isEqualTo("document");
+                assertThat(error.getReason()).contains("document").doesNotContain("internal diagnostic");
+            });
+        body = "{\"detail\":{\"code\":\"UNKNOWN_INTERNAL_VALUE\",\"message\":\"private upstream data\"}}";
+        assertThatThrownBy(() -> gateway.scoreRecordingKyc("7", "Customer", "id", video, "challenge"))
+            .isInstanceOfSatisfying(com.sentinel.customer.exception.KycCaptureException.class, error -> {
+                assertThat(error.getCode()).isEqualTo("CAPTURE_INVALID");
+                assertThat(error.getRetryFrom()).isEqualTo("review");
+                assertThat(error.getReason()).doesNotContain("private upstream data", "UNKNOWN_INTERNAL_VALUE");
+            });
+    }
+
+    @Test
     void acceptedDocumentRequiresExplicitReadinessQualityAndAcceptance() {
         status = 200;
         body = """

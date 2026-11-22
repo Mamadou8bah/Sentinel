@@ -40,6 +40,12 @@ def encode_image(rgb):
     return base64.b64encode(output.getvalue()).decode("ascii")
 
 
+class FaceCaptureError(ValueError):
+    def __init__(self, code, message):
+        self.code = code
+        super().__init__(message)
+
+
 def locate_face(rgb, minimum=40):
     import cv2
     height, width = rgb.shape[:2]
@@ -49,26 +55,30 @@ def locate_face(rgb, minimum=40):
     engine = detector()
     engine.setInputSize((frame.shape[1], frame.shape[0]))
     _, faces = engine.detect(frame)
-    if faces is None or len(faces) != 1:
-        raise ValueError("Exactly one visible face is required")
+    if faces is None or len(faces) == 0:
+        raise FaceCaptureError('FACE_NOT_FOUND', "Exactly one visible face is required; no face was found")
+    if len(faces) != 1:
+        raise FaceCaptureError('MULTIPLE_FACES', "Exactly one visible face is required; multiple faces were found")
     face = faces[0]
     x, y, w, h = [float(value / scale) for value in face[:4]]
     if min(w, h) < minimum or x < 0 or y < 0 or x + w > width or y + h > height:
-        raise ValueError("Face is too small or partly outside the image")
+        raise FaceCaptureError('FACE_POSITION', "Face is too small or partly outside the image")
     landmarks = face[4:14].reshape(5, 2) / scale
     eyes = sorted(landmarks[:2], key=lambda point: point[0])
     eye_vector = eyes[1] - eyes[0]
     eye_distance = float(np.linalg.norm(eye_vector))
     if eye_distance < 8:
-        raise ValueError("Face landmarks are insufficient")
+        raise FaceCaptureError('FACE_POSITION', "Face landmarks are insufficient")
     yaw = float(np.dot(landmarks[2] - (eyes[0] + eyes[1]) / 2, eye_vector) / (eye_distance ** 2))
     # Include a small consistent margin, while excluding document text/background.
     left, top = max(0, int(x - .12 * w)), max(0, int(y - .12 * h))
     right, bottom = min(width, int(x + 1.12 * w)), min(height, int(y + 1.12 * h))
     crop = rgb[top:bottom, left:right].copy()
     gray = cv2.cvtColor(crop, cv2.COLOR_RGB2GRAY)
-    if float(gray.std()) < 8 or float(cv2.Laplacian(gray, cv2.CV_64F).var()) < 15:
-        raise ValueError("Face is blurred or has insufficient detail")
+    if float(gray.std()) < 8:
+        raise FaceCaptureError('FACE_LOW_DETAIL', "Face has insufficient detail")
+    if float(cv2.Laplacian(gray, cv2.CV_64F).var()) < 15:
+        raise FaceCaptureError('FACE_BLURRED', "Face is blurred")
     detection = face.copy()
     detection[:14] /= scale
     return {"crop": crop, "box": (x / width, y / height, w / width, h / height), "yaw": yaw,

@@ -173,3 +173,56 @@ def test_bundled_detector_loads_and_rejects_non_face_pixels():
     assert faces.detector() is not None
     with pytest.raises(ValueError, match='Exactly one'):
         faces.locate_face(np.zeros((320, 320, 3), dtype=np.uint8))
+
+
+def test_portrait_phone_recording_keeps_same_pixel_budget(tmp_path):
+    import cv2
+    path = tmp_path / 'portrait.mp4'
+    writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*'mp4v'), 10., (720, 1280))
+    assert writer.isOpened()
+    for index in range(90):
+        frame = np.zeros((1280, 720, 3), dtype=np.uint8)
+        frame[:, index % 720, :] = 255
+        writer.write(frame)
+    writer.release()
+    samples, duration = recording.decode_samples(path.read_bytes(), '.mp4')
+    assert duration == 9 and len(samples) >= 25
+    assert max(samples[0][1].shape[:2]) <= 640
+
+
+@pytest.mark.parametrize('failures,code,accepted', [
+    ([13,25], 'FACE_BLURRED', True),
+    ([13,14], 'FACE_BLURRED', False),
+    ([18], 'FACE_BLURRED', False),
+    ([13], 'FACE_NOT_FOUND', False),
+    ([13], 'MULTIPLE_FACES', False),
+])
+def test_only_isolated_transition_blur_is_tolerated(monkeypatch, failures, code, accepted):
+    samples = [(i/4, np.full((128,160,3), i, dtype=np.uint8)) for i in range(36)]
+    monkeypatch.setattr(recording, 'decode_samples', lambda *_: (samples, 9.))
+    def locate(image, minimum=64):
+        index = int(image[0,0,0])
+        if index in failures:
+            raise faces.FaceCaptureError(code, 'Fixture capture rejected')
+        return {'crop': image, 'box': (.2,.2,.4,.5), 'yaw': [0.,.3,-.3][index//12]}
+    monkeypatch.setattr(recording, 'locate_face', locate)
+    if accepted:
+        result = recording.analyze_recording(b'fixture','.mp4',['LOOK_FORWARD','TURN_LEFT','TURN_RIGHT'])
+        assert result['sampledFrames'] == 34 and result['challengeVerified']
+    else:
+        with pytest.raises(faces.FaceCaptureError):
+            recording.analyze_recording(b'fixture','.mp4',['LOOK_FORWARD','TURN_LEFT','TURN_RIGHT'])
+
+
+def test_document_rejection_is_not_reported_as_bad_video(tmp_path, monkeypatch):
+    store = ChallengeStore(str(tmp_path/'errors.db'))
+    models = MeasuredFixtureModels()
+    app = FastAPI(); app.include_router(create_router(store, models)); client = TestClient(app)
+    def blurred(*args, **kwargs): raise faces.FaceCaptureError('FACE_BLURRED', 'internal detail not exposed')
+    monkeypatch.setattr(faces, 'locate_face', blurred)
+    response = client.post('/cv/kyc-verify-recording', json={
+        'idImage': document(), 'challengeId': store.create()['challengeId'],
+        'videoBase64': base64.b64encode(b'\0\0\0\x18ftypisomfixture').decode()})
+    assert response.status_code == 422
+    assert response.json()['detail'] == {'code': 'DOCUMENT_BLURRED', 'retryFrom': 'document'}
+    assert models.calls == 0

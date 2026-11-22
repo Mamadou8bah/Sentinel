@@ -127,4 +127,11 @@ class HostedKycIntegrationTest {
         org.assertj.core.api.Assertions.assertThat(replacement.getId()).isNotEqualTo(first.getId());
         org.assertj.core.api.Assertions.assertThat(replacement.getPublicToken()).isNotEqualTo(first.getPublicToken());
     }
+
+    @Test
+    void missingPublicResourceDoesNotBecomeServerFailure() throws Exception {
+        mockMvc.perform(get("/api/kyc/hosted/invalid/unknown-route"))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.message").value("Resource not found"));
+    }
 }

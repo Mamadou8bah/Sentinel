@@ -6,7 +6,7 @@ from pathlib import Path
 import tempfile
 import time
 import numpy as np
-from app.services.faces import locate_face, encode_image
+from app.services.faces import locate_face, encode_image, FaceCaptureError
 
 MAX_VIDEO_BYTES = 8_000_000
 DURATION_SECONDS = 9
@@ -49,18 +49,18 @@ def decode_samples(raw, extension):
                 raise ValueError("Recording cannot be decoded")
             fps = float(capture.get(cv2.CAP_PROP_FPS))
             width, height = capture.get(cv2.CAP_PROP_FRAME_WIDTH), capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
-            if not 64 <= width <= 1920 or not 64 <= height <= 1080:
-                raise ValueError("Recording must use 8–60 FPS and at most 1920x1080 pixels")
+            if min(width, height) < 64 or max(width, height) > 1920 or min(width, height) > 1080 or width * height > 2_073_600:
+                raise ValueError("Recording must use 8–60 FPS and at most 1920x1080 or 1080x1920 pixels")
             count, next_sample, previous_timestamp = 0, 0., -1.
             intervals = []
             while True:
                 if time.monotonic() - started > 12:
-                    raise ValueError("Recording decode exceeded its processing budget")
+                    raise RuntimeError("Recording decode exceeded its processing budget")
                 ok, frame = capture.read()
                 if not ok:
                     break
                 count += 1
-                if count > 720 or frame.shape[0] > 1080 or frame.shape[1] > 1920 or frame.shape[0] * frame.shape[1] > 2_073_600:
+                if count > 720 or max(frame.shape[:2]) > 1920 or min(frame.shape[:2]) > 1080 or frame.shape[0] * frame.shape[1] > 2_073_600:
                     raise ValueError("Recording exceeds decoded size limits")
                 actual_ms = float(capture.get(cv2.CAP_PROP_POS_MSEC))
                 # Browser WebM commonly advertises 1000 FPS: presentation timestamps
@@ -102,14 +102,25 @@ def analyze_recording(raw, extension, instructions):
         raise ValueError("Unsupported recording challenge")
     samples, duration = decode_samples(raw, extension)
     crops, phases, previous, observations = [], [[], [], []], None, []
+    motion_blur_phases = set()
     # Pixel/geometry checks reject ambiguous captures; they never establish liveness.
     for timestamp, frame in samples:
+        phase = min(2, int(timestamp / SEGMENT_SECONDS))
         try:
             face = locate_face(frame, minimum=64)
         except ValueError as error:
+            # One low-quality sample during each head-turn transition is not a
+            # lost identity track. Never skip missing/multiple faces or a held
+            # pose; all retained frames still undergo matching and anti-spoofing.
+            if (getattr(error, 'code', None) == 'FACE_BLURRED' and phase > 0
+                    and timestamp - phase * SEGMENT_SECONDS < 1.5
+                    and phase not in motion_blur_phases):
+                motion_blur_phases.add(phase)
+                continue
             if "Exactly one" in str(error):
                 # Multiple faces and missing faces are both invalid, avoiding track switching.
-                raise ValueError("Keep exactly one face visible throughout the recording") from None
+                raise FaceCaptureError(getattr(error, 'code', 'FACE_NOT_FOUND'),
+                                       "Keep exactly one face visible throughout the recording") from None
             raise
         box = face["box"]
         if previous is not None:
@@ -127,6 +138,8 @@ def analyze_recording(raw, extension, instructions):
         # Only settled poses, after time to follow the prompt, are used for instruction checks.
         if 1.5 <= timestamp - phase * SEGMENT_SECONDS <= 2.9:
             phases[phase].append((face["yaw"], crop))
+    if len(crops) < 25:
+        raise ValueError("Recording needs at least 25 clear face frames")
     if any(len(phase) < 3 for phase in phases):
         raise ValueError("Each recording prompt needs a clear held pose")
     poses = [float(np.median([item[0] for item in phase])) for phase in phases]

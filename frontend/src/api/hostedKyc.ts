@@ -2,7 +2,7 @@ import { withKycWarmup, KycTemporaryError, type KycConnectionOptions } from './k
 // Evidence goes directly to the API, avoiding an extra frontend upload proxy.
 const origin = (import.meta.env.VITE_HOSTED_KYC_API_BASE_URL || import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
 export class KycSubmissionError extends Error {
-  constructor(message: string, public readonly status: number) { super(message) }
+  constructor(message: string, public readonly status: number, public readonly retryFrom: 'document' | 'recording' | 'review' = 'review') { super(message) }
 }
 export function loadHostedKyc<T>(token: string, options: KycConnectionOptions = {}): Promise<T> {
   return withKycWarmup(async signal => {
@@ -25,9 +25,19 @@ export async function submitHostedKyc<T>(token: string, evidence: unknown): Prom
         409: 'This session is already bound to another recording. Return to your app for a new link.',
         410: 'This verification link has expired. Return to your app for a new link.',
         413: 'The upload is too large. Use a document photo up to 5 MB and record the video again.',
-        422: 'The recording could not be checked. Keep one face visible and follow all three prompts, then record again.',
+        422: 'The captures could not be processed. Review your document photo and face video before trying again.',
         429: 'Too many attempts. Wait a moment before sending again.',
         503: 'Identity checks are temporarily unavailable. Your photo and video are kept; try sending again shortly.',
+      }
+      if (response.status === 422) {
+        try {
+          const rejection = await response.json()
+          if (typeof rejection.code === 'string' && /^(DOCUMENT_|VIDEO_|CAPTURE_INVALID)/.test(rejection.code)
+              && typeof rejection.message === 'string' && rejection.message.length <= 500
+              && ['document', 'recording', 'review'].includes(rejection.retryFrom)) {
+            throw new KycSubmissionError(rejection.message, 422, rejection.retryFrom)
+          }
+        } catch (error) { if (error instanceof KycSubmissionError) throw error }
       }
       throw new KycSubmissionError(messages[response.status] || 'The verification service could not confirm your submission. Your photo and video are kept.', response.status)
     }

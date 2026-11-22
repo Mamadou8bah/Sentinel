@@ -260,11 +260,17 @@ public class MlGateway {
             if (invalid.getStatusCode().value() == 410 || invalid.getStatusCode().value() == 404)
                 throw new ResponseStatusException(HttpStatus.GONE,
                         "The recording challenge has expired or restarted. Request a new verification link.");
-            if (invalid.getStatusCode().value() == 422)
-                throw new ResponseStatusException(
-                        HttpStatus.UNPROCESSABLE_ENTITY,
-                        "Recording could not be verified. Keep one face visible and follow each"
-                                + " prompt, then record again.");
+            if (invalid.getStatusCode().value() == 422) {
+                String code = "CAPTURE_INVALID";
+                try {
+                    var detail = new com.fasterxml.jackson.databind.ObjectMapper()
+                            .readTree(invalid.getResponseBodyAsString()).path("detail");
+                    if (detail.isObject()) code = detail.path("code").asText("CAPTURE_INVALID");
+                } catch (Exception ignored) { /* Never forward arbitrary inference response text. */ }
+                var rejection = new com.sentinel.customer.exception.KycCaptureException(code);
+                log.info("KYC capture rejected; code={} retryFrom={}", rejection.getCode(), rejection.getRetryFrom());
+                throw rejection;
+            }
             if (invalid.getStatusCode().value() == 409)
                 throw new ResponseStatusException(
                         HttpStatus.CONFLICT,

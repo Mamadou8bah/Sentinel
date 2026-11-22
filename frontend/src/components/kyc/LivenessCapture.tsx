@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { fileToBase64 } from '../../lib/files'
 
-const labels: Record<string,string> = {LOOK_FORWARD:'Look straight at the camera',TURN_LEFT:'Turn your head slowly to your left and hold',TURN_RIGHT:'Turn your head slowly to your right and hold'}
+const labels: Record<string,string> = {LOOK_FORWARD:'Look straight at the camera',TURN_LEFT:'Turn slightly to your left and hold',TURN_RIGHT:'Turn slightly to your right and hold'}
 export type RecordingCapture = {videoBase64:string;mimeType:string;preview:string|null}
 export function LivenessCapture({hint,onCapture,preview:photoPreview}:{hint:string;onCapture:(capture:RecordingCapture|null)=>void;preview?:string|null}){
  const video=useRef<HTMLVideoElement>(null),stream=useRef<MediaStream|null>(null),recorder=useRef<MediaRecorder|null>(null),timer=useRef<ReturnType<typeof setInterval>|null>(null)
@@ -53,6 +53,7 @@ export function LivenessCapture({hint,onCapture,preview:photoPreview}:{hint:stri
      <span className="mb-1 block font-semibold">{index+1}</span>{instruction==='LOOK_FORWARD'?'Look ahead':instruction==='TURN_LEFT'?'Turn left':'Turn right'}
    </li>)}
  </ol>
+ <p className="text-sm leading-5 text-content-muted">A small turn is enough. Keep both eyes visible and hold each pose until the next prompt.</p>
  {recording&&<div aria-live="polite" className="space-y-2"><p className="text-base font-semibold">{labels[instructions[Math.min(2,Math.floor(seconds/3))]]}</p><p className="text-sm text-content-muted">{9-seconds} seconds remaining</p></div>}
  {recording?<button type="button" onClick={cancel} className="min-h-[52px] w-full rounded-full border border-line-strong bg-surface px-5 py-3 text-sm font-semibold text-content">Cancel recording</button>:<button type="button" disabled={starting} onClick={()=>void start()} className="min-h-[52px] w-full rounded-full border border-line-strong bg-surface px-5 py-3 text-sm font-semibold text-content disabled:opacity-50">{starting?'Preparing recording…':done?'Record again':'Start camera recording'}</button>}
  {done?<p role="status" className="text-sm text-content-muted">Continuous recording captured. Continue to review.</p>:!recording&&<p className="text-center text-xs leading-5 text-content-subtle">One nine-second video. No audio is recorded.</p>}

@@ -4,6 +4,9 @@ from app.api.schemas import KycRequest, LivenessRequest, RecordingKycRequest, Do
 from app.services.evidence import inspect_image
 from app.services.identity import IdentityModels
 from app.storage.challenges import ChallengeError, ChallengeStore
+import logging
+
+log = logging.getLogger(__name__)
 
 
 def create_router(store: ChallengeStore, models: IdentityModels) -> APIRouter:
@@ -110,9 +113,11 @@ def create_router(store: ChallengeStore, models: IdentityModels) -> APIRouter:
         import hashlib
         from app.services.recording import recording_bytes, analyze_recording
         from app.services.faces import rgb_image, locate_face
-        document = inspect(request.idImage)
+        stage = 'document'
         try:
+            document = inspect_image(request.idImage)
             instructions = store.instructions(request.challengeId)
+            stage = 'recording'
             raw, extension = recording_bytes(request.videoBase64)
             input_hash = hashlib.sha256((document['sha256'] + ":" + hashlib.sha256(raw).hexdigest()).encode()).hexdigest()
             previous = store.result(request.challengeId)
@@ -120,8 +125,11 @@ def create_router(store: ChallengeStore, models: IdentityModels) -> APIRouter:
                 if previous.get('inputHash') != input_hash:
                     raise HTTPException(409, "Challenge already bound to other document or recording")
                 return previous['response']
+            stage = 'document'
             locate_face(rgb_image(request.idImage, encoded=True))
+            stage = 'recording'
             track = analyze_recording(raw, extension, instructions)
+            stage = 'inference'
             result = models.recording_kyc(request.idImage, track, instructions)
             if result.get('verificationDecision') == 'UNAVAILABLE':
                 # Do not consume/cache an infrastructure failure or permanently
@@ -142,10 +150,17 @@ def create_router(store: ChallengeStore, models: IdentityModels) -> APIRouter:
         except ChallengeError as error:
             raise HTTPException(error.status, str(error)) from None
         except ValueError as error:
-            raise HTTPException(422, str(error)) from None
+            from app.services.capture_errors import rejection
+            if stage == 'inference':
+                log.warning('Recording inference failed; code=KYC_PROCESSING_UNAVAILABLE')
+                raise HTTPException(503, {'code': 'KYC_PROCESSING_UNAVAILABLE'}) from None
+            detail = rejection(stage, error)
+            log.info('KYC capture rejected; stage=%s code=%s', stage, detail['code'])
+            raise HTTPException(422, detail) from None
         except HTTPException:
             raise
         except Exception:
+            log.warning('Recording verification unavailable; stage=%s', stage)
             raise HTTPException(503, "Recording verification unavailable") from None
 
 
