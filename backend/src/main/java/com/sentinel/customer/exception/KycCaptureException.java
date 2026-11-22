@@ -12,6 +12,7 @@ public class KycCaptureException extends ResponseStatusException {
         Map.entry("DOCUMENT_BLURRED", "The portrait on your document is not sharp enough. Retake the document photo in good light, without glare."),
         Map.entry("DOCUMENT_POSITION", "The document portrait is too small or cut off. Move closer while keeping the whole document visible."),
         Map.entry("DOCUMENT_INVALID", "The document photo could not be read. Choose a clear JPEG, PNG or WebP photo up to 5 MB."),
+        Map.entry("DOCUMENT_FIELDS_UNREADABLE", "The document number, birth date or expiry date could not be read clearly. Retake the document photo in good light, or use another supported document."),
         Map.entry("VIDEO_NO_FACE", "Your face could not be detected throughout the video. Make only a small head turn and keep both eyes visible in the frame."),
         Map.entry("VIDEO_MULTIPLE_FACES", "More than one face appeared in the video. Record again with only you in view."),
         Map.entry("VIDEO_BLURRED", "The video did not contain enough sharp face images. Use brighter light, turn slowly and hold each pose."),

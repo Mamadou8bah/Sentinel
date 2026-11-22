@@ -235,6 +235,7 @@ class IdentityModels:
                     'signals': result['signals'] + document_result['signals'],
                     'modelVersions': {**result['modelVersions'], **document_result['modelVersions']},
                     'faceModelsRan': True, 'ocrModelRan': document_result['ocrModelRan'],
+                    'tamperingModelRan': document_result['tamperingModelRan'],
                     'modelRan': self.ready and document_result['documentChecksAccepted']})
         fields, tamper = {}, 1.
         if all(task in self.models for task in ('ocr', 'tampering')):
@@ -262,6 +263,8 @@ class IdentityModels:
         live_threshold = self.pretrained.live_threshold if self.pretrained else self.metadata['liveness']['threshold']
         result = {**result, 'signals': self.blocking_signals(result.get('signals', []))}
         return {**result, **automatic_decision(result, self.ready, face_threshold, live_threshold),
+                'scoreThresholds': {'faceMatch': face_threshold, 'liveness': live_threshold},
+                'faceScoreMetric': 'cosineSimilarity' if self.pretrained else 'trainedSimilarity',
                 **self.policy_metadata()}
 
     def document_verify(self, document, doc_type='ID', reference=None):

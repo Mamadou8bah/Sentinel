@@ -264,3 +264,26 @@ def test_lost_challenge_is_detectable_before_capturing(tmp_path):
     challenge = store.create()
     assert client.get('/cv/liveness/challenge/'+challenge['challengeId']).json()['instructions'] == challenge['instructions']
     assert client.get('/cv/liveness/challenge/missing-after-restart').status_code == 404
+
+
+@pytest.mark.parametrize('attack', [False,True])
+def test_unreadable_document_is_retryable_but_does_not_hide_liveness_failure(tmp_path,monkeypatch,attack):
+    store=ChallengeStore(str(tmp_path/'quality.db'));models=MeasuredFixtureModels()
+    reasons=['REQUIRED_ID_FIELDS_UNREADABLE','DOCUMENT_CHECKS_REJECTED']
+    if attack: reasons.append('PRESENTATION_ATTACK_SUSPECTED')
+    models.recording_kyc=lambda *_:{'verificationDecision':'REJECTED','automaticApproval':False,
+        'decisionReasons':reasons,'faceMatchScore':.9,'livenessScore':0. if attack else .98,
+        'tamperingScore':.01,'modelRan':False,'spoofLikely':attack,'signals':reasons}
+    app=FastAPI();app.include_router(create_router(store,models));client=TestClient(app)
+    monkeypatch.setattr(faces,'locate_face',lambda *_:{})
+    monkeypatch.setattr(recording,'analyze_recording',lambda raw,*_: {
+        'recordingSha256':hashlib.sha256(raw).hexdigest(),'sampledFrames':36,'durationSeconds':9.})
+    challenge=store.create()['challengeId']
+    body={'idImage':document(),'videoBase64':base64.b64encode(b'\0\0\0\x18ftypisomfixture').decode(),'challengeId':challenge}
+    response=client.post('/cv/kyc-verify-recording',json=body)
+    if not attack:
+        assert response.status_code==422 and response.json()['detail']['code']=='DOCUMENT_FIELDS_UNREADABLE'
+        assert store.result(challenge) is None
+    else:
+        assert response.status_code==200 and response.json()['automaticApproval'] is False
+        assert 'PRESENTATION_ATTACK_SUSPECTED' in response.json()['explanation']

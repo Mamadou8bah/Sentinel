@@ -148,15 +148,27 @@ def create_router(store: ChallengeStore, models: IdentityModels) -> APIRouter:
                 # reject a customer because a required model is not ready.
                 raise HTTPException(503, {'code': 'KYC_AUTOMATION_UNAVAILABLE',
                                           'reasons': result.get('decisionReasons', [])})
+            reasons = set(result.get('decisionReasons', []))
+            capture_problems = {'REQUIRED_ID_FIELDS_UNREADABLE', 'EXPIRY_NOT_ESTABLISHED',
+                'VALID_DOCUMENT_DATES_REQUIRED', 'UNREADABLE_DOB', 'UNREADABLE_EXPIRYDATE',
+                'MRZ_UNREADABLE', 'MRZ_CHECK_DIGIT_MISMATCH'}
+            if (models.ready and result.get('verificationDecision') == 'REJECTED'
+                    and reasons & capture_problems
+                    and reasons <= capture_problems | {'DOCUMENT_CHECKS_REJECTED'}):
+                log.info('KYC capture rejected; stage=document code=DOCUMENT_FIELDS_UNREADABLE')
+                raise HTTPException(422, {'code': 'DOCUMENT_FIELDS_UNREADABLE', 'retryFrom': 'document'})
+            if reasons:
+                log.info('KYC decision=%s reasons=%s', result.get('verificationDecision'), ','.join(sorted(reasons)))
+            explanation = 'Required automatic identity checks ran' if result['modelRan'] else 'Required automatic checks did not all pass'
+            if result.get('approvalPolicy') == 'pretrained-thresholds' and not result.get('localAccuracyValidated'):
+                explanation += ' using pretrained thresholds; local accuracy is unvalidated'
+            if reasons:
+                explanation += '; failed checks: ' + ', '.join(sorted(reasons))
             response = {**result, "qualityOk": True, "pipeline": "recording-face-v2",
                         "challengeId": request.challengeId, "recordingFormat": extension[1:],
                         "recordingSha256": track['recordingSha256'], "sampledFrames": track['sampledFrames'],
                         "durationSeconds": track['durationSeconds'],
-                        "explanation": ("Document portrait compared against tracked video faces; liveness and document checks ran"
-                                        + (" using pretrained thresholds; local accuracy is unvalidated"
-                                           if result.get('approvalPolicy') == 'pretrained-thresholds' and not result.get('localAccuracyValidated') else "")) if result['modelRan'] else
-                            ("Pretrained face matching and anti-spoof inference ran; document checks or holdout acceptance remain incomplete"
-                             if result.get('faceModelsRan') else "Evaluated identity models unavailable; recording cannot grant VERIFIED status")}
+                        "explanation": explanation}
             store.consume(request.challengeId, {"inputHash": input_hash, "response": response})
             return response
         except ChallengeError as error:

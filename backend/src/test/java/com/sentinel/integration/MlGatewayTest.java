@@ -317,12 +317,13 @@ class MlGatewayTest {
         body = """
             {"pipeline":"recording-face-v2","challengeId":"challenge","recordingSha256":"%s","sampledFrames":36,
              "faceMatchScore":0.95,"livenessScore":0.99,"tamperingScore":0.01,"qualityOk":true,"spoofLikely":false,"modelRan":true,
-             "verificationDecision":"APPROVED","automaticApproval":true,
+             "verificationDecision":"APPROVED","automaticApproval":true,"scoreThresholds":{"faceMatch":0.363,"liveness":0.9},
              "extractedFields":{"name":"BAH MAMADOU","idNumber":"TEST123","dob":"1990-01-01"}}
             """.formatted(hash);
         var accepted = gateway.scoreRecordingKyc("7","Mamadou Bah","id",video,"challenge");
         assertThat(accepted.evidenceTrusted()).isTrue();
         assertThat(accepted.explanation()).contains("names match");
+        assertThat(accepted.explanation()).contains("model face threshold 0.363", "model liveness threshold 0.900");
         String good = body;
         body = good.replace("BAH MAMADOU","AWA JALLOW");
         assertThat(gateway.scoreRecordingKyc("7","Mamadou Bah","id",video,"challenge").evidenceTrusted()).isFalse();

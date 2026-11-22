@@ -275,6 +275,16 @@ public class MlGateway {
                 case "MISMATCH" -> "Account and document names differ";
                 default -> "Account and document names could not be conclusively compared";
             };
+            String thresholdExplanation = "";
+            if (response.get("scoreThresholds") instanceof Map<?,?> thresholds
+                    && thresholds.get("faceMatch") instanceof Number faceThreshold
+                    && thresholds.get("liveness") instanceof Number liveThreshold
+                    && Double.isFinite(faceThreshold.doubleValue()) && Double.isFinite(liveThreshold.doubleValue())
+                    && faceThreshold.doubleValue() > 0 && faceThreshold.doubleValue() <= 1
+                    && liveThreshold.doubleValue() > 0 && liveThreshold.doubleValue() <= 1) {
+                thresholdExplanation = String.format(java.util.Locale.ROOT,
+                    "; model face threshold %.3f; model liveness threshold %.3f", faceThreshold.doubleValue(), liveThreshold.doubleValue());
+            }
             return new KycScores(
                     name == null || name.isBlank() ? (fields.get("name") instanceof String extractedName ? extractedName : "Unknown") : name,
                     dob,
@@ -284,7 +294,7 @@ public class MlGateway {
                     requireScore(response.get("tamperingScore")),
                     trusted,
                     String.valueOf(
-                            response.getOrDefault("explanation", "Recording evidence evaluated")) + " · " + nameExplanation);
+                            response.getOrDefault("explanation", "Recording evidence evaluated")) + thresholdExplanation + " · " + nameExplanation);
         } catch (org.springframework.web.client.HttpClientErrorException invalid) {
             if (invalid.getStatusCode().value() == 410 || invalid.getStatusCode().value() == 404)
                 throw new ResponseStatusException(HttpStatus.GONE,

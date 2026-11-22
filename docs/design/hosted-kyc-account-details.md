@@ -101,3 +101,12 @@ service. Lost/expired challenges are replaced by the authenticated tenant's next
 start request; an already-open link is marked expired before capture begins.
 Temporary inference outages remain retryable service errors and do not silently
 expire valid sessions or discard completed results.
+
+Pure document-readability failures now return `DOCUMENT_FIELDS_UNREADABLE` while
+keeping the challenge usable for a corrected photo. This applies only when all
+failed checks are on an allowlist of missing/unreadable document fields. Failed
+liveness, face mismatch, expired documents, tampering and unknown blocking
+signals retain their rejection outcomes. Case explanations preserve individual
+failed-check codes and the model's face/liveness thresholds, separately from the
+tenant's configured threshold. A cosine similarity is not a probability, and
+changing the tenant policy is separate from fixing capture or OCR errors.
