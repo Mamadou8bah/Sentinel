@@ -227,14 +227,14 @@ export default function HostedKycPage() {
     const o = outcome(session)
     return (
       <Shell bank={bank}>
-        <div className="rounded-2xl border border-line bg-surface p-6">
-          <span className="grid h-10 w-10 place-items-center rounded-full bg-surface-raised text-content" aria-hidden>
-            <Icon name="check" size={20} />
+        <div className="space-y-4 py-6">
+          <span className="mb-6 grid h-16 w-16 place-items-center rounded-full bg-surface-raised text-content" aria-hidden>
+            <Icon name="check" size={30} />
           </span>
-          <h1 ref={headingRef} tabIndex={-1} className="mt-4 text-2xl font-semibold leading-8">
+          <h1 ref={headingRef} tabIndex={-1} className="text-[28px] font-semibold leading-9">
             {o.title}
           </h1>
-          <p className="mt-2 text-base text-content-muted">{o.body}</p>
+          <p className="text-base leading-7 text-content-muted">{o.body}</p>
         </div>
         <div className="mt-6">
           {session.returnUrl ? (
@@ -251,15 +251,16 @@ export default function HostedKycPage() {
 
   return (
     <Shell bank={bank}>
-      <nav aria-label="Progress">
-        <p className="text-sm text-content-muted">
-          Step {stepIndex + 1} of {steps.length}
-        </p>
-        <ol className="mt-2 grid grid-cols-4 gap-1.5">
+      <nav aria-label="Progress" className="mb-8">
+        <div className="flex items-center justify-between gap-3 text-sm">
+          <p className="font-medium text-content">Step {stepIndex + 1} of {steps.length}</p>
+          <p className="text-content-subtle">{steps[stepIndex]?.label}</p>
+        </div>
+        <ol className="mt-3 grid grid-cols-4 gap-2">
           {steps.map((s, i) => (
             <li key={s.key} aria-current={i === stepIndex ? 'step' : undefined}>
-              <span className={`block h-1 rounded-sm ${i <= stepIndex ? 'bg-accent' : 'bg-line-strong'}`} aria-hidden />
-              <span className={`mt-1.5 block text-xs ${i === stepIndex ? 'font-semibold text-content' : 'text-content-subtle'} max-sm:sr-only`}>
+              <span className={`block h-1 rounded-full ${i <= stepIndex ? 'bg-accent' : 'bg-line-strong'}`} aria-hidden />
+              <span className="sr-only">
                 {s.label}
                 {i < stepIndex && <span className="sr-only"> (done)</span>}
               </span>
@@ -268,7 +269,7 @@ export default function HostedKycPage() {
         </ol>
       </nav>
 
-      <div className="mt-6">
+      <div>
         {error && step !== 'review' && (
           <p role="alert" className="mb-4 rounded-xl border border-risk-block/40 bg-risk-block/5 px-4 py-3 text-base text-content">
             {error}
@@ -278,24 +279,24 @@ export default function HostedKycPage() {
         {step === 'intro' && (
           <div className="space-y-6">
             <div>
-              <h1 ref={headingRef} tabIndex={-1} className="text-2xl font-semibold leading-8">
-                Confirm your identity for {bank}
+              <h1 ref={headingRef} tabIndex={-1} className="text-[28px] font-semibold leading-9 tracking-tight">
+                Let’s verify your identity
               </h1>
-              <p className="mt-2 text-base text-content-muted">It takes about two minutes. You’ll need:</p>
+              <p className="mt-3 text-base leading-6 text-content-muted">A quick identity check for {bank}. Have your document ready and find a well-lit spot.</p>
             </div>
-            <ul className="space-y-3 rounded-2xl border border-line bg-surface p-5 text-base">
-              <li className="flex gap-3">
-                <Icon name="id" size={22} className="mt-0.5 text-content-muted" />
-                <span>Your passport, government ID card or driving licence, to photograph</span>
+            <ul className="space-y-6 py-2 text-base">
+              <li className="flex items-start gap-4">
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-surface-raised"><Icon name="id" size={24} /></span>
+                <span><strong className="block font-semibold">A photo of your document</strong><span className="mt-1 block text-sm leading-5 text-content-muted">Use a passport, ID card or driving licence.</span></span>
               </li>
-              <li className="flex gap-3">
-                <Icon name="camera" size={22} className="mt-0.5 text-content-muted" />
-                <span>A camera, for a short nine-second video of your face. No sound is recorded.</span>
+              <li className="flex items-start gap-4">
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-surface-raised"><Icon name="camera" size={24} /></span>
+                <span><strong className="block font-semibold">A short face video</strong><span className="mt-1 block text-sm leading-5 text-content-muted">Follow three simple prompts. It takes nine seconds, with no audio.</span></span>
               </li>
             </ul>
             <p className="text-sm text-content-muted">{session.accountNameProvided ? `${bank} has supplied your account details. You don’t need to enter them again.` : 'Your name will be read from your document. You don’t need to type it here.'}</p>
-            {expiresAt && <p className="text-sm text-content-subtle">This link works until {expiresAt}. Please don’t refresh the page during the check.</p>}
-            <PrimaryButton onClick={() => setStep('id')}>Start</PrimaryButton>
+            <PrimaryButton onClick={() => setStep('id')}>Get started</PrimaryButton>
+            {expiresAt && <p className="text-center text-xs leading-5 text-content-subtle">Link expires at {expiresAt}. Keep this page open during your check.</p>}
           </div>
         )}
 
@@ -315,12 +316,13 @@ export default function HostedKycPage() {
         {step === 'selfie' && (
           <div className="space-y-6">
             <div>
-              <h1 ref={headingRef} tabIndex={-1} className="text-2xl font-semibold leading-8">
+              <h1 ref={headingRef} tabIndex={-1} className="text-[28px] font-semibold leading-9 tracking-tight">
                 Video check
               </h1>
               <p className="mt-2 text-base text-content-muted">This shows {bank} that a real person is taking part.</p>
             </div>
             <LivenessCapture
+              preview={selfiePreview}
               hint={session.livenessHint}
               onCapture={(capture) => {
                 setSubmissionStatus(0)
@@ -341,14 +343,14 @@ export default function HostedKycPage() {
         {step === 'review' && (
           <div className="space-y-6">
             <div>
-              <h1 ref={headingRef} tabIndex={-1} className="text-2xl font-semibold leading-8">
+              <h1 ref={headingRef} tabIndex={-1} className="text-[28px] font-semibold leading-9 tracking-tight">
                 Check and send
               </h1>
               <p className="mt-2 text-base text-content-muted">Make sure your ID is sharp and your face is clear.</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <PreviewCard label={documentType === 'PASSPORT' ? 'Passport' : documentType === 'DRIVING_LICENCE' ? 'Driving licence' : 'ID card'} src={idPreview} onChange={() => setStep('id')} />
-              <PreviewCard label="Video check" src={selfiePreview} onChange={() => setStep('selfie')} />
+              <PreviewCard label="Face video" src={selfiePreview} onChange={() => setStep('selfie')} />
             </div>
             {error && (
               <p role="alert" className="rounded-xl border border-risk-block/40 bg-risk-block/5 px-4 py-3 text-base text-content">
@@ -397,10 +399,11 @@ function Shell({ children, bank }: { children: ReactNode; bank?: string }) {
     })() ||
       import.meta.env.VITE_DEMO_MODE === 'true')
   return (
-    <div data-surface="kyc" className="flex min-h-[100svh] flex-col bg-surface-page text-content">
+    <div data-surface="kyc" className="flex min-h-[100svh] flex-col bg-surface text-content">
       <header className="border-b border-line bg-surface">
-        <div className="mx-auto flex h-14 max-w-lg items-center px-5">
-          <span className="text-base font-semibold">{bank ?? 'Identity check'}</span>
+        <div className="mx-auto flex min-h-20 max-w-lg items-center justify-between gap-4 px-5 sm:px-8">
+          <span className="min-w-0 break-words text-lg font-semibold tracking-tight">{bank ?? 'Identity check'}</span>
+          <span className="shrink-0 text-xs text-content-subtle">Identity verification</span>
         </div>
       </header>
       {demo && (
@@ -408,33 +411,19 @@ function Shell({ children, bank }: { children: ReactNode; bank?: string }) {
           <span className="font-semibold text-content">Demo.</span> Sample session; no real identity check is made.
         </p>
       )}
-      <main className="mx-auto w-full max-w-lg flex-1 px-5 py-8 s-enter">{children}</main>
-      <footer className="mx-auto w-full max-w-lg px-5 pb-8 text-sm text-content-subtle">
-        Identity check provided by Sentinel for {bank ?? 'your bank'}.
+      <main className="mx-auto w-full max-w-lg flex-1 px-5 py-8 sm:px-8 sm:py-10">{children}</main>
+      <footer className="mx-auto w-full max-w-lg px-5 pb-6 pt-4 text-center text-xs leading-5 text-content-subtle">
+        Identity verification powered by <span className="font-semibold text-content-muted">Sentinel</span>
       </footer>
     </div>
   )
 }
 
-const inputClass =
-  'h-12 w-full rounded-xl border border-control bg-surface px-4 text-base text-content placeholder:text-content-subtle'
-
 const primaryClass =
-  'inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-accent px-6 text-base font-semibold text-accent-on transition-[background-color,transform] duration-150 hover:bg-accent/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50'
+  'inline-flex min-h-[52px] w-full items-center justify-center gap-3 rounded-full bg-accent px-5 py-3 text-base font-semibold text-accent-on transition-colors duration-150 hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-40'
 
 const secondaryClass =
-  'inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-line-strong bg-surface px-5 text-base font-medium text-content transition-[background-color,transform] duration-150 hover:bg-surface-raised active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50'
-
-function Field({ label, children, htmlFor }: { label: string; children: ReactNode; htmlFor: string }) {
-  return (
-    <div>
-      <label htmlFor={htmlFor} className="mb-2 block text-sm font-medium text-content">
-        {label}
-      </label>
-      {children}
-    </div>
-  )
-}
+  'inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full border border-line-strong bg-surface px-4 py-3 text-sm font-semibold text-content transition-colors duration-150 hover:bg-surface-raised disabled:cursor-not-allowed disabled:opacity-40'
 
 function PrimaryButton({ children, onClick, disabled }: { children: ReactNode; onClick?: () => void; disabled?: boolean }) {
   return (
@@ -500,7 +489,7 @@ function PreviewCard({ label, src, onChange }: { label: string; src: string | nu
   return (
     <div className="overflow-hidden rounded-2xl border border-line bg-surface">
       {src ? (
-        <img src={src} alt={label} className="aspect-[4/3] w-full object-cover" />
+        <img src={src} alt={label} className={`aspect-[4/3] w-full bg-surface-raised ${label === 'Face video' ? 'object-cover' : 'object-contain'}`} />
       ) : (
         <div className="grid aspect-[4/3] place-items-center bg-surface-raised text-sm text-content-subtle">No preview</div>
       )}
@@ -617,7 +606,7 @@ function CaptureStep({
   return (
     <div className="space-y-6">
       <div>
-        <h1 ref={headingRef} tabIndex={-1} className="text-2xl font-semibold leading-8">
+        <h1 ref={headingRef} tabIndex={-1} className="text-[28px] font-semibold leading-9 tracking-tight">
           Photograph your ID
         </h1>
         <p className="mt-2 text-base text-content-muted">
@@ -625,14 +614,22 @@ function CaptureStep({
         </p>
       </div>
 
-      <Field label="Document type" htmlFor="kyc-document-type">
-        <select id="kyc-document-type" className={inputClass} value={documentType} onChange={event => onDocumentType(event.target.value)}>
-          <option value="ID_CARD">ID card</option>
-          <option value="PASSPORT">Passport</option>
-          <option value="DRIVING_LICENCE">Driving licence</option>
-        </select>
-      </Field>
-      <p className="text-sm text-content-subtle">JPEG, PNG or WebP, up to 5 MB.</p>
+      <fieldset>
+        <legend className="mb-3 text-sm font-medium">Document type</legend>
+        <div className="grid grid-cols-3 gap-2">
+          {[['ID_CARD', 'ID card'], ['PASSPORT', 'Passport'], ['DRIVING_LICENCE', 'Driving licence']].map(([value, label]) => (
+            <label key={value} className="relative cursor-pointer">
+              <input type="radio" name="documentType" value={value} checked={documentType === value} onChange={() => onDocumentType(value)} className="peer absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0" />
+              <span className="flex min-h-24 flex-col items-start justify-between gap-3 rounded-2xl border border-line px-3 py-3 text-sm leading-5 peer-checked:border-content peer-checked:bg-surface-raised peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2">
+                <span aria-hidden="true" className={`grid h-4 w-4 place-items-center rounded-full border ${documentType === value ? 'border-content bg-accent text-accent-on' : 'border-control'}`}>
+                  {documentType === value && <Icon name="check" size={11} />}
+                </span>
+                <span className="font-medium">{label}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
       <div className={cameraOn ? 'relative overflow-hidden rounded-2xl bg-black' : 'hidden'}>
         <video ref={videoRef} playsInline muted className="aspect-[3/2] w-full object-cover" />
@@ -642,10 +639,10 @@ function CaptureStep({
         (preview ? (
           <img src={preview} alt="Your ID photo" className="aspect-[3/2] w-full rounded-2xl border border-line bg-surface-raised object-contain" />
         ) : (
-          <div className="relative grid aspect-[3/2] place-items-center rounded-2xl border border-dashed border-control bg-surface text-content-subtle">
-            <span className="flex flex-col items-center gap-2 text-sm">
-              <Icon name="id" size={32} />
-              No photo yet
+          <div className="relative grid aspect-[3/2] place-items-center rounded-3xl bg-surface-raised text-content-muted">
+            <span className="flex flex-col items-center gap-3 text-sm">
+              <Icon name="id" size={56} className="text-content-subtle" />
+              Keep all four corners visible
             </span>
           </div>
         ))}
@@ -692,6 +689,8 @@ function CaptureStep({
           </>
         )}
       </div>
+
+      <p className="text-center text-xs text-content-subtle">JPEG, PNG or WebP, up to 5 MB.</p>
 
       <StepNav onBack={onBack} onNext={onNext} nextDisabled={nextDisabled} disabledReason="Add a photo of your ID to continue." />
     </div>

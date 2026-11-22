@@ -3,7 +3,7 @@ import { fileToBase64 } from '../../lib/files'
 
 const labels: Record<string,string> = {LOOK_FORWARD:'Look straight at the camera',TURN_LEFT:'Turn your head slowly to your left and hold',TURN_RIGHT:'Turn your head slowly to your right and hold'}
 export type RecordingCapture = {videoBase64:string;mimeType:string;preview:string|null}
-export function LivenessCapture({hint,onCapture}:{hint:string;onCapture:(capture:RecordingCapture|null)=>void}){
+export function LivenessCapture({hint,onCapture,preview:photoPreview}:{hint:string;onCapture:(capture:RecordingCapture|null)=>void;preview?:string|null}){
  const video=useRef<HTMLVideoElement>(null),stream=useRef<MediaStream|null>(null),recorder=useRef<MediaRecorder|null>(null),timer=useRef<ReturnType<typeof setInterval>|null>(null)
  const generation=useRef(0)
  const mounted=useRef(true),cancelled=useRef(false),startingRef=useRef(false)
@@ -40,9 +40,21 @@ export function LivenessCapture({hint,onCapture}:{hint:string;onCapture:(capture
   }catch(err){if(attempt!==generation.current)return;cancel();if(mounted.current)setError(err instanceof Error?err.message:'Could not open camera.')}
   finally{startingRef.current=false;if(mounted.current)setStarting(false)}
  }
- return <div className="space-y-4"><p className="text-sm text-content-muted">Record one continuous nine-second video. Keep only your face in view and follow the three prompts. Audio is not recorded.</p>
- <video ref={video} playsInline muted className={recording?'aspect-[4/3] w-full rounded-2xl bg-black object-cover':'hidden'}/>
- {recording&&<><p role="status" className="font-semibold">{Math.min(3,Math.floor(seconds/3)+1)} of 3: {labels[instructions[Math.min(2,Math.floor(seconds/3))]]}</p><p className="text-sm text-content-muted">{9-seconds} seconds remaining</p><button type="button" onClick={cancel} className="min-h-12 rounded-xl border border-line-strong bg-surface px-5 py-3 text-content">Cancel recording</button></>}
- {!recording&&<button type="button" disabled={starting} onClick={()=>void start()} className="min-h-12 rounded-xl border border-line-strong bg-surface px-6 py-3 text-content disabled:opacity-50">{starting?'Preparing recording…':done?'Record again':'Start camera recording'}</button>}
- {done&&<p role="status" className="text-sm text-content-muted">Continuous recording captured. Continue to review.</p>}{error&&<p role="alert" className="text-sm text-risk-block">{error}</p>}</div>
+ return <div className="space-y-5">
+ <div className="relative overflow-hidden rounded-3xl bg-surface-raised">
+   <video ref={video} playsInline muted className={recording?'aspect-[4/3] max-h-80 w-full bg-black object-cover':'hidden'}/>
+   {!recording&&(photoPreview?<img src={photoPreview} alt="Your captured video preview" className="aspect-[4/3] max-h-80 w-full object-cover"/>:<div className="flex aspect-[4/3] max-h-80 flex-col items-center justify-center gap-4 text-content-subtle">
+     <svg width="94" height="112" viewBox="0 0 94 112" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><ellipse cx="47" cy="43" rx="26" ry="34"/><path d="M9 108c0-23 17-34 38-34s38 11 38 34M2 19V9a7 7 0 0 1 7-7h12M73 2h12a7 7 0 0 1 7 7v10M2 93v10a7 7 0 0 0 7 7h12M73 110h12a7 7 0 0 0 7-7V93"/></svg>
+     <span className="text-sm">Keep your face in the frame</span>
+   </div>)}
+ </div>
+ <ol aria-label="Recording prompts" className="grid grid-cols-3 gap-2">
+   {instructions.map((instruction,index)=><li key={instruction} className={`rounded-xl px-2 py-3 text-center text-xs leading-5 ${recording&&Math.min(2,Math.floor(seconds/3))===index?'bg-accent font-semibold text-accent-on':'bg-surface-raised text-content-muted'}`}>
+     <span className="mb-1 block font-semibold">{index+1}</span>{instruction==='LOOK_FORWARD'?'Look ahead':instruction==='TURN_LEFT'?'Turn left':'Turn right'}
+   </li>)}
+ </ol>
+ {recording&&<div aria-live="polite" className="space-y-2"><p className="text-base font-semibold">{labels[instructions[Math.min(2,Math.floor(seconds/3))]]}</p><p className="text-sm text-content-muted">{9-seconds} seconds remaining</p></div>}
+ {recording?<button type="button" onClick={cancel} className="min-h-[52px] w-full rounded-full border border-line-strong bg-surface px-5 py-3 text-sm font-semibold text-content">Cancel recording</button>:<button type="button" disabled={starting} onClick={()=>void start()} className="min-h-[52px] w-full rounded-full border border-line-strong bg-surface px-5 py-3 text-sm font-semibold text-content disabled:opacity-50">{starting?'Preparing recording…':done?'Record again':'Start camera recording'}</button>}
+ {done?<p role="status" className="text-sm text-content-muted">Continuous recording captured. Continue to review.</p>:!recording&&<p className="text-center text-xs leading-5 text-content-subtle">One nine-second video. No audio is recorded.</p>}
+ {error&&<p role="alert" className="rounded-xl border border-risk-block/30 p-3 text-sm text-risk-block">{error}</p>}</div>
 }

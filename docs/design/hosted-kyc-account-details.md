@@ -36,3 +36,15 @@ submission rolls back and the hosted controller expires that incomplete session
 in a separate transaction. Sutura revalidates pending sessions with Sentinel when
 verification is started, allowing a fresh link immediately instead of waiting
 for a stale local expiry. Completed verification decisions are preserved.
+
+## Capture presentation
+
+The hosted page uses a white, single-column canvas with Manrope typography,
+quiet graphite actions and a compact four-part progress indicator. Document
+types are native radio inputs with full-card hit areas, visible selected marks
+and keyboard focus. Document previews contain the whole photo rather than
+cropping its edges. Camera and upload controls sit together, with file limits
+near them. The face-video screen previews the three prompts before recording,
+highlights the current prompt and preserves a still preview after capture.
+Primary actions use 52-pixel minimum heights and rounded ends. All styling is
+scoped to the hosted surface; the marketing landing remains unchanged.

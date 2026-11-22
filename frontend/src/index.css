@@ -269,7 +269,7 @@ textarea {
   color-scheme: light;
   --s-font: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --s-bg-sunken: 236 239 244;
-  --s-bg: 245 247 250;
+  --s-bg: 255 255 255;
   --s-surface: 255 255 255;
   --s-surface-raised: 240 242 246;
   --s-line: rgb(17 24 39 / 0.1);
