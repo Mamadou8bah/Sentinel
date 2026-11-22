@@ -17,6 +17,17 @@ def image(color="red", size=(96, 96)):
     return base64.b64encode(out.getvalue()).decode()
 
 
+def test_five_megabyte_image_limit_matches_capture_page():
+    from app.services.evidence import inspect_image
+    from app.api.schemas import RecordingKycRequest
+    raw = base64.b64decode(image())
+    encoded = base64.b64encode(raw + b'\0' * (5_000_000 - len(raw))).decode()
+    RecordingKycRequest(idImage=encoded, videoBase64='fixture', challengeId='fixture')
+    assert inspect_image(encoded)['width'] == 96
+    with pytest.raises(ValueError, match='limit'):
+        inspect_image(base64.b64encode(raw + b'\0' * 5_000_000).decode())
+
+
 @pytest.fixture
 def client(tmp_path):
     return TestClient(create_app(str(tmp_path / "challenges.db")))

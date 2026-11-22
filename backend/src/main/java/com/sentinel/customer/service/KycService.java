@@ -83,12 +83,20 @@ public class KycService {
 
     @Transactional
     public KycSession startSession(Long tenantId, String externalCustomerId, String returnUrl) {
+        return startSession(tenantId, externalCustomerId, returnUrl, null);
+    }
+
+    @Transactional
+    public KycSession startSession(Long tenantId, String externalCustomerId, String returnUrl, String fullName) {
         Tenant tenant = tenantService.requireTenant(tenantId);
         String identity = externalCustomerId.trim();
         var existing = kycSessionRepository
                 .findFirstByTenant_IdAndExternalCustomerIdAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
                         tenantId, identity, KycSessionStatus.PENDING, Instant.now());
-        if (existing.isPresent()) return existing.get();
+        if (existing.isPresent()) {
+            if (fullName != null && !fullName.isBlank()) existing.get().setProvidedName(fieldEncryption.encrypt(fullName.trim()));
+            return existing.get();
+        }
         // Warm the model without holding the tenant row lock. Re-check under
         // that lock before persisting, including overlapping timeout retries.
         var challenge = mlGateway.startLivenessChallenge();
@@ -96,10 +104,14 @@ public class KycService {
         existing = kycSessionRepository
                 .findFirstByTenant_IdAndExternalCustomerIdAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
                         tenantId, identity, KycSessionStatus.PENDING, Instant.now());
-        if (existing.isPresent()) return existing.get();
+        if (existing.isPresent()) {
+            if (fullName != null && !fullName.isBlank()) existing.get().setProvidedName(fieldEncryption.encrypt(fullName.trim()));
+            return existing.get();
+        }
         KycSession session = new KycSession();
         session.setTenant(tenant);
         session.setExternalCustomerId(identity);
+        if (fullName != null && !fullName.isBlank()) session.setProvidedName(fieldEncryption.encrypt(fullName.trim()));
         session.setStatus(KycSessionStatus.PENDING);
         session.setChallengeId(challenge.id());
         session.setLivenessHint(challenge.hint());
@@ -145,6 +157,28 @@ public class KycService {
 
     public boolean isExpired(KycSession session) {
         return session.getExpiresAt() != null && session.getExpiresAt().isBefore(Instant.now());
+    }
+
+    @Transactional(readOnly = true)
+    public com.sentinel.customer.dto.HostedKycSessionResponse hostedSession(String token) {
+        var session = requireByPublicToken(token);
+        return com.sentinel.customer.dto.HostedKycSessionResponse.from(session, isExpired(session));
+    }
+
+    @Transactional
+    public void expireHostedChallenge(String token) {
+        var found = requireByPublicToken(token);
+        var session = kycSessionRepository.findForSubmission(found.getId(), found.getTenant().getId()).orElseThrow();
+        if (session.getStatus() != KycSessionStatus.COMPLETE) session.setExpiresAt(Instant.now().minusSeconds(1));
+    }
+
+    @Transactional
+    public com.sentinel.customer.dto.HostedKycSessionResponse submitHosted(
+            String token, com.sentinel.customer.dto.HostedKycSubmitRequest request) {
+        var session = submitByPublicToken(token, request.idImage(), request.selfieImage(),
+                request.name(), request.frames(), request.videoBase64());
+        if (request.documentType() != null && session.getDocumentType() == null) session.setDocumentType(request.documentType());
+        return com.sentinel.customer.dto.HostedKycSessionResponse.from(session, false);
     }
 
     @Transactional
@@ -250,6 +284,9 @@ public class KycService {
                     HttpStatus.GONE, "This verification link has expired");
         }
         verifyChallenge(session, challengeId);
+        // Account details are supplied by the authenticated tenant, never overwritten
+        // by a name posted to the public capture endpoint.
+        if (session.getProvidedName() != null) providedName = fieldEncryption.decrypt(session.getProvidedName());
 
         Tenant tenant = session.getTenant();
         session.setStatus(KycSessionStatus.SUBMITTED);

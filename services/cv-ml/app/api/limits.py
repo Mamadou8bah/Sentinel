@@ -2,7 +2,7 @@
 from starlette.responses import JSONResponse
 
 class BodyLimit:
-    def __init__(self, app, maximum=16_000_000):
+    def __init__(self, app, maximum=18_000_000):
         self.app, self.maximum = app, maximum
 
     async def __call__(self, scope, receive, send):
@@ -14,7 +14,7 @@ class BodyLimit:
         except ValueError:
             return await JSONResponse({'detail': 'Invalid content length'}, status_code=400)(scope, receive, send)
         if length > self.maximum:
-            return await JSONResponse({'detail': 'Request exceeds 16 MB'}, status_code=413)(scope, receive, send)
+            return await JSONResponse({'detail': 'Request exceeds 18 MB'}, status_code=413)(scope, receive, send)
         body = bytearray()
         while True:
             message = await receive()
@@ -22,7 +22,7 @@ class BodyLimit:
                 return
             body.extend(message.get('body', b''))
             if len(body) > self.maximum:
-                return await JSONResponse({'detail': 'Request exceeds 16 MB'}, status_code=413)(scope, receive, send)
+                return await JSONResponse({'detail': 'Request exceeds 18 MB'}, status_code=413)(scope, receive, send)
             if not message.get('more_body', False):
                 break
         delivered = False

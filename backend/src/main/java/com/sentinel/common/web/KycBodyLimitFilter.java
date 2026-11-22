@@ -10,7 +10,7 @@ import java.io.*;
 
 @Component
 public class KycBodyLimitFilter extends OncePerRequestFilter {
-    private static final int MAXIMUM = 16000000;
+    private static final int MAXIMUM = 18000000;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -75,6 +75,6 @@ public class KycBodyLimitFilter extends OncePerRequestFilter {
     private void reject(HttpServletResponse response) throws IOException {
         response.setStatus(413);
         response.setContentType("application/json");
-        response.getWriter().write("{\"message\":\"KYC request exceeds 16 MB\"}");
+        response.getWriter().write("{\"message\":\"KYC request exceeds 18 MB\"}");
     }
 }

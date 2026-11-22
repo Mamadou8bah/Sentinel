@@ -77,12 +77,20 @@ Response includes `accessToken`, `refreshToken`, `role`, `tenantCode`, `tenantId
 ```json
 {
   "externalCustomerId": "bank-core-123",
-  "returnUrl": "https://bank.example/onboarding/continue"
+  "returnUrl": "https://bank.example/onboarding/continue",
+  "fullName": "Account Holder Name"
 }
 ```
 
 Response includes `sessionId`, `challengeId`, `livenessHint`, `publicToken`, `hostedUrl`, `expiresAt`.  
 Bank redirects the customer to `hostedUrl` (Sentinel hosted KYC UI).
+
+`fullName` is optional for older integrations. Supply it from the authenticated
+account so the hosted page does not ask for duplicate details. It is encrypted
+on the session; public submissions cannot override it. The hosted submission
+accepts `documentType`: `ID_CARD`, `PASSPORT` or `DRIVING_LICENCE`. Document photos
+may contain up to 5,000,000 decoded bytes; recordings up to 8,000,000 bytes.
+See [hosted capture behavior](design/hosted-kyc-account-details.md).
 
 ### Hosted KYC (customer — public token)
 

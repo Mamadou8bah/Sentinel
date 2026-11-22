@@ -1,0 +1,2 @@
+ALTER TABLE kyc_sessions ADD COLUMN IF NOT EXISTS provided_name VARCHAR(2048);
+ALTER TABLE kyc_sessions ADD COLUMN IF NOT EXISTS document_type VARCHAR(32);

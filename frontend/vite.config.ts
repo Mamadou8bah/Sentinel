@@ -55,6 +55,7 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       global: 'globalThis',
+      'import.meta.env.VITE_HOSTED_KYC_API_BASE_URL': JSON.stringify(env.VITE_HOSTED_KYC_API_BASE_URL || env.VITE_API_BASE_URL || (process.env.VERCEL ? 'https://sentinel-sutr.onrender.com' : '')),
     },
   }
 })

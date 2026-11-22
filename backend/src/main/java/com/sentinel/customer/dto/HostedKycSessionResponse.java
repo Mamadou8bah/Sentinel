@@ -16,7 +16,9 @@ public record HostedKycSessionResponse(
         String returnUrl,
         String explanation,
         KycStatus kycStatus,
-        Integer riskScore) {
+        Integer riskScore,
+        boolean accountNameProvided,
+        String documentType) {
 
     public static HostedKycSessionResponse from(KycSession session, boolean expired) {
         return new HostedKycSessionResponse(
@@ -29,6 +31,8 @@ public record HostedKycSessionResponse(
                 session.getReturnUrl(),
                 session.getExplanation(),
                 session.getCustomer() != null ? session.getCustomer().getKycStatus() : null,
-                session.getCustomer() != null ? session.getCustomer().getRiskScore() : null);
+                session.getCustomer() != null ? session.getCustomer().getRiskScore() : null,
+                session.getProvidedName() != null,
+                session.getDocumentType());
     }
 }

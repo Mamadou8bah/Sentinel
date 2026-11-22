@@ -2,7 +2,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
-EncodedImage = Annotated[str, Field(min_length=1, max_length=4_000_100)]
+EncodedImage = Annotated[str, Field(min_length=1, max_length=6_666_768)]
 
 
 class LivenessRequest(BaseModel):

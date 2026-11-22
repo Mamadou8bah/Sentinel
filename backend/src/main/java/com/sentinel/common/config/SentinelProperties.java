@@ -46,6 +46,9 @@ public class SentinelProperties {
         private String transactionBaseUrl = "http://localhost:8002";
         private int transactionConnectTimeoutMs = 5000;
         private int transactionReadTimeoutMs = 20000;
+        private int cvReadTimeoutMs = 90000;
+        public int getCvReadTimeoutMs() { return cvReadTimeoutMs; }
+        public void setCvReadTimeoutMs(int value) { cvReadTimeoutMs = value; }
 
         public int getTransactionConnectTimeoutMs() { return transactionConnectTimeoutMs; }
         public void setTransactionConnectTimeoutMs(int value) { transactionConnectTimeoutMs = value; }

@@ -66,7 +66,7 @@ public class IntegrationController {
                 kycService.startSession(
                         TenantAccess.requireTenantId(),
                         request.externalCustomerId(),
-                        request.returnUrl());
+                        request.returnUrl(), request.fullName());
         return KycSessionResponse.from(session, kycService.hostedUrl(session));
     }
 

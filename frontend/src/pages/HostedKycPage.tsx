@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
-import { loadHostedKyc, submitHostedKyc } from '../api/hostedKyc'
+import { loadHostedKyc, submitHostedKyc, KycSubmissionError } from '../api/hostedKyc'
 import { KycConnectionPending } from '../api/kycWarmup'
 import { Icon } from '../components/desk/icons'
-import { fileToBase64 } from '../lib/files'
+import { fileToBase64, prepareDocumentPhoto } from '../lib/files'
 import { LivenessCapture } from '../components/kyc/LivenessCapture'
 
 type HostedSession = {
@@ -17,12 +17,14 @@ type HostedSession = {
   explanation: string | null
   kycStatus: string | null
   riskScore: number | null
+  accountNameProvided?: boolean
+  documentType?: string | null
 }
 
 type Step = 'intro' | 'id' | 'selfie' | 'review' | 'done'
 
 const steps: Array<{ key: Exclude<Step, 'done'>; label: string }> = [
-  { key: 'intro', label: 'Your details' },
+  { key: 'intro', label: 'Get ready' },
   { key: 'id', label: 'ID document' },
   { key: 'selfie', label: 'Video check' },
   { key: 'review', label: 'Review and send' },
@@ -72,13 +74,14 @@ export default function HostedKycPage() {
   const [waitingTooLong, setWaitingTooLong] = useState(false)
   const loadController = useRef<AbortController | null>(null)
   const [step, setStep] = useState<Step>('intro')
-  const [name, setName] = useState('')
+  const [documentType, setDocumentType] = useState('ID_CARD')
   const [idPreview, setIdPreview] = useState<string | null>(null)
   const [selfiePreview, setSelfiePreview] = useState<string | null>(null)
   const [idBase64, setIdBase64] = useState<string | null>(null)
   const [videoBase64, setVideoBase64] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [slow, setSlow] = useState(false)
+  const [submissionStatus, setSubmissionStatus] = useState(0)
   const [expiredLocally, setExpiredLocally] = useState(false)
   const headingRef = useRef<HTMLHeadingElement>(null)
   const firstStep = useRef(true)
@@ -129,14 +132,19 @@ export default function HostedKycPage() {
 
   async function onPick(file: File | null) {
     if (!file) return
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 3_000_000) {
-      setError('Choose a JPEG, PNG or WebP photo smaller than 3 MB.')
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5_000_000) {
+      setError('Choose a JPEG, PNG or WebP photo up to 5 MB.')
       return
     }
     setError(null)
-    const b64 = await fileToBase64(file)
-    setIdBase64(b64)
-    setIdPreview(URL.createObjectURL(file))
+    try {
+      const photo = await prepareDocumentPhoto(file)
+      const b64 = await fileToBase64(photo)
+      setIdBase64(b64)
+      setIdPreview(URL.createObjectURL(photo))
+    } catch {
+      setError('This photo could not be opened. Choose another JPEG, PNG or WebP photo.')
+    }
   }
 
   async function submit() {
@@ -148,21 +156,23 @@ export default function HostedKycPage() {
     setBusy(true)
     setSlow(false)
     setError(null)
+    setSubmissionStatus(0)
     const slowTimer = window.setTimeout(() => setSlow(true), 12000)
     try {
       const data = await submitHostedKyc<HostedSession>(token, {
         idImage: idBase64,
         videoBase64,
-        name: name.trim() || undefined,
+        documentType,
       })
       setSession(data)
       setStep('done')
       setVideoBase64(null)
       setIdBase64(null)
       setSelfiePreview(null)
-    } catch {
+    } catch (failure) {
       // Captures are kept so the customer can retry without starting again.
-      setError('We couldn’t send your details. Check your connection and try again. Your photo and video are kept.')
+      setError(failure instanceof KycSubmissionError ? failure.message : 'Your submission could not be confirmed. Your photo and video are kept; try again shortly.')
+      setSubmissionStatus(failure instanceof KycSubmissionError ? failure.status : 0)
     } finally {
       window.clearTimeout(slowTimer)
       setBusy(false)
@@ -276,22 +286,14 @@ export default function HostedKycPage() {
             <ul className="space-y-3 rounded-2xl border border-line bg-surface p-5 text-base">
               <li className="flex gap-3">
                 <Icon name="id" size={22} className="mt-0.5 text-content-muted" />
-                <span>Your government ID card or passport, to photograph</span>
+                <span>Your passport, government ID card or driving licence, to photograph</span>
               </li>
               <li className="flex gap-3">
                 <Icon name="camera" size={22} className="mt-0.5 text-content-muted" />
                 <span>A camera, for a short nine-second video of your face. No sound is recorded.</span>
               </li>
             </ul>
-            <Field label="Full name, as on your ID (optional)" htmlFor="kyc-name">
-              <input
-                id="kyc-name"
-                className={inputClass}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                autoComplete="name"
-              />
-            </Field>
+            <p className="text-sm text-content-muted">{session.accountNameProvided ? `${bank} has supplied your account details. You don’t need to enter them again.` : 'Your name will be read from your document. You don’t need to type it here.'}</p>
             {expiresAt && <p className="text-sm text-content-subtle">This link works until {expiresAt}. Please don’t refresh the page during the check.</p>}
             <PrimaryButton onClick={() => setStep('id')}>Start</PrimaryButton>
           </div>
@@ -299,6 +301,8 @@ export default function HostedKycPage() {
 
         {step === 'id' && (
           <CaptureStep
+            documentType={documentType}
+            onDocumentType={setDocumentType}
             headingRef={headingRef}
             preview={idPreview}
             onFile={(file) => void onPick(file)}
@@ -319,6 +323,8 @@ export default function HostedKycPage() {
             <LivenessCapture
               hint={session.livenessHint}
               onCapture={(capture) => {
+                setSubmissionStatus(0)
+                setError(null)
                 setVideoBase64(capture?.videoBase64 ?? null)
                 setSelfiePreview(capture?.preview ?? null)
               }}
@@ -341,7 +347,7 @@ export default function HostedKycPage() {
               <p className="mt-2 text-base text-content-muted">Make sure your ID is sharp and your face is clear.</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <PreviewCard label="ID document" src={idPreview} onChange={() => setStep('id')} />
+              <PreviewCard label={documentType === 'PASSPORT' ? 'Passport' : documentType === 'DRIVING_LICENCE' ? 'Driving licence' : 'ID card'} src={idPreview} onChange={() => setStep('id')} />
               <PreviewCard label="Video check" src={selfiePreview} onChange={() => setStep('selfie')} />
             </div>
             {error && (
@@ -358,9 +364,19 @@ export default function HostedKycPage() {
               <SecondaryButton onClick={() => setStep('selfie')} disabled={busy}>
                 Back
               </SecondaryButton>
-              <PrimaryButton onClick={() => void submit()} disabled={busy}>
-                {busy ? 'Sending…' : error ? 'Try sending again' : 'Send to ' + bank}
-              </PrimaryButton>
+              {[404, 409, 410].includes(submissionStatus) && session.returnUrl ? (
+                <a href={session.returnUrl} className={primaryClass}>Return to {bank}</a>
+              ) : (
+                <PrimaryButton onClick={() => {
+                  if (submissionStatus === 422) {
+                    setVideoBase64(null)
+                    setSelfiePreview(null)
+                    setStep('selfie')
+                  } else void submit()
+                }} disabled={busy || [404, 409, 410].includes(submissionStatus)}>
+                  {busy ? 'Sending…' : submissionStatus === 422 ? 'Record again' : [404, 409, 410].includes(submissionStatus) ? 'Request a new link in your app' : error ? 'Try sending again' : 'Send to ' + bank}
+                </PrimaryButton>
+              )}
             </div>
           </div>
         )}
@@ -515,6 +531,8 @@ function IdFrameGuide() {
 }
 
 function CaptureStep({
+  documentType,
+  onDocumentType,
   headingRef,
   preview,
   onFile,
@@ -522,6 +540,8 @@ function CaptureStep({
   onNext,
   nextDisabled,
 }: {
+  documentType: string
+  onDocumentType: (value: string) => void
   headingRef: React.RefObject<HTMLHeadingElement>
   preview: string | null
   onFile: (file: File | null) => void
@@ -601,9 +621,18 @@ function CaptureStep({
           Photograph your ID
         </h1>
         <p className="mt-2 text-base text-content-muted">
-          Lay the card flat in good light. Fit it inside the frame and avoid glare.
+          Lay your document flat in good light. For a passport, use the photo page. Keep all edges visible and avoid glare.
         </p>
       </div>
+
+      <Field label="Document type" htmlFor="kyc-document-type">
+        <select id="kyc-document-type" className={inputClass} value={documentType} onChange={event => onDocumentType(event.target.value)}>
+          <option value="ID_CARD">ID card</option>
+          <option value="PASSPORT">Passport</option>
+          <option value="DRIVING_LICENCE">Driving licence</option>
+        </select>
+      </Field>
+      <p className="text-sm text-content-subtle">JPEG, PNG or WebP, up to 5 MB.</p>
 
       <div className={cameraOn ? 'relative overflow-hidden rounded-2xl bg-black' : 'hidden'}>
         <video ref={videoRef} playsInline muted className="aspect-[3/2] w-full object-cover" />
@@ -611,7 +640,7 @@ function CaptureStep({
       </div>
       {!cameraOn &&
         (preview ? (
-          <img src={preview} alt="Your ID photo" className="aspect-[3/2] w-full rounded-2xl border border-line object-cover" />
+          <img src={preview} alt="Your ID photo" className="aspect-[3/2] w-full rounded-2xl border border-line bg-surface-raised object-contain" />
         ) : (
           <div className="relative grid aspect-[3/2] place-items-center rounded-2xl border border-dashed border-control bg-surface text-content-subtle">
             <span className="flex flex-col items-center gap-2 text-sm">

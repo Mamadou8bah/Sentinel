@@ -30,6 +30,17 @@ public class KycSession {
     @Column(name = "external_customer_id", nullable = false, length = 128)
     private String externalCustomerId;
 
+    @Column(name = "provided_name", length = 2048)
+    private String providedName;
+
+    @Column(name = "document_type", length = 32)
+    private String documentType;
+
+    public String getProvidedName() { return providedName; }
+    public void setProvidedName(String value) { providedName = value; }
+    public String getDocumentType() { return documentType; }
+    public void setDocumentType(String value) { documentType = value; }
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id")
     private Customer customer;

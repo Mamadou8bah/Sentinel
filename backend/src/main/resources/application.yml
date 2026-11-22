@@ -38,6 +38,7 @@ sentinel:
     enabled: ${SENTINEL_ML_ENABLED:true}
     api-key: ${ML_SERVICE_API_KEY:}
     cv-base-url: ${CV_ML_BASE_URL:http://localhost:8001}
+    cv-read-timeout-ms: ${CV_ML_READ_TIMEOUT_MS:90000}
     transaction-base-url: ${TRANSACTION_ML_BASE_URL:http://localhost:8002}
     transaction-connect-timeout-ms: ${TRANSACTION_ML_CONNECT_TIMEOUT_MS:5000}
     transaction-read-timeout-ms: ${TRANSACTION_ML_READ_TIMEOUT_MS:20000}

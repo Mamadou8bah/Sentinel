@@ -2,7 +2,6 @@ package com.sentinel.customer.controller;
 
 import com.sentinel.customer.dto.HostedKycSessionResponse;
 import com.sentinel.customer.dto.HostedKycSubmitRequest;
-import com.sentinel.customer.model.KycSession;
 import com.sentinel.customer.service.KycService;
 
 import jakarta.validation.Valid;
@@ -30,29 +29,20 @@ public class HostedKycController {
 
     @GetMapping("/{token}")
     public HostedKycSessionResponse get(@PathVariable String token) {
-        KycSession session = kycService.requireByPublicToken(token);
-        session.getTenant().getName();
-        if (session.getCustomer() != null) {
-            session.getCustomer().getKycStatus();
-        }
-        return HostedKycSessionResponse.from(session, kycService.isExpired(session));
+        return kycService.hostedSession(token);
     }
 
     @PostMapping("/{token}/submit")
     public HostedKycSessionResponse submit(
             @PathVariable String token, @Valid @RequestBody HostedKycSubmitRequest request) {
-        KycSession session =
-                kycService.submitByPublicToken(
-                        token,
-                        request.idImage(),
-                        request.selfieImage(),
-                        request.name(),
-                        request.frames(),
-                        request.videoBase64());
-        session.getTenant().getName();
-        if (session.getCustomer() != null) {
-            session.getCustomer().getKycStatus();
+        try {
+            return kycService.submitHosted(token, request);
+        } catch (org.springframework.web.server.ResponseStatusException failure) {
+            // The failed submission transaction has rolled back. Expire a lost or
+            // consumed ML challenge separately so the tenant can issue a fresh link.
+            if (failure.getStatusCode().value() == 410 || failure.getStatusCode().value() == 409)
+                kycService.expireHostedChallenge(token);
+            throw failure;
         }
-        return HostedKycSessionResponse.from(session, false);
     }
 }

@@ -40,9 +40,9 @@ export function LivenessCapture({hint,onCapture}:{hint:string;onCapture:(capture
   }catch(err){if(attempt!==generation.current)return;cancel();if(mounted.current)setError(err instanceof Error?err.message:'Could not open camera.')}
   finally{startingRef.current=false;if(mounted.current)setStarting(false)}
  }
- return <div className="space-y-4"><p className="text-sm text-mute">Record one continuous nine-second video. Keep only your face in view and follow the three prompts. Audio is not recorded.</p>
+ return <div className="space-y-4"><p className="text-sm text-content-muted">Record one continuous nine-second video. Keep only your face in view and follow the three prompts. Audio is not recorded.</p>
  <video ref={video} playsInline muted className={recording?'aspect-[4/3] w-full rounded-2xl bg-black object-cover':'hidden'}/>
- {recording&&<><p role="status" className="font-semibold">{Math.min(3,Math.floor(seconds/3)+1)} of 3: {labels[instructions[Math.min(2,Math.floor(seconds/3))]]}</p><p className="text-sm text-mute">{9-seconds} seconds remaining</p><button type="button" onClick={cancel} className="rounded-full border border-white/20 px-5 py-3">Cancel recording</button></>}
- {!recording&&<button type="button" disabled={starting} onClick={()=>void start()} className="rounded-full border border-white/20 px-6 py-3 disabled:opacity-50">{starting?'Preparing recording…':done?'Record again':'Start camera recording'}</button>}
- {done&&<p role="status" className="text-sm text-white/70">Continuous recording captured. Continue to review.</p>}{error&&<p role="alert" className="text-sm text-red-300">{error}</p>}</div>
+ {recording&&<><p role="status" className="font-semibold">{Math.min(3,Math.floor(seconds/3)+1)} of 3: {labels[instructions[Math.min(2,Math.floor(seconds/3))]]}</p><p className="text-sm text-content-muted">{9-seconds} seconds remaining</p><button type="button" onClick={cancel} className="min-h-12 rounded-xl border border-line-strong bg-surface px-5 py-3 text-content">Cancel recording</button></>}
+ {!recording&&<button type="button" disabled={starting} onClick={()=>void start()} className="min-h-12 rounded-xl border border-line-strong bg-surface px-6 py-3 text-content disabled:opacity-50">{starting?'Preparing recording…':done?'Record again':'Start camera recording'}</button>}
+ {done&&<p role="status" className="text-sm text-content-muted">Continuous recording captured. Continue to review.</p>}{error&&<p role="alert" className="text-sm text-risk-block">{error}</p>}</div>
 }

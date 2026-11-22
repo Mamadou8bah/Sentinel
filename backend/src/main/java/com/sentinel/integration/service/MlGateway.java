@@ -37,8 +37,8 @@ public class MlGateway {
         this.properties = properties;
         this.stubMlService = stubMlService;
         var cvTimeouts = new SimpleClientHttpRequestFactory();
-        cvTimeouts.setConnectTimeout(3000);
-        cvTimeouts.setReadTimeout(30000);
+        cvTimeouts.setConnectTimeout(5000);
+        cvTimeouts.setReadTimeout(properties.getMl().getCvReadTimeoutMs());
         var txTimeouts = new SimpleClientHttpRequestFactory();
         txTimeouts.setConnectTimeout(properties.getMl().getTransactionConnectTimeoutMs());
         txTimeouts.setReadTimeout(properties.getMl().getTransactionReadTimeoutMs());
@@ -247,7 +247,7 @@ public class MlGateway {
                             && response.get("sampledFrames") instanceof Number count
                             && count.intValue() >= 25;
             return new KycScores(
-                    name == null || name.isBlank() ? "Unknown" : name,
+                    name == null || name.isBlank() ? (fields.get("name") instanceof String extractedName ? extractedName : "Unknown") : name,
                     dob,
                     identifier,
                     requireScore(response.get("faceMatchScore")),
@@ -257,6 +257,9 @@ public class MlGateway {
                     String.valueOf(
                             response.getOrDefault("explanation", "Recording evidence evaluated")));
         } catch (org.springframework.web.client.HttpClientErrorException invalid) {
+            if (invalid.getStatusCode().value() == 410 || invalid.getStatusCode().value() == 404)
+                throw new ResponseStatusException(HttpStatus.GONE,
+                        "The recording challenge has expired or restarted. Request a new verification link.");
             if (invalid.getStatusCode().value() == 422)
                 throw new ResponseStatusException(
                         HttpStatus.UNPROCESSABLE_ENTITY,
@@ -398,7 +401,9 @@ public class MlGateway {
     }
 
     private ResponseStatusException unavailable(String operation, Exception cause) {
-        log.warn("{} inference unavailable or invalid; failing closed", operation);
+        String failure = cause instanceof org.springframework.web.client.RestClientResponseException http
+                ? "HTTP " + http.getStatusCode().value() : cause.getClass().getSimpleName();
+        log.warn("{} inference unavailable or invalid ({}); failing closed", operation, failure);
         return new ResponseStatusException(
                 HttpStatus.SERVICE_UNAVAILABLE,
                 operation + " inference unavailable or invalid; no synthetic fallback",

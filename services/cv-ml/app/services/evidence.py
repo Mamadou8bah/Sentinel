@@ -11,10 +11,12 @@ def inspect_image(encoded: str) -> dict:
         header, separator, encoded = encoded.partition(",")
         if not separator or header not in {"data:image/jpeg;base64", "data:image/png;base64", "data:image/webp;base64"}:
             raise ValueError("Unsupported image data URL")
-    if len(encoded) > 4_000_000:
+    if len(encoded) > 6_666_668:
         raise ValueError("Image exceeds the encoded size limit")
     try:
         raw = base64.b64decode(encoded, validate=True)
+        if len(raw) > 5_000_000:
+            raise ValueError("Image exceeds the 5 MB limit")
         with warnings.catch_warnings():
             warnings.simplefilter("error", Image.DecompressionBombWarning)
             with Image.open(BytesIO(raw)) as image:
