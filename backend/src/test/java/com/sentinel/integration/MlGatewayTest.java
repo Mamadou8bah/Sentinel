@@ -333,6 +333,17 @@ class MlGatewayTest {
     }
 
     @Test
+    void challengeStatusDistinguishesLostChallengesFromTemporaryOutages() {
+        status = 200;
+        body = "{\"challengeId\":\"challenge\",\"instructions\":[\"LOOK_FORWARD\",\"TURN_LEFT\",\"TURN_RIGHT\"]}";
+        assertThat(gateway.isLivenessChallengeAvailable("challenge")).isTrue();
+        status = 404;
+        assertThat(gateway.isLivenessChallengeAvailable("challenge")).isFalse();
+        status = 503;
+        assertThatThrownBy(() -> gateway.isLivenessChallengeAvailable("challenge")).isInstanceOf(ResponseStatusException.class);
+    }
+
+    @Test
     void acceptedDocumentRequiresExplicitReadinessQualityAndAcceptance() {
         status = 200;
         body = """

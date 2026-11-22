@@ -33,6 +33,13 @@ def create_router(store: ChallengeStore, models: IdentityModels) -> APIRouter:
     def challenge():
         return {**store.create(), "recordingSeconds": 9, "promptSeconds": 3, "maxVideoBytes": 8_000_000}
 
+    @api.get('/cv/liveness/challenge/{identifier}')
+    def challenge_status(identifier: str):
+        try:
+            return {'challengeId': identifier, 'instructions': store.instructions(identifier)}
+        except ChallengeError as error:
+            raise HTTPException(error.status, str(error)) from None
+
     @api.post('/cv/document-verify')
     def document_verify(request: DocumentRequest):
         evidence = inspect(request.documentImage)

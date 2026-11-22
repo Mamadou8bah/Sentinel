@@ -95,3 +95,9 @@ evidence; clearly disjoint full names prevent automatic approval. Partial or
 missing OCR names remain inconclusive. A matching name never overrides rejected
 face, liveness or document evidence. Explanations report agreement without
 including raw names in diagnostic logs.
+
+Before reusing a pending session, the API checks its challenge against the ML
+service. Lost/expired challenges are replaced by the authenticated tenant's next
+start request; an already-open link is marked expired before capture begins.
+Temporary inference outages remain retryable service errors and do not silently
+expire valid sessions or discard completed results.

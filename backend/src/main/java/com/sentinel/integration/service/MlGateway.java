@@ -58,6 +58,28 @@ public class MlGateway {
 
     public record LivenessChallenge(String id, String hint, java.time.Instant expiresAt) {}
 
+    public boolean isLivenessChallengeAvailable(String identifier) {
+        requireEnabled();
+        if (properties.getMl().isStub()) return true;
+        try {
+            Map<String, Object> body = cvClient.get().uri("/cv/liveness/challenge/{id}", identifier)
+                    .retrieve().body(new ParameterizedTypeReference<>() {});
+            if (body == null || !identifier.equals(body.get("challengeId"))
+                    || !(body.get("instructions") instanceof List<?> instructions)
+                    || instructions.size() != 3
+                    || !"LOOK_FORWARD".equals(instructions.get(0))
+                    || !new java.util.HashSet<>(instructions).equals(java.util.Set.of("LOOK_FORWARD", "TURN_LEFT", "TURN_RIGHT")))
+                throw new IllegalStateException("Invalid challenge status");
+            return true;
+        } catch (org.springframework.web.client.HttpClientErrorException expired) {
+            if (expired.getStatusCode().value() == 404 || expired.getStatusCode().value() == 410
+                    || expired.getStatusCode().value() == 409) return false;
+            throw unavailable("Liveness challenge status", expired);
+        } catch (Exception failure) {
+            throw unavailable("Liveness challenge status", failure);
+        }
+    }
+
     public LivenessChallenge startLivenessChallenge() {
         requireEnabled();
         if (properties.getMl().isStub()) {

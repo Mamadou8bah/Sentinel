@@ -256,3 +256,11 @@ def test_document_security_portrait_requires_matching_identity_and_dominant_prim
             faces.locate_face(rgb)
     else:
         with pytest.raises(faces.FaceCaptureError): faces.locate_document_face(rgb, embedding, .363)
+
+
+def test_lost_challenge_is_detectable_before_capturing(tmp_path):
+    store = ChallengeStore(str(tmp_path/'live.db'))
+    app = FastAPI(); app.include_router(create_router(store,MeasuredFixtureModels())); client = TestClient(app)
+    challenge = store.create()
+    assert client.get('/cv/liveness/challenge/'+challenge['challengeId']).json()['instructions'] == challenge['instructions']
+    assert client.get('/cv/liveness/challenge/missing-after-restart').status_code == 404

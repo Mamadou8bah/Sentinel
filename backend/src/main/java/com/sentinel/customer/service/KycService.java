@@ -93,6 +93,10 @@ public class KycService {
         var existing = kycSessionRepository
                 .findFirstByTenant_IdAndExternalCustomerIdAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
                         tenantId, identity, KycSessionStatus.PENDING, Instant.now());
+        if (existing.isPresent() && !mlGateway.isLivenessChallengeAvailable(existing.get().getChallengeId())) {
+            existing.get().setExpiresAt(Instant.now().minusSeconds(1));
+            existing = java.util.Optional.empty();
+        }
         if (existing.isPresent()) {
             if (fullName != null && !fullName.isBlank()) existing.get().setProvidedName(fieldEncryption.encrypt(fullName.trim()));
             return existing.get();
@@ -162,7 +166,10 @@ public class KycService {
     @Transactional(readOnly = true)
     public com.sentinel.customer.dto.HostedKycSessionResponse hostedSession(String token) {
         var session = requireByPublicToken(token);
-        return com.sentinel.customer.dto.HostedKycSessionResponse.from(session, isExpired(session));
+        boolean expired = isExpired(session);
+        if (!expired && session.getStatus() == KycSessionStatus.PENDING)
+            expired = !mlGateway.isLivenessChallengeAvailable(session.getChallengeId());
+        return com.sentinel.customer.dto.HostedKycSessionResponse.from(session, expired);
     }
 
     @Transactional
