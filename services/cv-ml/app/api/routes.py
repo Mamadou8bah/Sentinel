@@ -112,7 +112,7 @@ def create_router(store: ChallengeStore, models: IdentityModels) -> APIRouter:
     def recording_kyc(request: RecordingKycRequest):
         import hashlib
         from app.services.recording import recording_bytes, analyze_recording
-        from app.services.faces import rgb_image, locate_face
+        from app.services.faces import rgb_image, locate_face, locate_document_face
         stage = 'document'
         try:
             document = inspect_image(request.idImage)
@@ -126,7 +126,12 @@ def create_router(store: ChallengeStore, models: IdentityModels) -> APIRouter:
                     raise HTTPException(409, "Challenge already bound to other document or recording")
                 return previous['response']
             stage = 'document'
-            locate_face(rgb_image(request.idImage, encoded=True))
+            pretrained = getattr(models, 'pretrained', None)
+            document_rgb = rgb_image(request.idImage, encoded=True)
+            if pretrained is not None and pretrained.loaded:
+                locate_document_face(document_rgb, pretrained.embedding, pretrained.face_threshold)
+            else:
+                locate_face(document_rgb)
             stage = 'recording'
             track = analyze_recording(raw, extension, instructions)
             stage = 'inference'

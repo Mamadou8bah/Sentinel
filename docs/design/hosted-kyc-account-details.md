@@ -68,3 +68,30 @@ or `review`). The page sends customers to the affected capture step and preserve
 the unaffected evidence. Unknown upstream errors use neutral review guidance.
 Logs contain only stage/code, never document images, videos, names or raw model
 responses. Missing static routes return HTTP 404 instead of an unexpected 500.
+
+## Document portraits, motion and names
+
+Document capture differs from live-video face tracking. Up to two smaller printed
+portraits may accompany one clearly dominant document portrait. Every additional
+portrait must pass SFace comparison against the main portrait at the configured
+face threshold. Ambiguous equal-sized portraits, different identities and
+unreadable secondary portraits remain capture errors. Live video still requires
+one face throughout.
+
+Head-turn confirmation compares each held pose against the recording's neutral
+pose. The minimum shift is 0.08 eye-distance units or four times the neutral
+median absolute deviation, whichever is greater. At least 80% of held samples
+must support the issued direction. Stationary/noisy captures and reversed prompt
+orders still fail. This changes capture geometry, not identity/PAD thresholds.
+
+Low face similarity is reported as measured instead of being zeroed before
+returning the result. Approval still uses the configured matching threshold and
+all other automatic checks. Similarity is not a calibrated probability.
+
+OCR recognizes separate given-name and surname labels. Java compares the
+extracted document name with the tenant-supplied account name after normalizing
+spacing, accents, punctuation and token order. Exact agreement is supporting
+evidence; clearly disjoint full names prevent automatic approval. Partial or
+missing OCR names remain inconclusive. A matching name never overrides rejected
+face, liveness or document evidence. Explanations report agreement without
+including raw names in diagnostic logs.

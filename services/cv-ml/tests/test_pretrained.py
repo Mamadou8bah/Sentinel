@@ -90,6 +90,24 @@ def test_missing_weights_fail_closed(tmp_path):
     assert not models.loaded and not models.evaluated and models.error
 
 
+def test_weak_similarity_is_reported_honestly_but_never_approved(monkeypatch):
+    from app.services.decision import automatic_decision
+    models, track = fixture_models(monkeypatch)
+    calls = []
+    def embedding(*_):
+        calls.append(1)
+        return np.array([1.,0.]) if len(calls)==1 else np.array([.2,np.sqrt(.96)])
+    models.embedding = embedding
+    result = models.score_recording('fixture',track)
+    assert result['faceMatchScore'] == pytest.approx(.2)
+    decision = automatic_decision({**result,'signals':[],'modelRan':True,
+        'documentChecksAccepted':True,'recordingChallengePassed':True,
+        'extractedFields':{'idNumber':'TEST123','dob':'1990-01-01','expiryDate':'2099-01-01'}},
+        True,models.face_threshold,models.live_threshold)
+    assert decision['automaticApproval'] is False
+    assert 'FACE_MATCH_REJECTED' in decision['decisionReasons']
+
+
 @pytest.mark.parametrize('tampered', [False, True])
 def test_complete_pretrained_pipeline_automatically_decides_with_document_models(monkeypatch, tampered):
     from types import SimpleNamespace

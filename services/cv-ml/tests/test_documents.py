@@ -19,6 +19,13 @@ from app.storage.challenges import ChallengeStore
 TODAY = date(2026, 11, 4)
 
 
+def test_separate_given_and_family_names_are_combined_without_guessing_missing_parts():
+    result = extract_document_fields(['GIVEN NAMES: MAMADOU', 'SURNAME: BAH'], TODAY)
+    assert result['extractedFields']['name'] == 'MAMADOU BAH'
+    partial = extract_document_fields(['SURNAME: BAH'], TODAY)
+    assert 'name' not in partial['extractedFields']
+
+
 def test_labelled_fields_and_expiry_checks_do_not_guess_ambiguous_dates():
     result = extract_document_fields(['ID NUMBER: GM123456', 'DATE OF BIRTH', '1990-12-31',
                                       'EXPIRY DATE: 2030-12-31', 'FULL NAME: TEST PERSON'], TODAY)

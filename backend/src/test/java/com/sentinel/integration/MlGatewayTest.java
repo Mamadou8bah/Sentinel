@@ -309,6 +309,30 @@ class MlGatewayTest {
     }
 
     @Test
+    void nameAgreementSupportsButCannotOverrideTheIdentityDecision() throws Exception {
+        byte[] bytes = new byte[] {0,0,0,24,'f','t','y','p','i','s','o','m'};
+        String video = java.util.Base64.getEncoder().encodeToString(bytes);
+        String hash = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes));
+        status = 200;
+        body = """
+            {"pipeline":"recording-face-v2","challengeId":"challenge","recordingSha256":"%s","sampledFrames":36,
+             "faceMatchScore":0.95,"livenessScore":0.99,"tamperingScore":0.01,"qualityOk":true,"spoofLikely":false,"modelRan":true,
+             "verificationDecision":"APPROVED","automaticApproval":true,
+             "extractedFields":{"name":"BAH MAMADOU","idNumber":"TEST123","dob":"1990-01-01"}}
+            """.formatted(hash);
+        var accepted = gateway.scoreRecordingKyc("7","Mamadou Bah","id",video,"challenge");
+        assertThat(accepted.evidenceTrusted()).isTrue();
+        assertThat(accepted.explanation()).contains("names match");
+        String good = body;
+        body = good.replace("BAH MAMADOU","AWA JALLOW");
+        assertThat(gateway.scoreRecordingKyc("7","Mamadou Bah","id",video,"challenge").evidenceTrusted()).isFalse();
+        body = good.replace("APPROVED","REJECTED").replace("\"automaticApproval\":true","\"automaticApproval\":false").replace("0.95","0.2");
+        var weak = gateway.scoreRecordingKyc("7","Mamadou Bah","id",video,"challenge");
+        assertThat(weak.explanation()).contains("names match");
+        assertThat(weak.evidenceTrusted()).isFalse();
+    }
+
+    @Test
     void acceptedDocumentRequiresExplicitReadinessQualityAndAcceptance() {
         status = 200;
         body = """

@@ -58,6 +58,8 @@ LABELS = {
     'dob': r'(?:DATE\s+OF\s+BIRTH|DOB|BIRTH\s+DATE)',
     'expiryDate': r'(?:DATE\s+OF\s+EXPIRY|EXPIRY\s+DATE|EXPIRATION\s+DATE|EXPIRES)',
     'name': r'(?:FULL\s+NAME|NAME)',
+    'givenName': r'(?:GIVEN\s+NAMES?|FIRST\s+NAMES?|FORENAMES?)',
+    'surname': r'(?:SURNAME|LAST\s+NAME|FAMILY\s+NAME)',
 }
 
 
@@ -109,6 +111,9 @@ def extract_document_fields(lines, today=None):
             fields.pop(key); signals.append('MRZ_PRINTED_FIELD_MISMATCH')
         elif key not in fields:
             fields[key] = value
+    given, surname = fields.pop('givenName', None), fields.pop('surname', None)
+    if 'name' not in fields and given and surname:
+        fields['name'] = f'{given} {surname}'
     if 'dob' in fields:
         dob = date.fromisoformat(fields['dob'])
         if dob > today or dob.year < today.year - 120:

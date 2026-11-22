@@ -143,11 +143,16 @@ def analyze_recording(raw, extension, instructions):
     if any(len(phase) < 3 for phase in phases):
         raise ValueError("Each recording prompt needs a clear held pose")
     poses = [float(np.median([item[0] for item in phase])) for phase in phases]
+    baseline = np.array([item[0] for item in phases[0]])
+    jitter = float(np.median(np.abs(baseline - poses[0])))
+    required_shift = max(.08, 4 * jitter)
     if abs(poses[0]) > .25:
         raise ValueError("Begin by looking straight at the camera")
     for index, instruction in enumerate(instructions[1:], 1):
         shift = poses[index] - poses[0]
-        if (instruction == "TURN_LEFT" and shift < .12) or (instruction == "TURN_RIGHT" and shift > -.12):
+        sign = 1 if instruction == 'TURN_LEFT' else -1
+        held = [sign * (item[0] - poses[0]) >= required_shift for item in phases[index]]
+        if sign * shift < required_shift or sum(held) / len(held) < .8:
             raise ValueError("Head turns do not match the issued prompt order")
     selected = [min(phase, key=lambda item: abs(item[0] - poses[index]))[1] for index, phase in enumerate(phases)]
     return {"faceCrops": crops, "challengeCrops": selected, "observations": observations, "challengeVerified": True,

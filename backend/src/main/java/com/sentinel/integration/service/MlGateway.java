@@ -246,6 +246,13 @@ public class MlGateway {
                             && !dob.isBlank()
                             && response.get("sampledFrames") instanceof Number count
                             && count.intValue() >= 25;
+            String nameComparison = com.sentinel.customer.service.AccountNameComparison.compare(name, fields.get("name"));
+            if ("MISMATCH".equals(nameComparison)) trusted = false;
+            String nameExplanation = switch (nameComparison) {
+                case "MATCH" -> "Account and document names match";
+                case "MISMATCH" -> "Account and document names differ";
+                default -> "Account and document names could not be conclusively compared";
+            };
             return new KycScores(
                     name == null || name.isBlank() ? (fields.get("name") instanceof String extractedName ? extractedName : "Unknown") : name,
                     dob,
@@ -255,7 +262,7 @@ public class MlGateway {
                     requireScore(response.get("tamperingScore")),
                     trusted,
                     String.valueOf(
-                            response.getOrDefault("explanation", "Recording evidence evaluated")));
+                            response.getOrDefault("explanation", "Recording evidence evaluated")) + " · " + nameExplanation);
         } catch (org.springframework.web.client.HttpClientErrorException invalid) {
             if (invalid.getStatusCode().value() == 410 || invalid.getStatusCode().value() == 404)
                 throw new ResponseStatusException(HttpStatus.GONE,

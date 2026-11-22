@@ -46,7 +46,7 @@ class FaceCaptureError(ValueError):
         super().__init__(message)
 
 
-def locate_face(rgb, minimum=40):
+def detect_faces(rgb):
     import cv2
     height, width = rgb.shape[:2]
     scale = min(1., 960 / max(height, width))
@@ -55,15 +55,28 @@ def locate_face(rgb, minimum=40):
     engine = detector()
     engine.setInputSize((frame.shape[1], frame.shape[0]))
     _, faces = engine.detect(frame)
+    if faces is not None:
+        faces = faces.copy()
+        faces[:, :14] /= scale
+    return faces
+
+
+def locate_face(rgb, minimum=40):
+    faces = detect_faces(rgb)
     if faces is None or len(faces) == 0:
         raise FaceCaptureError('FACE_NOT_FOUND', "Exactly one visible face is required; no face was found")
     if len(faces) != 1:
         raise FaceCaptureError('MULTIPLE_FACES', "Exactly one visible face is required; multiple faces were found")
-    face = faces[0]
-    x, y, w, h = [float(value / scale) for value in face[:4]]
+    return face_details(rgb, faces[0], minimum)
+
+
+def face_details(rgb, face, minimum=40):
+    import cv2
+    height, width = rgb.shape[:2]
+    x, y, w, h = [float(value) for value in face[:4]]
     if min(w, h) < minimum or x < 0 or y < 0 or x + w > width or y + h > height:
         raise FaceCaptureError('FACE_POSITION', "Face is too small or partly outside the image")
-    landmarks = face[4:14].reshape(5, 2) / scale
+    landmarks = face[4:14].reshape(5, 2)
     eyes = sorted(landmarks[:2], key=lambda point: point[0])
     eye_vector = eyes[1] - eyes[0]
     eye_distance = float(np.linalg.norm(eye_vector))
@@ -80,9 +93,35 @@ def locate_face(rgb, minimum=40):
     if float(cv2.Laplacian(gray, cv2.CV_64F).var()) < 15:
         raise FaceCaptureError('FACE_BLURRED', "Face is blurred")
     detection = face.copy()
-    detection[:14] /= scale
     return {"crop": crop, "box": (x / width, y / height, w / width, h / height), "yaw": yaw,
             "detection": detection}
+
+
+def locate_document_face(rgb, embedding, threshold):
+    """Allow a smaller printed security portrait only when identities agree."""
+    try:
+        return locate_face(rgb)
+    except FaceCaptureError as error:
+        if error.code != 'MULTIPLE_FACES':
+            raise
+    detections = detect_faces(rgb)
+    if detections is None or not 2 <= len(detections) <= 3:
+        raise FaceCaptureError('MULTIPLE_FACES', 'Document portraits are ambiguous')
+    ranked = sorted(detections, key=lambda item: float(item[2] * item[3]), reverse=True)
+    if ranked[0][2] * ranked[0][3] < 1.8 * ranked[1][2] * ranked[1][3]:
+        raise FaceCaptureError('MULTIPLE_FACES', 'No dominant document portrait')
+    primary = face_details(rgb, ranked[0])
+    reference = embedding(rgb, primary)
+    for detection in ranked[1:]:
+        try:
+            secondary = face_details(rgb, detection, minimum=20)
+            candidate = embedding(rgb, secondary)
+            similarity = float(np.dot(reference, candidate))
+            if not np.isfinite(similarity) or similarity < threshold:
+                raise ValueError('Portrait identities differ')
+        except ValueError:
+            raise FaceCaptureError('MULTIPLE_FACES', 'Additional document portrait could not be confirmed') from None
+    return primary
 
 
 def face_image(source, encoded=False):

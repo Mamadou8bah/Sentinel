@@ -226,3 +226,33 @@ def test_document_rejection_is_not_reported_as_bad_video(tmp_path, monkeypatch):
     assert response.status_code == 422
     assert response.json()['detail'] == {'code': 'DOCUMENT_BLURRED', 'retryFrom': 'document'}
     assert models.calls == 0
+
+
+@pytest.mark.parametrize('turn,accepted', [(.09,True),(.02,False),(-.2,False)])
+def test_small_sustained_turn_must_exceed_neutral_jitter_and_follow_order(monkeypatch, turn, accepted):
+    samples = [(i/4, np.full((128,160,3), i//12, dtype=np.uint8)) for i in range(36)]
+    monkeypatch.setattr(recording, 'decode_samples', lambda *_: (samples, 9.))
+    monkeypatch.setattr(recording, 'locate_face', lambda image, **_: {
+        'crop': image, 'box': (.2,.2,.4,.5), 'yaw': [0.,turn,-turn][int(image[0,0,0])]})
+    if accepted:
+        assert recording.analyze_recording(b'fixture','.mp4',['LOOK_FORWARD','TURN_LEFT','TURN_RIGHT'])['challengeVerified']
+    else:
+        with pytest.raises(ValueError, match='prompt order'):
+            recording.analyze_recording(b'fixture','.mp4',['LOOK_FORWARD','TURN_LEFT','TURN_RIGHT'])
+
+
+@pytest.mark.parametrize('same_identity,dominant,accepted', [(True,True,True),(False,True,False),(True,False,False)])
+def test_document_security_portrait_requires_matching_identity_and_dominant_primary(monkeypatch, same_identity, dominant, accepted):
+    rgb = np.zeros((200,300,3), dtype=np.uint8)
+    primary = np.array([0,0,100,100], dtype=np.float32)
+    secondary = np.array([120,0,40,40] if dominant else [120,0,100,100], dtype=np.float32)
+    monkeypatch.setattr(faces, 'detect_faces', lambda _: np.array([secondary,primary]))
+    monkeypatch.setattr(faces, 'face_details', lambda _, detection, minimum=40: {'detection':detection})
+    def embedding(_, face):
+        return np.array([1.,0.]) if face['detection'][0]==0 or same_identity else np.array([0.,1.])
+    if accepted:
+        assert faces.locate_document_face(rgb, embedding, .363)['detection'][0] == 0
+        with pytest.raises(faces.FaceCaptureError, match='multiple faces'):
+            faces.locate_face(rgb)
+    else:
+        with pytest.raises(faces.FaceCaptureError): faces.locate_document_face(rgb, embedding, .363)

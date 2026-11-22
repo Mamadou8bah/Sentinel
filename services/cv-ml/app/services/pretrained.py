@@ -101,7 +101,13 @@ class PretrainedFaces:
         if not self.loaded:
             raise RuntimeError('Pretrained face models unavailable')
         rgb = rgb_image(document, encoded=True)
-        reference = self.embedding(rgb, locate_face(rgb))
+        from app.services.faces import locate_document_face, FaceCaptureError
+        try:
+            portrait = locate_face(rgb)
+        except FaceCaptureError as error:
+            if error.code != 'MULTIPLE_FACES': raise
+            portrait = locate_document_face(rgb, self.embedding, self.face_threshold)
+        reference = self.embedding(rgb, portrait)
         observations = track.get('observations', [])
         if not 25 <= len(observations) <= 48:
             raise ValueError('Continuous recording observations required')
@@ -114,7 +120,7 @@ class PretrainedFaces:
         live = float(prediction[:, 1].min())
         spoof = bool(np.any(prediction.argmax(axis=1) != 1)) or live < self.live_threshold
         cosine = min(similarities)
-        return {'faceCosineSimilarity': cosine, 'faceMatchScore': max(0., cosine) if cosine >= self.face_threshold else 0.,
+        return {'faceCosineSimilarity': cosine, 'faceMatchScore': max(0., cosine),
                 'livenessScore': 0. if spoof else live, 'spoofLikely': spoof,
                 'antiSpoofRealScore': live if bool(np.all(prediction.argmax(axis=1) == 1)) else 0.,
                 'comparedFrames': len(observations), 'modelVersions': self.versions,
