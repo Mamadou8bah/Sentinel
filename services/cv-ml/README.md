@@ -135,6 +135,13 @@ people, cameras and attack recordings before enabling live verification.
 
 ## Pretrained face matching and liveness
 
+Recording prompts allow natural reaction delays: each turn needs three consecutive
+samples (about half a second at four FPS) in the requested direction. The median
+turn must exceed a neutral-jitter-adjusted threshold; a mildly noisy landmark
+sample is tolerated. A still face, reversed directions and isolated movement
+spikes do not satisfy the challenge. All retained frames continue through face
+matching and anti-spoof inference; pose tolerance does not lower those thresholds.
+
 Use the [pretrained KYC setup](docs/pretrained-kyc.md) for YuNet, SFace and
 MiniFASNet inference without training face models. Set `CV_PRETRAINED_DIR` after
 installing pinned weights. Loading models is reported separately from holdout

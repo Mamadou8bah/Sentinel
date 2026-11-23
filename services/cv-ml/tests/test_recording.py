@@ -228,7 +228,7 @@ def test_document_rejection_is_not_reported_as_bad_video(tmp_path, monkeypatch):
     assert models.calls == 0
 
 
-@pytest.mark.parametrize('turn,accepted', [(.09,True),(.02,False),(-.2,False)])
+@pytest.mark.parametrize('turn,accepted', [(.09,True),(.065,True),(.02,False),(-.2,False)])
 def test_small_sustained_turn_must_exceed_neutral_jitter_and_follow_order(monkeypatch, turn, accepted):
     samples = [(i/4, np.full((128,160,3), i//12, dtype=np.uint8)) for i in range(36)]
     monkeypatch.setattr(recording, 'decode_samples', lambda *_: (samples, 9.))
@@ -239,6 +239,53 @@ def test_small_sustained_turn_must_exceed_neutral_jitter_and_follow_order(monkey
     else:
         with pytest.raises(ValueError, match='prompt order'):
             recording.analyze_recording(b'fixture','.mp4',['LOOK_FORWARD','TURN_LEFT','TURN_RIGHT'])
+
+
+@pytest.mark.parametrize('order', [
+    ['LOOK_FORWARD','TURN_LEFT','TURN_RIGHT'],
+    ['LOOK_FORWARD','TURN_RIGHT','TURN_LEFT'],
+])
+@pytest.mark.parametrize('movement,accepted', [('late',True),('brief',False),('still',False),('reversed',False)])
+def test_pose_tolerates_reaction_delay_but_requires_sustained_ordered_motion(monkeypatch, order, movement, accepted):
+    samples = [(i/4, np.full((128,160,3), i, dtype=np.uint8)) for i in range(36)]
+    monkeypatch.setattr(recording, 'decode_samples', lambda *_: (samples,9.))
+    def locate(image, **_):
+        index = int(image[0,0,0]); phase, within = divmod(index,12)
+        yaw = .12  # Natural off-centre neutral position is the baseline.
+        if phase:
+            sign = 1 if order[phase] == 'TURN_LEFT' else -1
+            if movement == 'reversed': sign *= -1
+            if movement != 'still' and within >= (10 if movement == 'brief' else 9):
+                yaw += sign * .07
+        return {'crop':image, 'box':(.2,.2,.4,.5), 'yaw':yaw}
+    monkeypatch.setattr(recording, 'locate_face', locate)
+    if accepted:
+        result = recording.analyze_recording(b'fixture','.mp4',order)
+        assert result['challengeVerified'] and len(result['challengeCrops']) == 3
+        assert result['sampledFrames'] == 36  # All frames still reach identity/spoof inference.
+    else:
+        with pytest.raises(ValueError,match='prompt order'):
+            recording.analyze_recording(b'fixture','.mp4',order)
+
+
+def test_neutral_landmark_jitter_does_not_become_a_head_turn(monkeypatch):
+    samples = [(i/4,np.full((128,160,3),i,dtype=np.uint8)) for i in range(36)]
+    monkeypatch.setattr(recording,'decode_samples',lambda *_:(samples,9.))
+    monkeypatch.setattr(recording,'locate_face',lambda image,**_: {
+        'crop':image,'box':(.2,.2,.4,.5),'yaw':[-.04,0.,.04][int(image[0,0,0])%3]})
+    with pytest.raises(ValueError,match='prompt order'):
+        recording.analyze_recording(b'fixture','.mp4',['LOOK_FORWARD','TURN_LEFT','TURN_RIGHT'])
+
+
+def test_deliberate_small_turn_can_include_one_noisy_landmark_sample(monkeypatch):
+    samples = [(i/4,np.full((128,160,3),i,dtype=np.uint8)) for i in range(36)]
+    monkeypatch.setattr(recording,'decode_samples',lambda *_:(samples,9.))
+    def locate(image,**_):
+        index = int(image[0,0,0]); phase = index//12
+        yaw = [0.,.1,-.1][phase] + [-.03,0.,.03][index%3]
+        return {'crop':image,'box':(.2,.2,.4,.5),'yaw':yaw}
+    monkeypatch.setattr(recording,'locate_face',locate)
+    assert recording.analyze_recording(b'fixture','.mp4',['LOOK_FORWARD','TURN_LEFT','TURN_RIGHT'])['challengeVerified']
 
 
 @pytest.mark.parametrize('same_identity,dominant,accepted', [(True,True,True),(False,True,False),(True,False,False)])

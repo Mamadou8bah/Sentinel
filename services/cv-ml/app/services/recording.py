@@ -2,6 +2,7 @@
 import base64
 import hashlib
 import math
+import logging
 from pathlib import Path
 import tempfile
 import time
@@ -11,6 +12,7 @@ from app.services.faces import locate_face, encode_image, FaceCaptureError
 MAX_VIDEO_BYTES = 8_000_000
 DURATION_SECONDS = 9
 SEGMENT_SECONDS = 3
+logger = logging.getLogger(__name__)
 
 
 def recording_bytes(encoded):
@@ -136,7 +138,7 @@ def analyze_recording(raw, extension, instructions):
         observations.append({"image": frame, "face": face})
         phase = min(2, int(timestamp / SEGMENT_SECONDS))
         # Only settled poses, after time to follow the prompt, are used for instruction checks.
-        if 1.5 <= timestamp - phase * SEGMENT_SECONDS <= 2.9:
+        if 1.0 <= timestamp - phase * SEGMENT_SECONDS <= 2.95:
             phases[phase].append((face["yaw"], crop))
     if len(crops) < 25:
         raise ValueError("Recording needs at least 25 clear face frames")
@@ -145,16 +147,31 @@ def analyze_recording(raw, extension, instructions):
     poses = [float(np.median([item[0] for item in phase])) for phase in phases]
     baseline = np.array([item[0] for item in phases[0]])
     jitter = float(np.median(np.abs(baseline - poses[0])))
-    required_shift = max(.08, 4 * jitter)
-    if abs(poses[0]) > .25:
+    required_shift = max(.06, 2.5 * jitter)
+    if abs(poses[0]) > .30:
         raise ValueError("Begin by looking straight at the camera")
+    selected = [min(phases[0], key=lambda item: abs(item[0] - poses[0]))[1]]
     for index, instruction in enumerate(instructions[1:], 1):
-        shift = poses[index] - poses[0]
         sign = 1 if instruction == 'TURN_LEFT' else -1
-        held = [sign * (item[0] - poses[0]) >= required_shift for item in phases[index]]
-        if sign * shift < required_shift or sum(held) / len(held) < .8:
+        # Reaction times vary. Confirm a sustained run (~0.5 s at 4 FPS), rather
+        # than requiring most of a fixed window to contain the same pose.
+        # A single landmark spike or motion in the wrong direction cannot pass.
+        run, best = [], []
+        for item in phases[index]:
+            if sign * (item[0] - poses[0]) >= .6 * required_shift:
+                run.append(item)
+                if len(run) >= 3:
+                    window = run[-3:]
+                    if float(np.median([sign * (sample[0] - poses[0]) for sample in window])) >= required_shift:
+                        best = window
+            else:
+                run = []
+        if len(best) < 3:
+            logger.info("Recording pose unconfirmed: prompt=%s median_shift=%.3f required_shift=%.3f sustained_frames=%s",
+                        instruction, sign * (poses[index] - poses[0]), required_shift, len(best))
             raise ValueError("Head turns do not match the issued prompt order")
-    selected = [min(phase, key=lambda item: abs(item[0] - poses[index]))[1] for index, phase in enumerate(phases)]
+        held_pose = float(np.median([item[0] for item in best]))
+        selected.append(min(best, key=lambda item: abs(item[0] - held_pose))[1])
     return {"faceCrops": crops, "challengeCrops": selected, "observations": observations, "challengeVerified": True,
             "durationSeconds": round(duration, 3),
             "sampledFrames": len(crops), "recordingSha256": hashlib.sha256(raw).hexdigest()}
