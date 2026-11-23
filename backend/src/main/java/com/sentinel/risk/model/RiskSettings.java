@@ -38,7 +38,7 @@ public class RiskSettings {
     private Double signatureMatchThreshold = 0.85;
 
     @Column(name = "face_match_threshold", nullable = false)
-    private Double faceMatchThreshold = 0.80;
+    private Double faceMatchThreshold = 0.50;
 
     @Column(name = "tampering_threshold", nullable = false)
     private Double tamperingThreshold = 0.50;
